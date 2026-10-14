@@ -1,0 +1,5 @@
+node_modules/
+.next/
+package-lock.json
+docs/Make_My_Marriage_*
+design/reference/

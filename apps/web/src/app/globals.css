@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Provisional PRD palette. Replace with approved Stitch tokens when supplied. */
+:root {
+  --background: #faf7f2;
+  --foreground: #302b29;
+  --card: #fffefd;
+  --card-foreground: #302b29;
+  --popover: #fffefd;
+  --popover-foreground: #302b29;
+  --primary: #684052;
+  --primary-foreground: #fffaf5;
+  --secondary: #eee7e1;
+  --secondary-foreground: #493b40;
+  --muted: #f3eee8;
+  --muted-foreground: #756b65;
+  --accent: #efe3dd;
+  --accent-foreground: #684052;
+  --destructive: #ac3d32;
+  --border: #e8e0d8;
+  --input: #e8e0d8;
+  --ring: #a17a8c;
+  --sidebar: #f4efe8;
+  --sidebar-foreground: #493e39;
+  --sidebar-primary: #684052;
+  --sidebar-primary-foreground: #fffaf5;
+  --sidebar-accent: #eae0e2;
+  --sidebar-accent-foreground: #684052;
+  --sidebar-border: #e8e0d8;
+  --sidebar-ring: #a17a8c;
+  --success: #416650;
+  --success-soft: #edf2eb;
+  --warning: #8a642c;
+  --warning-soft: #fcf2df;
+  --champagne: #efe2c5;
+  --radius: 0.875rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-champagne: var(--champagne);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+
+.planning-progress {
+  appearance: none;
+  width: 100%;
+  height: 0.625rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--secondary);
+}
+.planning-progress::-webkit-progress-bar {
+  background: var(--secondary);
+}
+.planning-progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 999px;
+}
+.planning-progress::-moz-progress-bar {
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
