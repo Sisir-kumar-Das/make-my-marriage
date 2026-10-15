@@ -13,10 +13,10 @@
   "packageManager": "npm@11.19.0",
   "scripts": {
     "dev": "concurrently --kill-others --names web,api \"npm run dev:web\" \"npm run dev:api\"",
-    "dev:web": "npm run dev --workspace=@make-my-marriage/web",
+    "dev:web": "npm run dev --workspace=@make-my-marriage/web --",
     "dev:api": "npm run dev --workspace=@make-my-marriage/api",
-    "build": "npm run build --workspace=@make-my-marriage/web",
-    "start:web": "npm run start --workspace=@make-my-marriage/web",
+    "build": "npm run build --workspace=@make-my-marriage/web --",
+    "start:web": "npm run start --workspace=@make-my-marriage/web --",
     "start:api": "npm run start --workspace=@make-my-marriage/api",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",

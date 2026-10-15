@@ -5,7 +5,7 @@
 - Keep business rules, authorization and database access in Express. Web code uses `apps/web/src/lib/api-client.js`; it must never import API source/models or connect to MongoDB.
 - Use explicit application routes. Prefer ordinary components/functions and useful files; do not add empty module trees, shared packages, repository abstractions or monorepo build tools without a concrete need.
 - V1 covers auth, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. Later-version designs are compatibility plans, not scaffold scope.
-- This scaffold contains sample dashboard data and placeholders only. Add authentication, forms, database and integration dependencies when their actual features are implemented.
+- This scaffold contains sample dashboard data and placeholders only. Selected V1 dependencies are preinstalled at the user's request; feature implementation remains deferred. Add further dependencies when the actual feature needs them.
 - The corrected Stitch HTML and assets in `design/reference/`, when supplied, are the visual source of truth. PNG previews may be stale. Until references are present, describe the shell as provisional, never as matching the approved design.
 - Keep environment examples credential-free. Never commit secrets, local environment files, build output or `node_modules`.
 - Local development is authorized. Deployment is deferred; Amplify support for Next.js 16 is unresolved. Do not change hosting providers.

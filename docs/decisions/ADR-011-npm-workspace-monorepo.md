@@ -31,3 +31,7 @@ Development and tooling are coordinated from the root, while dependencies remain
 Auth/forms/database/integration libraries and later guest/RSVP, finance/vendor, accommodation, gallery, public-site, WhatsApp, AI and realtime modules are added only when implementing their agreed features. Docker, deployment workflows and the broader bootstrap suggested by the architecture document are outside this milestone.
 
 Corrected Stitch HTML/assets were not available in `design/reference/` at scaffold time. The current shell is provisional; visual fidelity remains pending until the references are supplied.
+
+## Dependency preparation addendum — 14 October 2026
+
+The user subsequently requested installing the appropriate dependencies from the approved V1 designs. This explicitly permits preinstalling selected form/validation, database, authentication, email and R2 libraries before their features are implemented, as an exception to the initial install-only-used scaffold policy. See `docs/DEVELOPMENT.md` for the package inventory. Application source behavior, credential-free startup, deployment deferral and future-release exclusions remain unchanged.

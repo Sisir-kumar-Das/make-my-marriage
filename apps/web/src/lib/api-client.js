@@ -9,10 +9,12 @@ function apiError(message, code, requestId) {
 export async function apiRequest(path, options = {}) {
   const controller = new AbortController();
   let timedOut = false;
+  let requestId;
   const abort = () => controller.abort();
   options.signal?.addEventListener('abort', abort, { once: true });
   if (options.signal?.aborted) abort();
   const timeout = setTimeout(() => {
+    if (controller.signal.aborted) return;
     timedOut = true;
     controller.abort();
   }, 5000);
@@ -25,8 +27,9 @@ export async function apiRequest(path, options = {}) {
       cache: 'no-store',
       signal: controller.signal,
     });
-    const requestId = response.headers.get('x-request-id');
-    const payload = await response.json().catch(() => {
+    requestId = response.headers.get('x-request-id');
+    const payload = await response.json().catch((error) => {
+      if (controller.signal.aborted || error.name === 'AbortError') throw error;
       throw apiError(
         'The API returned an invalid response.',
         'INVALID_RESPONSE',
@@ -42,12 +45,22 @@ export async function apiRequest(path, options = {}) {
     }
     return { ...payload, requestId };
   } catch (error) {
-    if (options.signal?.aborted || typeof error.code === 'string') throw error;
+    if (controller.signal.aborted || error.name === 'AbortError') {
+      const failure = apiError(
+        timedOut
+          ? 'The API request timed out. Please retry.'
+          : 'The API request was cancelled.',
+        timedOut ? 'TIMEOUT' : 'ABORTED',
+        requestId,
+      );
+      if (!timedOut) failure.name = 'AbortError';
+      throw failure;
+    }
+    if (typeof error.code === 'string') throw error;
     throw apiError(
-      timedOut
-        ? 'The API request timed out. Please retry.'
-        : 'Could not reach the API. Start it and try again.',
-      timedOut ? 'TIMEOUT' : 'NETWORK_ERROR',
+      'Could not reach the API. Start it and try again.',
+      'NETWORK_ERROR',
+      requestId,
     );
   } finally {
     clearTimeout(timeout);
