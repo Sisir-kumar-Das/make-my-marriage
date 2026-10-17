@@ -7,3 +7,6 @@ node_modules/
 !.env.example
 *.log
 .DS_Store
+
+# Local Stitch design references
+/stitch_make_my_marriage_landing_page_v1_final/
