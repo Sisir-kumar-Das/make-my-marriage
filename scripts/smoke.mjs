@@ -81,8 +81,26 @@ try {
 
   const home = await request(webUrl);
   assert.equal(home.status, 200);
-  assert.equal(new URL(home.url).pathname, '/dashboard');
-  await home.arrayBuffer();
+  assert.equal(new URL(home.url).pathname, '/');
+  const homeHtml = await home.text();
+  assert.ok(homeHtml.includes('Plan every moment.'));
+  assert.ok(homeHtml.includes('Product preview'));
+  assert.ok(homeHtml.includes('id="wedding-website"'));
+  assert.ok(homeHtml.includes('Planned'));
+  assert.match(
+    homeHtml,
+    /<button[^>]*disabled=""[^>]*>\s*RSVP Now\s*<\/button>/,
+    'Future guest RSVP actions must remain disabled',
+  );
+  for (const [asset, type] of [
+    ['/brand/make-my-marriage-logo.png', 'image/png'],
+    ['/images/sample-couple.webp', 'image/webp'],
+  ]) {
+    const response = await request(`${webUrl}${asset}`);
+    assert.equal(response.status, 200, `${asset} should be available locally`);
+    assert.ok(response.headers.get('content-type').includes(type));
+    assert.ok((await response.arrayBuffer()).byteLength > 0);
+  }
 
   for (const route of [
     'dashboard',
@@ -114,7 +132,7 @@ try {
   assert.equal(unknownPage.status, 404);
   await unknownPage.arrayBuffer();
   console.info(
-    'PASS: home redirect, all eight explicit web routes, sample/placeholder labels and unknown-page 404.',
+    'PASS: public homepage, retained planned previews/disabled RSVP, local logo/artwork, all eight workspace routes and unknown-page 404.',
   );
   console.info(
     'Browser connectivity, API-unavailable states and responsive navigation require browser verification.',

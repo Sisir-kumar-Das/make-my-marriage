@@ -56,7 +56,9 @@ For alternate web/API ports, update `WEB_ORIGIN` and `NEXT_PUBLIC_API_BASE_URL` 
 
 ## Application boundaries
 
-The `(workspace)` Next.js route group shares a layout without changing URLs. Eight explicit route files serve `/dashboard`, `/events`, `/tasks`, `/checklist`, `/members`, `/profile`, `/settings` and `/recovery`. The root redirects to `/dashboard`. There is no generic section route.
+The public root `/` renders the homepage from `src/features/home`. Its layout follows the selected Stitch Platform 2 HTML. The page is a static product preview; future features stay visible with “Planned” labels and unavailable actions are disabled. Only the responsive header/menu needs client state. Inter and Playfair Display are self-hosted with `next/font/local`, with OFL licenses beside the font files. The full “M” logo and supplied couple artwork are local public assets. There is no signup, login, RSVP, upload or user-data behavior on this page yet.
+
+The `(workspace)` Next.js route group shares a layout without changing URLs. Eight explicit route files serve `/dashboard`, `/events`, `/tasks`, `/checklist`, `/members`, `/profile`, `/settings` and `/recovery`. There is no generic section route.
 
 `src/components/layout/app-shell.jsx` owns the sidebar, header and accessible mobile navigation. `src/features/dashboard` owns sample presentation data and the browser connectivity indicator. No sample data is persisted or served as a real wedding API. Placeholder pages explain what remains to be built.
 
@@ -93,7 +95,7 @@ CORS permits the configured exact web origin and exposes `x-request-id`. CORS go
 
 ## Verification
 
-Start both apps, then run `npm run smoke`. The script verifies health and response headers, unique request IDs, permitted/disallowed CORS origins, preflight, API 404/400/413 envelopes, the home redirect, all explicit routes and a web 404.
+Start both apps, then run `npm run smoke`. The script verifies health and response headers, unique request IDs, permitted/disallowed CORS origins, preflight, API 404/400/413 envelopes, the public homepage with retained planned previews/disabled guest RSVP, local logo/artwork, all explicit workspace routes and a web 404.
 
 Also run `npm run lint`, `npm run format:check` and `npm run build`. For production startup, stop the dev web server and use `npm run start:web`; the API can run independently with `npm run start:api`.
 
@@ -107,6 +109,6 @@ ESLint is pinned to 9.39.5 because the React/import/accessibility plugins bundle
 
 ## Visual and deployment status
 
-`design/reference/` was absent during scaffolding. CSS tokens are explicitly provisional and based on the PRD's ivory/charcoal/plum/champagne direction. System fonts avoid remote font downloads. Detailed approved-design matching awaits corrected Stitch HTML and required assets; stale PNGs must not override corrected HTML.
+`design/reference/` was absent during scaffolding. The user subsequently supplied a locally ignored Stitch export and selected its Platform 2 landing-page HTML for the public homepage. Original exports remain untouched. Only the approved logo/artwork needed by the public page are copied into `apps/web/public`; this does not make the design export folder tracked. Homepage-specific colors and fonts are scoped to `src/features/home` so the workspace shell retains its provisional PRD-inspired styling. Supplied PNG previews may be stale; HTML remains the implementation reference.
 
 No authentication, forms, database models, cloud integrations, Docker, SAM, CI deployment or future-version modules are scaffolded. Amplify/Next.js 16 compatibility remains unresolved; see ADR-011 before deployment work.
