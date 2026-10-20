@@ -1,4 +1,4 @@
-import { app } from './app.js';
+import { app, authService } from './app.js';
 import { config } from './config.js';
 
 const server = app.listen(config.port, '127.0.0.1', () => {
@@ -11,7 +11,10 @@ server.on('error', (error) => {
 });
 
 function shutdown() {
-  server.close(() => process.exit(0));
+  server.close(async () => {
+    await authService.close().catch(() => {});
+    process.exit(0);
+  });
   setTimeout(() => process.exit(1), 10000).unref();
 }
 process.on('SIGINT', shutdown);

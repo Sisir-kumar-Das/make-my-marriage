@@ -33,6 +33,35 @@ test('successful responses retain the request ID', async (t) => {
   assert.equal((await apiRequest('/health')).requestId, 'header-id');
 });
 
+test('validation details and rate-limit retry timing reach the form', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    Response.json(
+      {
+        success: false,
+        error: {
+          code: 'RATE_LIMITED',
+          message: 'Please wait.',
+          details: { fields: { email: 'Check email.' } },
+        },
+      },
+      { status: 429, headers: { 'Retry-After': '45' } },
+    ),
+  );
+  await assert.rejects(apiRequest('/auth/register'), {
+    code: 'RATE_LIMITED',
+    retryAfterSeconds: 45,
+    details: { fields: { email: 'Check email.' } },
+  });
+});
+
+test('longer auth deadlines are bounded and are not forwarded as fetch options', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    assert.equal(options.timeoutMs, undefined);
+    return Response.json({ success: true, data: {} });
+  });
+  await apiRequest('/auth/register', { timeoutMs: 20000 });
+});
+
 test('malformed JSON remains INVALID_RESPONSE with the request ID', async (t) => {
   t.mock.method(
     globalThis,

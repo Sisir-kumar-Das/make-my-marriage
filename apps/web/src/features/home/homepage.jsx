@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Brand } from './brand';
 import { HomepageHeader } from './header';
 import { inter, playfair } from './fonts';
@@ -69,15 +70,12 @@ function Hero() {
             beautifully organized place.
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
+            <Link
               className="inline-flex items-center justify-center bg-[#6E334E] hover:bg-[#542439] text-white font-sans text-sm font-medium px-7 py-3.5 rounded-full transition-all shadow-sm"
-              type="button"
-              disabled
-              aria-describedby="registration-note"
-              title="Registration and sign-in are planned."
+              href="/register"
             >
               Start Planning
-            </button>
+            </Link>
             <a
               className="inline-flex items-center justify-center bg-[#FFFDFC] hover:bg-[#F5EEE7] border border-[#E7DED7] text-[#242124] font-sans text-sm font-medium px-6 py-3.5 rounded-full transition-colors shadow-sm"
               href="#how-it-works"
@@ -88,8 +86,8 @@ function Hero() {
           <p className="text-xs text-[#5C5457] font-sans pt-1">
             Designed for multi-day Indian weddings and celebrations.
           </p>
-          <p className="preview-note" id="registration-note">
-            Registration and sign-in are planned and are not available yet.
+          <p className="preview-note" id="login-note">
+            Create your account and verify your email. Sign-in is coming soon.
           </p>
         </div>
         <div className="col-span-1 lg:col-span-7 relative flex flex-col sm:flex-row gap-4 items-stretch justify-center">
@@ -926,7 +924,7 @@ function Celebrations() {
               Haldi
             </h4>
             <p className="text-xs text-[#5C5457]">
-              Poolside Floral Ritual • Gardens
+              Morning Floral Ritual • Poolside
             </p>
           </div>
           <div className="relative flex flex-col gap-1.5 bg-[#FFFDFC] border border-[#E7DED7] rounded-xl p-4 shadow-sm">
@@ -1023,8 +1021,9 @@ function Family() {
               <p className="text-xs sm:text-sm text-[#5C5457]">
                 <strong className="font-medium text-[#242124]">
                   Role-based access:
-                </strong>
-                Give family members access based on their role.
+                </strong>{' '}
+                Admin manages the wedding, Family Member helps plan, and Viewer
+                has read-only access.
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -1035,7 +1034,7 @@ function Family() {
               <p className="text-xs sm:text-sm text-[#5C5457]">
                 <strong className="font-medium text-[#242124]">
                   Clear responsibilities:
-                </strong>
+                </strong>{' '}
                 Assign logistics directly to key leads with clear status
                 indicators.
               </p>
@@ -1048,7 +1047,7 @@ function Family() {
               <p className="text-xs sm:text-sm text-[#5C5457]">
                 <strong className="font-medium text-[#242124]">
                   Discreet boundaries:
-                </strong>
+                </strong>{' '}
                 Financial details stay private to authorized members.
               </p>
             </div>
@@ -1617,18 +1616,15 @@ function Closing() {
           Bring every detail together, so you can enjoy the celebrations ahead.
         </p>
         <div className="pt-2">
-          <button
+          <Link
             className="inline-flex items-center justify-center bg-[#6E334E] hover:bg-[#542439] text-white font-sans text-sm font-medium px-8 py-3.5 rounded-full transition-all shadow-sm"
-            type="button"
-            disabled
-            aria-describedby="registration-note"
-            title="Start Planning Your Wedding is not available yet."
+            href="/register"
           >
             Start Planning Your Wedding
-          </button>
+          </Link>
         </div>
         <p className="preview-note">
-          Registration is planned. You cannot create an account yet.
+          Start with your account and email verification.
         </p>
       </div>
     </section>

@@ -4,7 +4,7 @@ A wedding planning workspace for Indian weddings, with an initial emphasis on Od
 
 **Plan every moment. Enjoy every memory.**
 
-The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, a responsive sample dashboard, explicit placeholder pages and an Express health endpoint. Authentication and business features are not implemented yet.
+The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, a responsive sample dashboard, explicit placeholder pages and an Express health endpoint. Login/sessions, password reset and wedding-planning business features remain subsequent increments. Real email delivery requires the private Resend settings.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:3000>. The API runs at <http://localhost:4000/api/v1/health>. No database, cloud credentials or environment files are required for these local defaults.
+Open <http://localhost:3000>. The API runs at <http://localhost:4000/api/v1/health>. The homepage, sample workspace and health endpoint need no credentials. Registration and verification require the private configuration described below.
 
 To override configuration, copy `apps/web/.env.example` to `apps/web/.env.local` and `apps/api/.env.example` to `apps/api/.env`, then update the values. Never put secrets in `NEXT_PUBLIC_` variables.
 
@@ -26,6 +26,8 @@ npm run lint
 npm run format:check
 npm run build
 npm run smoke         # Both applications must be running
+npm test              # HTTP/auth and API-client tests; no real email
+npm run test:auth:db   # Atlas integration tests in a temporary test database
 ```
 
 After a successful build, `npm run start:web` starts the production web server locally. `npm run start:api` starts Express without watch mode. Stop development servers before using the same ports.
@@ -37,9 +39,11 @@ After a successful build, `npm run start:web` starts the production web server l
 - `docs`: approved project documents, [project status and handoff](docs/PROJECT_STATUS.md), [development guide](docs/DEVELOPMENT.md) and [architecture decisions](docs/decisions/ADR-011-npm-workspace-monorepo.md).
 - `AGENTS.md`: project instructions and application boundaries.
 
-There is one root npm lockfile. Express owns business logic and future MongoDB access; web code communicates through its central REST client.
+There is one root npm lockfile. Express owns business logic and MongoDB access; web code communicates through its central REST client.
 
-The public homepage at `/` follows the user-selected Stitch Platform 2 HTML supplied in the locally ignored `stitch_make_my_marriage_landing_page_v1_final/` folder. Its “M” logo, couple artwork and open-license fonts are served locally. Future guest, finance and accommodation previews remain visible with “Planned” labels; unavailable actions are disabled. Login and registration are the next milestone.
+The public homepage at `/` follows the user-selected Stitch Platform 2 HTML supplied in the locally ignored `stitch_make_my_marriage_landing_page_v1_final/` folder. Its “M” logo, couple artwork and open-license fonts are served locally. Future guest, finance and accommodation previews remain visible with “Planned” labels. Start Planning opens `/register`; login is the next increment.
+
+For registration, fill `MONGODB_URI`, `RESEND_API_KEY` and `EMAIL_FROM` in the ignored `apps/api/.env`, using `apps/api/.env.example` for setting names. Supply values directly in the file, never in chat or Git. `MONGODB_DB_NAME` defaults to `make_my_marriage_dev`. Restart the API after environment changes. See [ADR-013](docs/decisions/ADR-013-registration-email-verification.md) for the auth scope and email-link behavior.
 
 The workspace at `/dashboard` retains its provisional scaffold styling and sample data. See [ADR-012](docs/decisions/ADR-012-public-homepage-preview.md) for the homepage scope and reference handling. Original Stitch exports and Word documents remain ignored.
 

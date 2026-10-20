@@ -7,21 +7,25 @@ function apiError(message, code, requestId) {
 }
 
 export async function apiRequest(path, options = {}) {
+  const { timeoutMs = 5000, ...requestOptions } = options;
   const controller = new AbortController();
   let timedOut = false;
   let requestId;
   const abort = () => controller.abort();
   options.signal?.addEventListener('abort', abort, { once: true });
   if (options.signal?.aborted) abort();
-  const timeout = setTimeout(() => {
-    if (controller.signal.aborted) return;
-    timedOut = true;
-    controller.abort();
-  }, 5000);
+  const timeout = setTimeout(
+    () => {
+      if (controller.signal.aborted) return;
+      timedOut = true;
+      controller.abort();
+    },
+    Math.max(1000, Math.min(timeoutMs, 30000)),
+  );
 
   try {
     const response = await fetch(`${baseUrl}${path}`, {
-      ...options,
+      ...requestOptions,
       headers: { Accept: 'application/json', ...options.headers },
       credentials: 'include',
       cache: 'no-store',
@@ -37,10 +41,17 @@ export async function apiRequest(path, options = {}) {
       );
     });
     if (!response.ok || payload?.success !== true) {
-      throw apiError(
-        payload?.error?.message || 'The API request failed.',
-        payload?.error?.code || 'API_ERROR',
-        payload?.requestId || requestId,
+      throw Object.assign(
+        apiError(
+          payload?.error?.message || 'The API request failed.',
+          payload?.error?.code || 'API_ERROR',
+          payload?.requestId || requestId,
+        ),
+        {
+          details: payload?.error?.details,
+          retryAfterSeconds:
+            Number(response.headers.get('Retry-After')) || undefined,
+        },
       );
     }
     return { ...payload, requestId };

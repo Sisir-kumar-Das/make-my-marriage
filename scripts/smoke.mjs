@@ -87,6 +87,7 @@ try {
   assert.ok(homeHtml.includes('Product preview'));
   assert.ok(homeHtml.includes('id="wedding-website"'));
   assert.ok(homeHtml.includes('Planned'));
+  assert.ok(homeHtml.includes('href="/register"'));
   assert.match(
     homeHtml,
     /<button[^>]*disabled=""[^>]*>\s*RSVP Now\s*<\/button>/,
@@ -101,6 +102,28 @@ try {
     assert.ok(response.headers.get('content-type').includes(type));
     assert.ok((await response.arrayBuffer()).byteLength > 0);
   }
+
+  for (const [route, title] of [
+    ['register', 'Create your wedding account.'],
+    ['verify-email', 'Check your inbox.'],
+  ]) {
+    const response = await request(`${webUrl}/${route}`);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes(title));
+    assert.ok(html.includes('name="robots" content="noindex, nofollow"'));
+  }
+
+  const malformedVerification = await request(`${apiUrl}/auth/verify-email`, {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'invalid' }),
+  });
+  assert.equal(malformedVerification.status, 400);
+  assert.equal(
+    (await malformedVerification.json()).error.code,
+    'VALIDATION_ERROR',
+  );
 
   for (const route of [
     'dashboard',

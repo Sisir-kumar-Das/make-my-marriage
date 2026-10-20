@@ -1,7 +1,9 @@
-function sendError(req, res, status, code, message) {
+import { ApiError } from '../lib/api-error.js';
+
+function sendError(req, res, status, code, message, details) {
   res.status(status).json({
     success: false,
-    error: { code, message },
+    error: { code, message, ...(details && { details }) },
     requestId: req.requestId,
   });
 }
@@ -12,6 +14,17 @@ export function notFound(req, res) {
 
 export function errorHandler(error, req, res, next) {
   if (res.headersSent) return next(error);
+
+  if (error instanceof ApiError) {
+    return sendError(
+      req,
+      res,
+      error.status,
+      error.code,
+      error.message,
+      error.details,
+    );
+  }
 
   if (error.type === 'entity.parse.failed') {
     return sendError(

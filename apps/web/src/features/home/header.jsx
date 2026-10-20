@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Menu } from 'lucide-react';
 import { Brand } from './brand';
 import {
@@ -26,19 +27,17 @@ function AccountActions() {
       <button
         type="button"
         disabled
-        aria-describedby="registration-note"
+        aria-describedby="login-note"
         className="cursor-not-allowed px-2 py-2.5 text-sm font-medium text-[#5C5457] opacity-65"
       >
         Log In
       </button>
-      <button
-        type="button"
-        disabled
-        aria-describedby="registration-note"
-        className="cursor-not-allowed rounded-full bg-[#6E334E] px-5 py-2.5 text-sm font-medium text-white opacity-65"
+      <Link
+        href="/register"
+        className="rounded-full bg-[#6E334E] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#542439]"
       >
         Start Planning
-      </button>
+      </Link>
     </>
   );
 }
@@ -111,7 +110,8 @@ export function HomepageHeader({ fontClassName }) {
             <div className="flex flex-wrap items-center gap-2 px-6">
               <AccountActions />
               <p className="mt-3 text-xs leading-relaxed text-[#5C5457]">
-                Registration and sign-in are planned and are not available yet.
+                Create your account and verify your email. Sign-in is coming
+                soon.
               </p>
             </div>
           </SheetContent>

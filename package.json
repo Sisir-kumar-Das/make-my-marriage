@@ -21,6 +21,8 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
+    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs",
+    "test:auth:db": "node --env-file-if-exists=apps/api/.env --test scripts/auth-db.test.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {

@@ -1,0 +1,43 @@
+.page {
+  min-height: 100vh;
+  background: #fbf7f2;
+  color: #242124;
+  font-family: var(--font-landing-sans), Arial, sans-serif;
+}
+
+.page h1,
+.editorial {
+  font-family: var(--font-landing-serif), Georgia, serif;
+  font-size: clamp(1.85rem, 4vw, 2.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.page input {
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid #c8b9bd;
+  border-radius: 0.625rem;
+  padding: 0.75rem;
+  background: #fffdfc;
+  font-size: 1rem;
+  color: #242124;
+}
+
+.page input[aria-invalid='true'] {
+  border-color: #b91c1c;
+}
+
+.page :is(input, button, a):focus-visible {
+  outline: 2px solid #6e334e;
+  outline-offset: 3px;
+}
+
+.page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.page fieldset:disabled input {
+  background: #f5eee7;
+}

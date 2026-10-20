@@ -18,4 +18,27 @@ if (
   );
 }
 
-export const config = { port, nodeEnv, webOrigin };
+function positiveInteger(name, fallback, maximum) {
+  const value = Number(process.env[name] || fallback);
+  if (!Number.isInteger(value) || value < 1 || value > maximum) {
+    throw new Error(`${name} must be an integer between 1 and ${maximum}.`);
+  }
+  return value;
+}
+
+export const config = {
+  port,
+  nodeEnv,
+  webOrigin,
+  mongodbUri: process.env.MONGODB_URI?.trim() || '',
+  mongodbDbName: process.env.MONGODB_DB_NAME?.trim() || 'make_my_marriage_dev',
+  resendApiKey: process.env.RESEND_API_KEY?.trim() || '',
+  emailFrom: process.env.EMAIL_FROM?.trim() || '',
+  verificationTtlHours: positiveInteger('AUTH_VERIFICATION_TTL_HOURS', 24, 168),
+  verificationCooldownSeconds: positiveInteger(
+    'AUTH_VERIFICATION_COOLDOWN_SECONDS',
+    45,
+    3600,
+  ),
+  authRateLimitMax: positiveInteger('AUTH_RATE_LIMIT_MAX', 10, 1000),
+};
