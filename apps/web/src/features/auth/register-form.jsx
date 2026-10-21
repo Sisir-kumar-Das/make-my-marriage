@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -195,7 +196,13 @@ export function RegisterForm() {
         </SubmitButton>
       </form>
       <p className="mt-6 text-center text-sm text-[#5C5457]">
-        Already have an account? <span>Sign-in is coming soon.</span>
+        Already have an account?{' '}
+        <Link
+          href="/login"
+          className="font-semibold text-[#6E334E] underline underline-offset-4"
+        >
+          Sign in
+        </Link>
       </p>
     </>
   );

@@ -87,7 +87,7 @@ function Hero() {
             Designed for multi-day Indian weddings and celebrations.
           </p>
           <p className="preview-note" id="login-note">
-            Create your account and verify your email. Sign-in is coming soon.
+            Create an account or sign in to your planning workspace.
           </p>
         </div>
         <div className="col-span-1 lg:col-span-7 relative flex flex-col sm:flex-row gap-4 items-stretch justify-center">

@@ -1,5 +1,7 @@
-import { AppShell } from '@/components/layout/app-shell';
+import { WorkspaceGate } from '@/features/auth/workspace-gate';
+
+export const metadata = { robots: { index: false, follow: false } };
 
 export default function WorkspaceLayout({ children }) {
-  return <AppShell>{children}</AppShell>;
+  return <WorkspaceGate>{children}</WorkspaceGate>;
 }

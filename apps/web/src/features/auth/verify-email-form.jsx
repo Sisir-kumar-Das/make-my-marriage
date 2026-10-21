@@ -61,10 +61,10 @@ export function VerifyEmailForm() {
           step.
         </p>
         <Link
-          href="/"
+          href="/login"
           className="mt-7 inline-flex min-h-12 items-center rounded-full bg-[#6E334E] px-6 py-3 text-sm font-semibold text-white"
         >
-          Return to homepage
+          Continue to sign in
         </Link>
       </>
     );

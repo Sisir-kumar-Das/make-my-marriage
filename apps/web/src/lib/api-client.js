@@ -1,12 +1,16 @@
-const baseUrl = (
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'
-).replace(/\/$/, '');
+const baseUrl =
+  typeof window === 'undefined'
+    ? (process.env.API_BASE_URL || 'http://127.0.0.1:4000/api/v1').replace(
+        /\/$/,
+        '',
+      )
+    : '/api/v1';
 
 function apiError(message, code, requestId) {
   return Object.assign(new Error(message), { code, requestId });
 }
 
-export async function apiRequest(path, options = {}) {
+async function request(path, options = {}) {
   const { timeoutMs = 5000, ...requestOptions } = options;
   const controller = new AbortController();
   let timedOut = false;
@@ -76,5 +80,119 @@ export async function apiRequest(path, options = {}) {
   } finally {
     clearTimeout(timeout);
     options.signal?.removeEventListener('abort', abort);
+  }
+}
+
+let csrfToken;
+let csrfRequest;
+let refreshRequest;
+const publicPaths = new Set([
+  '/auth/register',
+  '/auth/verify-email',
+  '/auth/resend-verification',
+  '/auth/login',
+  '/auth/csrf',
+]);
+const publicMutations = new Set([
+  '/auth/register',
+  '/auth/verify-email',
+  '/auth/resend-verification',
+]);
+
+async function getCsrf() {
+  if (csrfToken) return csrfToken;
+  csrfRequest ??= request('/auth/csrf')
+    .then((result) => {
+      csrfToken = result.data.csrfToken;
+      return csrfToken;
+    })
+    .finally(() => {
+      csrfRequest = undefined;
+    });
+  return csrfRequest;
+}
+
+async function browserRequest(path, options) {
+  const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(
+    (options.method || 'GET').toUpperCase(),
+  );
+  const protect = unsafe && !publicMutations.has(path);
+  async function send() {
+    return request(path, {
+      ...options,
+      headers: {
+        ...options.headers,
+        ...(protect ? { 'X-CSRF-Token': await getCsrf() } : {}),
+      },
+    });
+  }
+  try {
+    return await send();
+  } catch (error) {
+    if (!protect || error.code !== 'CSRF_INVALID') throw error;
+    csrfToken = undefined;
+    return send();
+  }
+}
+
+async function renewSession() {
+  refreshRequest ??= (async () => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        return await browserRequest('/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+      } catch (error) {
+        if (error.code !== 'REFRESH_IN_PROGRESS') {
+          if (error.code === 'SESSION_EXPIRED') csrfToken = undefined;
+          throw error;
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, 150 * (attempt + 1)),
+        );
+        try {
+          return await request('/auth/session');
+        } catch (failure) {
+          if (failure.code !== 'SESSION_EXPIRED') throw failure;
+        }
+      }
+    }
+    throw apiError(
+      'Your session is being renewed. Please retry.',
+      'REFRESH_IN_PROGRESS',
+    );
+  })().finally(() => {
+    refreshRequest = undefined;
+  });
+  return refreshRequest;
+}
+
+export async function apiRequest(path, options = {}) {
+  const { authRetry = true, ...requestOptions } = options;
+  if (typeof window === 'undefined') return request(path, requestOptions);
+  try {
+    let result;
+    try {
+      result = await browserRequest(path, requestOptions);
+    } catch (error) {
+      if (
+        !authRetry ||
+        publicPaths.has(path) ||
+        ['/auth/refresh', '/auth/logout'].includes(path) ||
+        error.code !== 'SESSION_EXPIRED'
+      )
+        throw error;
+      await renewSession();
+      result = await browserRequest(path, requestOptions);
+    }
+    if (result.data?.csrfToken) csrfToken = result.data.csrfToken;
+    if (path === '/auth/logout') csrfToken = undefined;
+    return result;
+  } catch (error) {
+    if (!publicPaths.has(path) && error.code === 'SESSION_EXPIRED')
+      window.dispatchEvent(new Event('mmm:session-expired'));
+    throw error;
   }
 }

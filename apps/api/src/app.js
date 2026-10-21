@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { config } from './config.js';
 import { requestContext } from './middleware/request-context.js';
 import { errorHandler, notFound } from './middleware/error-handler.js';
@@ -24,6 +25,7 @@ export function createApp({ service = authService, settings = config } = {}) {
     }),
   );
   app.use(express.json({ limit: '100kb' }));
+  app.use(cookieParser());
   // just a comment for commit checkp
 
   app.get('/api/v1/health', (_req, res) => {

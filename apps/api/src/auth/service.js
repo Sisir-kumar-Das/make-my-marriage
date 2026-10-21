@@ -1,13 +1,12 @@
-import { createHash, randomBytes } from 'node:crypto';
 import argon2 from 'argon2';
 import { ApiError } from '../lib/api-error.js';
 import { authModels } from './models.js';
 import { createAuthDatabase } from './database.js';
 import { createVerificationSender } from './email.js';
+import { createSessionService } from './session-service.js';
+import { hashToken, generateToken } from './tokens.js';
 
-export const hashToken = (token) =>
-  createHash('sha256').update(token).digest('hex');
-export const generateToken = () => randomBytes(32).toString('base64url');
+export { hashToken, generateToken } from './tokens.js';
 
 export function createAuthService({
   database,
@@ -16,6 +15,7 @@ export function createAuthService({
   now = () => new Date(),
 }) {
   const cooldownMs = settings.verificationCooldownSeconds * 1000;
+  const sessions = createSessionService({ database, settings, now });
   const invalidLink = () =>
     new ApiError(
       400,
@@ -193,6 +193,10 @@ export function createAuthService({
     register: safe(register),
     resend: safe(resend),
     verify: safe(verify),
+    login: safe(sessions.login),
+    refresh: safe(sessions.refresh),
+    session: safe(sessions.session),
+    logout: safe(sessions.logout),
     close: () => database.close(),
   };
 }

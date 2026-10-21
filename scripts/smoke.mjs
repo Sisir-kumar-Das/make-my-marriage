@@ -79,6 +79,29 @@ try {
     'PASS: API health, request IDs, CORS/preflight, 404, malformed JSON and payload limit.',
   );
 
+  const relayedHealth = await request(`${webUrl}/api/v1/health`);
+  assert.equal(relayedHealth.status, 200);
+  assert.ok(relayedHealth.headers.get('x-request-id'));
+  assert.equal((await relayedHealth.json()).data.status, 'ok');
+  const csrf = await request(`${webUrl}/api/v1/auth/csrf`);
+  assert.equal(csrf.status, 200);
+  assert.equal(csrf.headers.getSetCookie().length, 2);
+  assert.match(csrf.headers.get('cache-control'), /no-store/);
+  assert.ok((await csrf.json()).data.csrfToken);
+  const anonymousSession = await request(`${webUrl}/api/v1/auth/session`);
+  assert.equal(anonymousSession.status, 401);
+  assert.equal((await anonymousSession.json()).error.code, 'SESSION_EXPIRED');
+  const largeRelayBody = await request(`${webUrl}/api/v1/missing`, {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: 'x'.repeat(103000) }),
+  });
+  assert.equal(largeRelayBody.status, 413);
+  assert.equal((await largeRelayBody.json()).error.code, 'PAYLOAD_TOO_LARGE');
+  console.info(
+    'PASS: same-origin API relay, CSRF cookies, anonymous session denial and relay body limit.',
+  );
+
   const home = await request(webUrl);
   assert.equal(home.status, 200);
   assert.equal(new URL(home.url).pathname, '/');
@@ -106,6 +129,7 @@ try {
   for (const [route, title] of [
     ['register', 'Create your wedding account.'],
     ['verify-email', 'Check your inbox.'],
+    ['login', 'Welcome back.'],
   ]) {
     const response = await request(`${webUrl}/${route}`);
     assert.equal(response.status, 200);
@@ -139,23 +163,23 @@ try {
     assert.equal(page.status, 200, `/${route} should respond successfully`);
     const html = await page.text();
     assert.ok(
-      html.includes('All planning content is sample data.'),
-      `/${route} should identify sample content`,
+      html.includes('Checking your session'),
+      `/${route} should require a session`,
     );
     assert.ok(
-      html.includes(
-        route === 'dashboard'
-          ? 'Your wedding, taking shape.'
-          : 'This is a placeholder.',
-      ),
-      `/${route} should render its content`,
+      !html.includes('Your wedding, taking shape.'),
+      'Anonymous responses must not embed workspace content',
+    );
+    assert.ok(
+      !html.includes('All planning content is sample data.'),
+      'Anonymous responses must not embed the workspace shell',
     );
   }
   const unknownPage = await request(`${webUrl}/does-not-exist`);
   assert.equal(unknownPage.status, 404);
   await unknownPage.arrayBuffer();
   console.info(
-    'PASS: public homepage, retained planned previews/disabled RSVP, local logo/artwork, all eight workspace routes and unknown-page 404.',
+    'PASS: public homepage/auth routes, planned previews, local assets, all eight workspace gates and unknown-page 404.',
   );
   console.info(
     'Browser connectivity, API-unavailable states and responsive navigation require browser verification.',

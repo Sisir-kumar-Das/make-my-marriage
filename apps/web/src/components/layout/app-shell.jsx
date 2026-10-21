@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sheet';
 import { navigation } from '@/lib/navigation';
 import { cn } from 'cn';
+import { LogoutButton, useSession } from '@/features/auth/session-provider';
 
 function Brand() {
   return (
@@ -72,6 +73,7 @@ function Navigation({ pathname, mobile = false }) {
 }
 
 export function AppShell({ children }) {
+  const { user } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const pageLabel =
@@ -148,8 +150,14 @@ export function AppShell({ children }) {
                 aria-label="Open profile placeholder"
                 className="flex size-9 items-center justify-center rounded-full bg-champagne text-xs font-semibold text-primary"
               >
-                AA
+                {user.displayName
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((part) => part[0])
+                  .join('')
+                  .toUpperCase()}
               </Link>
+              <LogoutButton />
             </div>
           </div>
         </header>

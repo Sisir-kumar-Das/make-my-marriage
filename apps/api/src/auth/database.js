@@ -27,9 +27,10 @@ export function createAuthDatabase(settings) {
         candidate.on('error', () => {});
         try {
           await candidate.asPromise();
-          const { User, AuthToken } = authModels(candidate);
+          const { User, AuthToken, Session } = authModels(candidate);
           await User.init();
           await AuthToken.init();
+          await Session.init();
           connection = candidate;
           return candidate;
         } catch {

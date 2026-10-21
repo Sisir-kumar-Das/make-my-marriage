@@ -41,4 +41,18 @@ export const config = {
     3600,
   ),
   authRateLimitMax: positiveInteger('AUTH_RATE_LIMIT_MAX', 10, 1000),
+  jwtSecret: process.env.AUTH_JWT_SECRET?.trim() || '',
+  accessTtlMinutes: positiveInteger('AUTH_ACCESS_TTL_MINUTES', 15, 30),
+  sessionTtlDays: positiveInteger('AUTH_SESSION_TTL_DAYS', 30, 90),
+  cookieSecure: nodeEnv === 'production',
+  cookieSameSite: process.env.AUTH_COOKIE_SAME_SITE || 'lax',
 };
+
+if (
+  !['lax', 'strict', 'none'].includes(config.cookieSameSite) ||
+  (config.cookieSameSite === 'none' && !config.cookieSecure)
+) {
+  throw new Error(
+    'AUTH_COOKIE_SAME_SITE must be lax/strict, or none with production HTTPS.',
+  );
+}

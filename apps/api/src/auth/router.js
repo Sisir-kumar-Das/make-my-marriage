@@ -2,18 +2,29 @@ import { Router } from 'express';
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { createHash } from 'node:crypto';
 import { ApiError } from '../lib/api-error.js';
-import { registerSchema, resendSchema, verifySchema } from './validation.js';
+import {
+  registerSchema,
+  resendSchema,
+  verifySchema,
+  loginSchema,
+} from './validation.js';
+import { createAuthCookies } from './cookies.js';
 
 export function createAuthRouter({ service, settings }) {
   const router = Router();
+  const cookies = createAuthCookies(settings);
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
-    if (req.get('origin') !== settings.webOrigin) {
+    const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    if (
+      (unsafe || req.get('origin')) &&
+      req.get('origin') !== settings.webOrigin
+    ) {
       return next(
         new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'This request is not allowed.'),
       );
     }
-    if (!req.is('application/json')) {
+    if (unsafe && !req.is('application/json')) {
       return next(
         new ApiError(415, 'JSON_REQUIRED', 'Send this request as JSON.'),
       );
@@ -42,7 +53,11 @@ export function createAuthRouter({ service, settings }) {
       );
     },
   };
-  router.use(rateLimit(options));
+  const publicLimit = rateLimit(options);
+  const refreshLimit = rateLimit({
+    ...options,
+    limit: settings.authRateLimitMax * 6,
+  });
   const emailLimit = rateLimit({
     ...options,
     keyGenerator(req) {
@@ -89,6 +104,7 @@ export function createAuthRouter({ service, settings }) {
 
   router.post(
     '/register',
+    publicLimit,
     emailLimit,
     validate(registerSchema),
     async (req, res) => {
@@ -98,6 +114,7 @@ export function createAuthRouter({ service, settings }) {
   );
   router.post(
     '/resend-verification',
+    publicLimit,
     emailLimit,
     validate(resendSchema),
     async (req, res) => {
@@ -105,9 +122,59 @@ export function createAuthRouter({ service, settings }) {
       accepted(res);
     },
   );
-  router.post('/verify-email', validate(verifySchema), async (req, res) => {
-    await service.verify(req.authInput);
-    res.json({ success: true, data: { emailVerified: true } });
+  router.post(
+    '/verify-email',
+    publicLimit,
+    validate(verifySchema),
+    async (req, res) => {
+      await service.verify(req.authInput);
+      res.json({ success: true, data: { emailVerified: true } });
+    },
+  );
+  router.get('/csrf', (req, res) => {
+    res.json({
+      success: true,
+      data: { csrfToken: cookies.issueCsrf(req, res) },
+    });
+  });
+  router.post(
+    '/login',
+    publicLimit,
+    emailLimit,
+    validate(loginSchema),
+    cookies.protect,
+    async (req, res) => {
+      const issued = await service.login({
+        ...req.authInput,
+        userAgent: req.get('user-agent') || '',
+      });
+      cookies.write(res, issued);
+      res.json({
+        success: true,
+        data: { ...issued.data, csrfToken: cookies.issueCsrf(req, res, true) },
+      });
+    },
+  );
+  router.get('/session', async (req, res) => {
+    res.json({
+      success: true,
+      data: await service.session(cookies.input(req)),
+    });
+  });
+  router.post('/refresh', refreshLimit, cookies.protect, async (req, res) => {
+    try {
+      const issued = await service.refresh(cookies.input(req));
+      cookies.write(res, issued);
+      res.json({ success: true, data: issued.data });
+    } catch (error) {
+      if (error.status === 401) cookies.clear(res);
+      throw error;
+    }
+  });
+  router.post('/logout', cookies.protect, async (req, res) => {
+    await service.logout(cookies.input(req));
+    cookies.clear(res);
+    res.json({ success: true, data: { loggedOut: true } });
   });
   return router;
 }

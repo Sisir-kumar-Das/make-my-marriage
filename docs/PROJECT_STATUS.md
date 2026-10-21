@@ -1,14 +1,14 @@
 # Make My Marriage — Project status
 
-Last updated: 20 October 2026
+Last updated: 21 October 2026
 
 This is the working handoff for development progress. Update it after each major feature or milestone so another agent can continue from the current checkpoint. Completed means implemented and checked locally; it does not imply deployment or a Git commit.
 
 ## Current checkpoint
 
-The runnable scaffold and public product homepage are complete for their agreed local scope. The first authentication increment now implements registration and email verification, with Express account/token storage and responsive web forms. Start Planning opens `/register`. Login, persistent sessions, logout, password reset and wedding-planning business features remain deferred; the public sample workspace still contains no real wedding data or protected pages.
+The scaffold, public homepage, registration/email verification and login/persistent sessions/logout are implemented locally. Start Planning opens `/register`; Log In opens `/login`. A verified active account can sign in to the protected `/dashboard`. Dashboard content remains sample data and the other planning sections remain placeholders. Password recovery is the next authentication increment; wedding setup follows.
 
-Atlas connectivity is verified: after the user updated the Atlas IP access list on 20 October, the database tests passed again. The latest expanded suite passes all ten checks, including the email-failure privacy regression. The temporary test database was removed. This resolves the earlier connection blocker for the current development connection; future network/IP changes may require another access-list update. On 20 October the user supplied a Resend key and the standard onboarding test sender privately in the API environment file. The user subsequently reported receiving the real verification email and completing verification. This is user-reported validation, separate from the agent's automated tests; the agent has not independently inspected the real-account success screen or database record. The intended endpoint of this increment is the “Email verified” screen with a Return to homepage link. Login and dashboard navigation require the next increment. Broader sending requires a verified owned domain. The next approved implementation increment is login/protected pages/persistent sessions/logout, followed by forgot/reset password.
+Atlas registration and session tests are passing. The user previously reported receiving and completing a real Resend verification link using the onboarding test sender; broader sending still requires an owned verified domain. Current login checks used a disposable verified fixture with no real email. Private MongoDB/Resend settings and the stable generated signing secret belong only in ignored `apps/api/.env`. Keep credentials out of examples and chat.
 
 ## Read before continuing
 
@@ -17,6 +17,7 @@ Atlas connectivity is verified: after the user updated the Atlas IP access list 
 - [ADR-011](decisions/ADR-011-npm-workspace-monorepo.md): accepted npm-workspace architecture and subsequent dependency preparation.
 - [ADR-012](decisions/ADR-012-public-homepage-preview.md): accepted public homepage, design reference and planned-feature preview scope.
 - [ADR-013](decisions/ADR-013-registration-email-verification.md): first auth increment, email-link verification, private configuration and remaining session work.
+- [ADR-014](decisions/ADR-014-login-persistent-sessions.md): login, rotating persistent sessions, same-origin relay, cookie scope and protected page guards.
 - Root [AGENTS.md](../AGENTS.md) and applicable application instructions. Inspect the actual source and `git status` before editing; preserve existing user changes.
 
 ## Milestone history
@@ -26,7 +27,8 @@ Atlas connectivity is verified: after the user updated the Atlas IP access list 
 | Runnable project scaffold and V1 dependency preparation | Complete locally; business features deferred                     | 13–14 October 2026                              |
 | Public product homepage                                 | Complete locally; future features remain previews                | 17 October 2026; refinements 18–19 October 2026 |
 | Registration and email verification                     | Implemented; Atlas checked; user reports real email verification | 19–20 October 2026                              |
-| Login, persistent sessions and password recovery        | Approved next increments; not implemented                        | After registration/verification                 |
+| Login, persistent sessions and logout                   | Implemented and checked locally; dashboard remains sample data   | 20–21 October 2026                              |
+| Password recovery                                       | Next increment; not implemented                                  | After login/session/logout                      |
 
 ### 1. Runnable project scaffold
 
@@ -52,7 +54,7 @@ Delivered:
 - Layout based on the user-selected Stitch Platform 2 landing-page HTML, with the complete “M” logo, local couple artwork and self-hosted Inter/Playfair Display fonts.
 - Hero, planning overview/features, celebrations, family collaboration, guest/wedding-website preview, explanation, cultural fit, privacy, closing call to action and footer sections.
 - Desktop navigation and an accessible mobile menu. Section links use native anchors such as `#features`, `#how-it-works` and `#wedding-website`.
-- Future guest, RSVP, finance and accommodation details remain visible with “Planned” labels. Unavailable actions are disabled. Registration was enabled in the first auth increment; login remains disabled.
+- Future guest, RSVP, finance and accommodation details remain visible with “Planned” labels. Unavailable actions are disabled. Registration was enabled in the first auth increment; login was enabled in milestone 4.
 - Follow-up on 18 October: adjusted the wedding-website preview photo's vertical crop so the groom's full hairstyle remains visible on desktop and mobile.
 - Follow-up on 19 October: restored spaces after the three family-section labels, clarified Admin/Family Member/Viewer responsibilities including Viewer read-only access, and aligned the mobile Haldi description/venue with the desktop sample (Morning Floral Ritual, Poolside).
 
@@ -95,18 +97,51 @@ Verification, 20 October:
 - Privacy follow-up checks: lint, formatting, production build, independent production web/API startup and HTTP smoke checks passed. The backend correction was checked with the HTTP/service/Atlas regressions above; browser and responsive-navigation checks were not repeated for this correction.
 - Real-email follow-up, 20 October: after privately configuring the Resend key and onboarding test sender, the user reported receiving the verification link and completing verification. The agent has not independently inspected that real-account success screen or database record. The automatic Atlas checks use a fake sender and remain separate evidence. Successful verification should display “Email verified” and a Return to homepage link; automatic login/dashboard navigation is subsequent work.
 
-Current handoff: the user has supplied the private Resend settings and reports successful email verification with the onboarding test sender. If that report did not include the “Email verified” success screen, clarify and inspect the actual result before treating verification as successful. For other recipients, verify an owned sending domain in Resend and update the sender accordingly. The next code increment is login, protected pages, persistent sessions and logout. Atlas database checks are passing after the access-list update; rerun them if the network or configuration changes. No secrets should be sent in chat. Current local rate limits use process memory; deployment needs a separate review. The user authorized committing and pushing this increment to `DEV` on 20 October. Deployment remains deferred.
+Current handoff: the user has supplied the private Resend settings and reports successful email verification with the onboarding test sender. If that report did not include the “Email verified” success screen, clarify and inspect the actual result before treating verification as successful. For other recipients, verify an owned sending domain in Resend and update the sender accordingly. That next code increment was delivered in milestone 4 below. Atlas database checks are passing after the access-list update; rerun them if the network or configuration changes. No secrets should be sent in chat. Current local rate limits use process memory; deployment needs a separate review. The user authorized committing and pushing this increment to `DEV` on 20 October. Deployment remains deferred.
+
+### 4. Login, persistent sessions and logout
+
+Delivered, 20–21 October:
+
+- Responsive `/login` using corrected Stitch sign-in/authentication-state references and the shared branded auth shell. Email/password only, accessible errors and show/hide control, no Remember Me or social login. Correct-password unverified accounts can request verification. Homepage, registration and verification-success links now reach login.
+- Express `/auth/login`, `/auth/session`, `/auth/refresh`, `/auth/logout` and `/auth/csrf` under `/api/v1`. Verified active account enforcement, safe identity DTOs, Argon2id verification, 15-minute signed access JWTs and rotating opaque refresh tokens with absolute 30-day persistence. Private signing configuration is stable across restarts.
+- Hash-only database refresh storage, atomic rotation, five-second concurrent-tab conflict handling, consumed-token replay revocation, bounded 8,192-token history, expiry before TTL cleanup and current-device logout. Other device sessions remain usable. Tokens are not returned in public JSON or stored in local/sessionStorage.
+- Host-only HttpOnly cookies, production Secure cookie prefixes, exact Origin/JSON and signed double-submit CSRF protection. The browser API client coordinates refresh and stale-CSRF retries; network failures preserve cookies and show a recoverable state. Same-origin Next transport relay uses server-only `API_BASE_URL`; Express remains authoritative. See ADR-014 for the root-scoped access-cookie exception and deployment implications.
+- Protected workspace layout **and page-level guards** prevent anonymous HTML/RSC from serializing workspace content. The browser restores access from its refresh cookie, invalid sessions return to login, and logout broadcasts to other tabs. Focus/page restoration/visibility and periodic checks revalidate sessions.
+- Existing `/dashboard` is the user-approved interim destination, retaining sample labels; the remaining planning routes are protected placeholders. Forgot password remains disabled with a clear next-increment note. No wedding is created/joined and no invitation is accepted by authentication.
+
+Key files: `apps/api/src/auth/session-service.js`, `cookies.js`, `models.js`, `router.js`; `apps/web/src/features/auth/login-form.jsx`, `session-provider.jsx`, `workspace-gate.jsx`; explicit workspace pages; `apps/web/src/app/api/v1/[...path]/route.js`; central API client; `scripts/sessions.test.mjs`, `scripts/sessions-db.test.mjs`; ADR-014.
+
+Verification:
+
+- `npm test`: 29 passing native Node HTTP/client/auth tests, including CSRF binding/rotation, persistent and production cookie attributes, token-free JSON, logout clearing, refresh coordination and network failure handling.
+- `npm run test:auth:db`: 10 passing checks; `npm run test:sessions:db`: 12 passing checks. Each uses an isolated temporary Atlas database and fake email sender, then removes its own database. Session checks include concurrent refresh, expiry, tampered JWTs, consumed-token replay, guessed-token non-revocation, bounded history, device-specific logout, disabled users and restoration through a fresh backend connection.
+- Lint, formatting, production build and live production smoke checks passed. Smoke covers relay health/CSRF cookies/body limits, anonymous session denial and all eight workspace routes with no protected content in their anonymous payloads.
+- Independent Express and production web startup and combined development startup were checked. Browser checks covered invalid-password feedback, successful login, reload/new-tab/server-restart persistence, desktop and mobile workspace navigation, logout and browser Back protection. A temporary API outage hid the workspace; retry after Express restarted restored it without a new login. The disposable browser-test account and its sessions were removed afterward. Login layouts at 320/390 px had no horizontal overflow; a clean desktop screenshot was captured.
+- Persistence is supported by cookie expiry and tested refresh/backend restart behavior. A literal browser-app restart was not performed to avoid disrupting the user's tabs. No production deployment or HTTPS end-to-end test was performed; Secure cookie attributes are covered by HTTP tests.
+
+Review follow-up, 21 October:
+
+- Fixed logout racing with token rotation when access has expired. Logout accepts proof from a retained consumed refresh hash to revoke only that session; guessed secrets still cannot revoke it. A refresh paused at user lookup also cannot win over completed logout.
+- Moved the eligible-user lookup and token signing before atomic refresh replacement. A temporary user-read failure returns a safe unavailable response while preserving the browser token for retry. The final replacement still enforces expiry/revocation and one rotation winner.
+- All eight page guards now render embedded session recovery on failure instead of returning empty content. This supports client navigation where Next.js reuses the authenticated layout. Recovery avoids nested main landmarks and duplicate content IDs. Profile placeholder wording now correctly describes only deferred profile editing.
+- Added four Atlas regression cases. Both reported backend failures were reproduced before the fix; the expanded session suite now passes all 16 checks, including both logout/refresh orderings and guessed-token non-revocation. The 29 local tests, lint and formatting also pass.
+- A targeted browser wrapper rejected exactly one server page-session check for only the disposable fixture. Client navigation retained the workspace shell, showed recovery, and then restored the same page automatically without a reload. An earlier temporary test-clock run also exercised renewal of expired access. Saved environment files were unchanged. All temporary wrappers, clock and lifetime overrides were removed, normal combined development startup was restored, and the disposable fixture was cleaned up. The final build and production smoke checks passed, as did all 10 registration database checks. Browser checks also covered production desktop/mobile navigation, corrected Profile copy and API-unavailable retry recovery. A stale production test server held old browser connections during the mode switch and was stopped; this required no source change.
+
+Remaining limitations: password reset, wedding setup/membership/role authorization and planning APIs remain unimplemented. Production requires HTTPS, a trusted client-IP chain through the relay and shared rate-limit storage; current limits are in process memory and see the relay's IP. Hosting compatibility remains unresolved. The user authorized committing this milestone with the review fixes on 21 October; pushing remains unrequested.
 
 ## Remaining V1 development
 
 Agreed incremental order, continuing one feature at a time:
 
-1. Continue with login, protected pages, persistent sessions and logout; follow with forgot/reset password, including expired-link/error states. Preserve the distinction between automated tests and the user-reported real email flow above.
+1. Implement forgot/reset password, including expired-link/error states and the approved session-revocation behavior. Preserve the distinction between automated tests and the user-reported real email flow above.
 2. Wedding setup and a real planning-workspace entry flow.
 3. Dashboard structure for the authenticated wedding, then members/invitations, events, tasks/recurrence and checklist templates in agreed increments.
 4. Live dashboard/activity, profile/settings and recovery, completing the remaining V1 requirements.
 
-Account/token persistence and verification endpoints are implemented; their current cloud limitations are recorded above. Login sessions, wedding authorization, real planning endpoints and uploads are not implemented. Future-version guest/RSVP, finance/vendor, accommodation, gallery and public wedding-site functionality remains outside current V1 implementation, even where the homepage previews it.
+Discussion decision, 20 October: the user selected the existing `/dashboard` as the interim destination after successful login. Authentication protection is delivered there while retaining the sample-data labels and placeholder scope. Wedding setup and routing based on real wedding membership remain the following milestone. Milestone 4 implements this approved destination.
+
+Account/token persistence and verification endpoints are implemented; their current cloud limitations are recorded above. Login sessions are implemented; wedding authorization, real planning endpoints and uploads are not implemented. Future-version guest/RSVP, finance/vendor, accommodation, gallery and public wedding-site functionality remains outside current V1 implementation, even where the homepage previews it.
 
 Deployment remains deferred. Amplify support for the chosen Next.js version is unresolved; local build success does not establish hosting compatibility. Do not change hosting providers or deploy without the user's instruction.
 

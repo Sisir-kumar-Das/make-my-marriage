@@ -24,14 +24,12 @@ const links = [
 function AccountActions() {
   return (
     <>
-      <button
-        type="button"
-        disabled
-        aria-describedby="login-note"
-        className="cursor-not-allowed px-2 py-2.5 text-sm font-medium text-[#5C5457] opacity-65"
+      <Link
+        href="/login"
+        className="px-2 py-2.5 text-sm font-medium text-[#5C5457] hover:text-[#6E334E]"
       >
         Log In
-      </button>
+      </Link>
       <Link
         href="/register"
         className="rounded-full bg-[#6E334E] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#542439]"
@@ -110,8 +108,7 @@ export function HomepageHeader({ fontClassName }) {
             <div className="flex flex-wrap items-center gap-2 px-6">
               <AccountActions />
               <p className="mt-3 text-xs leading-relaxed text-[#5C5457]">
-                Create your account and verify your email. Sign-in is coming
-                soon.
+                Create an account or sign in to your planning workspace.
               </p>
             </div>
           </SheetContent>

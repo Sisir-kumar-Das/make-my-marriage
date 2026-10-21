@@ -142,3 +142,112 @@ test('other fetch aborts remain cancellation rather than network errors', async 
     code: 'ABORTED',
   });
 });
+
+async function browserClient(t, suffix) {
+  const browser = new EventTarget();
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: browser,
+  });
+  t.after(() => {
+    delete globalThis.window;
+  });
+  return {
+    browser,
+    ...(await import(
+      `../apps/web/src/lib/api-client.js?browser-test=${suffix}`
+    )),
+  };
+}
+
+test('browser mutations recover a stale CSRF token once and keep the rotated login token only in memory', async (t) => {
+  const { apiRequest: call } = await browserClient(t, 'csrf');
+  let bootstraps = 0;
+  let logins = 0;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.ok(url.startsWith('/api/v1/'));
+    if (url.endsWith('/csrf')) {
+      bootstraps++;
+      return Response.json({
+        success: true,
+        data: { csrfToken: `csrf-${bootstraps}` },
+      });
+    }
+    if (url.endsWith('/login')) {
+      logins++;
+      assert.equal(options.headers['X-CSRF-Token'], `csrf-${logins}`);
+      if (logins === 1)
+        return Response.json(
+          {
+            success: false,
+            error: { code: 'CSRF_INVALID', message: 'Retry.' },
+          },
+          { status: 403 },
+        );
+      return Response.json({
+        success: true,
+        data: { csrfToken: 'csrf-after-login' },
+      });
+    }
+    assert.ok(url.endsWith('/logout'));
+    assert.equal(options.headers['X-CSRF-Token'], 'csrf-after-login');
+    return Response.json({ success: true, data: { loggedOut: true } });
+  });
+  await call('/auth/login', { method: 'POST', body: '{}' });
+  await call('/auth/logout', { method: 'POST', body: '{}' });
+  assert.equal(bootstraps, 2);
+  assert.equal(logins, 2);
+});
+
+test('concurrent browser requests renew an expired session once and retry without a redirect', async (t) => {
+  const { apiRequest: call, browser } = await browserClient(t, 'refresh');
+  let renewed = false;
+  let refreshes = 0;
+  let lost = 0;
+  browser.addEventListener('mmm:session-expired', () => lost++);
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url.endsWith('/csrf'))
+      return Response.json({ success: true, data: { csrfToken: 'test-csrf' } });
+    if (url.endsWith('/refresh')) {
+      refreshes++;
+      renewed = true;
+      return Response.json({ success: true, data: {} });
+    }
+    if (!renewed)
+      return Response.json(
+        {
+          success: false,
+          error: { code: 'SESSION_EXPIRED', message: 'Sign in.' },
+        },
+        { status: 401 },
+      );
+    return Response.json({ success: true, data: { restored: true } });
+  });
+  const results = await Promise.all([
+    call('/auth/session'),
+    call('/auth/session'),
+  ]);
+  assert.equal(refreshes, 1);
+  assert.equal(lost, 0);
+  assert.ok(results.every((result) => result.data.restored));
+});
+
+test('an API outage during session renewal does not announce a logout', async (t) => {
+  const { apiRequest: call, browser } = await browserClient(t, 'outage');
+  let lost = 0;
+  browser.addEventListener('mmm:session-expired', () => lost++);
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url.endsWith('/csrf'))
+      return Response.json({ success: true, data: { csrfToken: 'test-csrf' } });
+    if (url.endsWith('/refresh')) throw new TypeError('Network unavailable');
+    return Response.json(
+      {
+        success: false,
+        error: { code: 'SESSION_EXPIRED', message: 'Sign in.' },
+      },
+      { status: 401 },
+    );
+  });
+  await assert.rejects(call('/auth/session'), { code: 'NETWORK_ERROR' });
+  assert.equal(lost, 0);
+});
