@@ -2,7 +2,12 @@ import argon2 from 'argon2';
 import { ApiError } from '../lib/api-error.js';
 import { authModels } from './models.js';
 import { createAuthDatabase } from './database.js';
-import { createVerificationSender } from './email.js';
+import {
+  createVerificationSender,
+  createResetSender,
+  createPasswordChangedSender,
+} from './email.js';
+import { createPasswordRecovery } from './password-recovery.js';
 import { createSessionService } from './session-service.js';
 import { hashToken, generateToken } from './tokens.js';
 
@@ -11,9 +16,18 @@ export { hashToken, generateToken } from './tokens.js';
 export function createAuthService({
   database,
   sendVerification,
+  sendReset,
+  sendPasswordChanged,
   settings,
   now = () => new Date(),
 }) {
+  const recovery = createPasswordRecovery({
+    database,
+    settings,
+    now,
+    sendReset,
+    sendPasswordChanged,
+  });
   const cooldownMs = settings.verificationCooldownSeconds * 1000;
   const sessions = createSessionService({ database, settings, now });
   const invalidLink = () =>
@@ -197,7 +211,13 @@ export function createAuthService({
     refresh: safe(sessions.refresh),
     session: safe(sessions.session),
     logout: safe(sessions.logout),
-    close: () => database.close(),
+    forgotPassword: safe(recovery.forgot),
+    resetPassword: safe(recovery.reset),
+    drainRecovery: recovery.drain,
+    close: async () => {
+      await recovery.drain();
+      await database.close();
+    },
   };
 }
 
@@ -206,5 +226,7 @@ export function createProductionAuthService(settings) {
     settings,
     database: createAuthDatabase(settings),
     sendVerification: createVerificationSender(settings),
+    sendReset: createResetSender(settings),
+    sendPasswordChanged: createPasswordChangedSender(settings),
   });
 }

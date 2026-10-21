@@ -17,6 +17,7 @@ Run commands from the repository root with Node.js 24 and npm. `npm ci` installs
 | `npm run smoke`            | Live HTTP checks against running web and API                                     |
 | `npm test`                 | API client and authentication contract tests; no cloud services                  |
 | `npm run test:auth:db`     | Isolated Atlas registration/verification tests using the private API environment |
+| `npm run test:recovery:db` | Isolated Atlas password recovery tests; fake email and automatic cleanup         |
 | `npm run test:sessions:db` | Isolated Atlas login, rotation and logout tests                                  |
 
 Both servers bind to loopback for local development. Do not start another process on an occupied port.
@@ -34,13 +35,19 @@ At the user's request on 14 October 2026, the planned V1 libraries are installed
 | API       | `resend`                                              | Verification, recovery and member-invitation email                                |
 | API       | `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` | Cloudflare R2's S3-compatible API and signed upload/access URLs                   |
 
-The first auth increment uses React Hook Form/Zod, Mongoose, Argon2id and rate limiting for registration/email verification. The Resend email adapter uses Node's native fetch with a bounded timeout and safe provider-error handling. Login/session handling now uses jose, cookie-parser and csrf-csrf. Password-reset and upload work remains deferred. Installing a dependency does not implement its feature.
+The first auth increment uses React Hook Form/Zod, Mongoose, Argon2id and rate limiting for registration/email verification. The Resend email adapter uses Node's native fetch with a bounded timeout and safe provider-error handling. Login/session handling now uses jose, cookie-parser and csrf-csrf. Password recovery is implemented; upload work remains deferred. Installing a dependency does not implement its feature.
 
 `jose` supplies JWT support through ES modules; a second JWT library is unnecessary. Argon2id follows the approved password design. Node's native environment loading, watch mode and `crypto`, plus native `fetch`, avoid duplicate dotenv, nodemon, UUID or HTTP-client dependencies. No multipart upload middleware is needed for the approved direct-to-R2 upload design.
 
 The web workspace declares AJV 8 as a development dependency to satisfy the form resolver's optional AJV peer. Zod remains the planned form validator; AJV is not wired into application validation. ESLint retains its required AJV 6 dependency separately.
 
 Google Places loading, date/recurrence helpers, test frameworks, Lambda adapters and deployment tools remain deferred until concrete implementation needs them. No future-release feature packages or modules are introduced.
+
+## Frontend state management
+
+Use local React state for component behavior, the existing session Context for shared session information, and React Hook Form/Zod for forms. Express remains authoritative for authentication and authorization; browser API calls use `apps/web/src/lib/api-client.js`. Keep auth credentials in HttpOnly cookies.
+
+Redux/Redux Toolkit is not installed or used. Continue with this approach while it meets the feature's needs. When real wedding/events/tasks features need API caching and coordinated refresh, evaluate TanStack Query. Evaluate Redux Toolkit if shared mutable client state becomes complex. These are future candidates, with no library selection or installation committed. See [ADR-016](decisions/ADR-016-frontend-state-management.md) for the decision and reconsideration criteria.
 
 ## Environment
 
@@ -69,6 +76,8 @@ Registration/email verification uses private settings in `apps/api/.env`:
 | `AUTH_ACCESS_TTL_MINUTES`            | Access JWT lifetime, default 15 minutes, maximum 30.                                   |
 | `AUTH_SESSION_TTL_DAYS`              | Absolute persistent session lifetime, default 30 days, maximum 90.                     |
 | `AUTH_COOKIE_SAME_SITE`              | `lax` by default; `none` requires production Secure cookies/HTTPS.                     |
+| `AUTH_RESET_TTL_MINUTES`             | Reset link lifetime, default/max 30 minutes.                                           |
+| `AUTH_RESET_COOLDOWN_SECONDS`        | Per-account reset email cooldown, default 45 seconds.                                  |
 | `AUTH_RATE_LIMIT_MAX`                | Local requests per 15-minute IP/email window, default 10.                              |
 
 The homepage and health endpoint remain runnable without these values; the workspace requires authentication; account endpoints return a safe unavailable response when required services are absent. The user supplies credentials directly in the ignored `.env`; never paste or print its contents. Restart the API after editing it.
@@ -79,7 +88,7 @@ For alternate web/API ports, update `WEB_ORIGIN` and server-only `API_BASE_URL` 
 
 The public root `/` renders the homepage from `src/features/home`. Its layout follows the selected Stitch Platform 2 HTML. Future features stay visible with “Planned” labels and unavailable actions are disabled. Start Planning opens `/register`; Log In opens `/login`. Inter and Playfair Display are self-hosted with `next/font/local`, with OFL licenses beside the font files. The full “M” logo and supplied couple artwork are local public assets.
 
-The `(auth)` route group shares `src/features/auth/auth-shell.jsx` for `/register`, `/verify-email` and `/login`. Forms use the central API client and never access MongoDB directly. Password confirmation is checked locally; auth secrets are not stored in the browser. Verification links carry a fragment token and require an explicit Verify email POST. Verification creates verified accounts without automatic login, wedding membership or wedding setup. The success screen links to login. See ADR-013 and ADR-014.
+The `(auth)` route group shares `src/features/auth/auth-shell.jsx` for `/register`, `/verify-email`, `/login`, `/forgot-password` and `/reset-password`. Forms use the central API client and never access MongoDB directly. Password confirmation is checked locally; auth secrets are not stored in the browser. Verification links carry a fragment token and require an explicit Verify email POST. Verification creates verified accounts without automatic login, wedding membership or wedding setup. The success screen links to login. See ADR-013, ADR-014 and ADR-015.
 
 The `(workspace)` Next.js route group shares a layout without changing URLs. Eight explicit route files serve `/dashboard`, `/events`, `/tasks`, `/checklist`, `/members`, `/profile`, `/settings` and `/recovery`. There is no generic section route. The layout and every page use a request-cached Express session check before returning workspace content, including RSC payloads. The browser restores an expired access cookie using its refresh cookie, then refreshes the page; signed-out visitors go to `/login`. Keep both guard levels when adding pages.
 
@@ -138,6 +147,14 @@ ESLint is pinned to 9.39.5 because the React/import/accessibility plugins bundle
 
 `design/reference/` was absent during scaffolding. The user subsequently supplied a locally ignored Stitch export and selected its Platform 2 landing-page HTML for the public homepage. Original exports remain untouched. Only the approved logo/artwork needed by the public page are copied into `apps/web/public`; this does not make the design export folder tracked. Homepage-specific colors and fonts are scoped to `src/features/home` so the workspace shell retains its provisional PRD-inspired styling. Supplied PNG previews may be stale; HTML remains the implementation reference.
 
-Registration/verification, login, persistent cookie sessions, protected workspace gates and logout are implemented. See ADR-014 for transport/session details. Real inbox delivery requires configured Resend credentials/sender. Password recovery, Docker, SAM, CI deployment and future-version modules remain deferred. Amplify/Next.js 16 compatibility remains unresolved; see ADR-011 before deployment work.
+Registration/verification, login, persistent cookie sessions, protected workspace gates and logout are implemented. See ADR-014 for transport/session details. Real inbox delivery requires configured Resend credentials/sender. Docker, SAM, CI deployment and future-version modules remain deferred. Amplify/Next.js 16 compatibility remains unresolved; see ADR-011 before deployment work.
 
 Production prerequisites: local rate limits are in memory, and Express observes the relay server’s IP. Define trusted client-IP forwarding and shared rate-limit storage before deployment; do not accept arbitrary forwarded IPs. Secure cookies require HTTPS. The browser restart behavior uses persistent cookie expiry and refresh; clearing browser cookies still signs the user out.
+
+## Password recovery
+
+The current private MongoDB and Resend settings are reused; no new credential is required. Forgot requests always give a generic 202 acknowledgement. Bounded work in the local long-lived Express process performs account lookup, cooldown/claim and email sending after acknowledgement so account/provider timing does not alter the public response. This is best-effort local delivery, not a durable queue: graceful shutdown drains work within its deadline, but crashes can lose pending sends. A serverless deployment must replace this dispatch design before launch.
+
+Reset links use `/reset-password#token=…`, have a 30-minute default lifetime, and are consumed only on explicit form submission. New password and confirmation follow the registration policy. Express atomically changes the password, consumes the token and revokes all sessions for that account; failure rolls back the transaction. Unverified users still need email verification. Success clears browser cookies and leads to sign-in, with no automatic login. A notification email is best effort and does not contain credentials.
+
+Run `npm run test:recovery:db` for isolated Atlas checks with fake senders. It covers complete HTTP recovery, hash-only storage, expiry, cooldown/concurrency, replacement links, privacy/provider failures, rollback, all-device revocation and concurrent login/refresh. It never sends a real email and drops only its uniquely named temporary database. Real inbox delivery must be checked separately using an eligible sender/recipient; the Resend onboarding sender still has recipient restrictions. See ADR-015.

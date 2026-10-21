@@ -87,6 +87,8 @@ let csrfToken;
 let csrfRequest;
 let refreshRequest;
 const publicPaths = new Set([
+  '/auth/forgot-password',
+  '/auth/reset-password',
   '/auth/register',
   '/auth/verify-email',
   '/auth/resend-verification',
@@ -94,6 +96,8 @@ const publicPaths = new Set([
   '/auth/csrf',
 ]);
 const publicMutations = new Set([
+  '/auth/forgot-password',
+  '/auth/reset-password',
   '/auth/register',
   '/auth/verify-email',
   '/auth/resend-verification',
@@ -188,7 +192,8 @@ export async function apiRequest(path, options = {}) {
       result = await browserRequest(path, requestOptions);
     }
     if (result.data?.csrfToken) csrfToken = result.data.csrfToken;
-    if (path === '/auth/logout') csrfToken = undefined;
+    if (['/auth/logout', '/auth/reset-password'].includes(path))
+      csrfToken = undefined;
     return result;
   } catch (error) {
     if (!publicPaths.has(path) && error.code === 'SESSION_EXPIRED')

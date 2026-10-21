@@ -130,6 +130,8 @@ try {
     ['register', 'Create your wedding account.'],
     ['verify-email', 'Check your inbox.'],
     ['login', 'Welcome back.'],
+    ['forgot-password', 'Reset your password.'],
+    ['reset-password', 'Set a new password.'],
   ]) {
     const response = await request(`${webUrl}/${route}`);
     assert.equal(response.status, 200);
@@ -148,6 +150,14 @@ try {
     (await malformedVerification.json()).error.code,
     'VALIDATION_ERROR',
   );
+
+  const malformedReset = await request(`${apiUrl}/auth/reset-password`, {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'invalid', password: 'weak' }),
+  });
+  assert.equal(malformedReset.status, 400);
+  assert.equal((await malformedReset.json()).error.code, 'VALIDATION_ERROR');
 
   for (const route of [
     'dashboard',

@@ -4,7 +4,7 @@ A wedding planning workspace for Indian weddings, with an initial emphasis on Od
 
 **Plan every moment. Enjoy every memory.**
 
-The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, a protected sample dashboard, explicit placeholder pages and an Express health endpoint. Password reset and wedding-planning business features remain subsequent increments. Real email delivery requires the private Resend settings.
+The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, forgot/reset password, a protected sample dashboard, explicit placeholder pages and an Express health endpoint. Wedding setup and wedding-planning business features remain subsequent increments. Real email delivery requires the private Resend settings.
 
 ## Quick start
 
@@ -29,6 +29,7 @@ npm run smoke         # Both applications must be running
 npm test              # HTTP/auth and API-client tests; no real email
 npm run test:auth:db   # Registration/verification Atlas tests; temporary database
 npm run test:sessions:db # Login/session/logout Atlas tests; temporary database
+npm run test:recovery:db # Password recovery Atlas tests; fake email, temporary database
 ```
 
 After a successful build, `npm run start:web` starts the production web server locally. `npm run start:api` starts Express without watch mode. Stop development servers before using the same ports.
@@ -51,3 +52,5 @@ For login, also set a strong, stable `AUTH_JWT_SECRET` in the ignored API `.env`
 The protected workspace at `/dashboard` retains its provisional scaffold styling and sample data. See [ADR-012](docs/decisions/ADR-012-public-homepage-preview.md) for the homepage scope and reference handling. Original Stitch exports and Word documents remain ignored.
 
 Deployment is deferred. The intended targets remain Amplify for web and Lambda/API Gateway with SAM for API. Amplify compatibility with Next.js 16 is unresolved; no hosting changes or deployments are included.
+
+Forgot Password on `/login` opens `/forgot-password`. Reset links expire after 30 minutes and are single use; a successful reset signs out all existing sessions for that account and returns to sign-in. The existing private MongoDB/Resend configuration is reused; optional reset defaults are listed in `apps/api/.env.example`. Recovery emails are dispatched by the local long-lived Express process and are best effort; durable delivery is required before serverless deployment. See [ADR-015](docs/decisions/ADR-015-password-recovery.md).

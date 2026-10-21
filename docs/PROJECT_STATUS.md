@@ -6,9 +6,11 @@ This is the working handoff for development progress. Update it after each major
 
 ## Current checkpoint
 
-The scaffold, public homepage, registration/email verification and login/persistent sessions/logout are implemented locally. Start Planning opens `/register`; Log In opens `/login`. A verified active account can sign in to the protected `/dashboard`. Dashboard content remains sample data and the other planning sections remain placeholders. Password recovery is the next authentication increment; wedding setup follows.
+The scaffold, public homepage, registration/email verification and login/persistent sessions/logout are implemented locally. Start Planning opens `/register`; Log In opens `/login`. A verified active account can sign in to the protected `/dashboard`. Dashboard content remains sample data and the other planning sections remain placeholders. Forgot/reset password is now implemented locally as the next authentication increment. Wedding setup is the next feature; real planning data remains deferred.
 
-Git checkpoint: the login/session milestone, all three review fixes, Profile wording, tests and supporting documentation are committed on `DEV` as `29c249a` (`Implement persistent authentication and fix session recovery races`). On 21 October the user confirmed that the result looks fine. This is user-reported acceptance, separate from the automated and browser checks recorded below. No push of this milestone has been performed by the agent.
+Frontend state decision, 21 October: retain local React state, session Context and React Hook Form/Zod. Redux/Redux Toolkit is not in use. TanStack Query for API caching and Redux Toolkit for complex shared client state remain candidates to assess only when needed; neither is selected or installed. See ADR-016 and the development guide.
+
+Git checkpoint: this `DEV` checkpoint includes the password-recovery milestone, shared logo loading refinement, frontend state decision (ADR-016), tests and updated handoff documentation. On 21 October the user reported successful real-email recovery and requested committing and pushing these changes to `origin/DEV`. Use Git history and the remote branch to identify the exact revision/publication state. The earlier login/session milestone, all three review fixes and Profile wording are in `29c249a`; that commit and acceptance/status commit `92117fb` were previously pushed at the user's request.
 
 Atlas registration and session tests are passing. The user previously reported receiving and completing a real Resend verification link using the onboarding test sender; broader sending still requires an owned verified domain. Current login checks used a disposable verified fixture with no real email. Private MongoDB/Resend settings and the stable generated signing secret belong only in ignored `apps/api/.env`. Keep credentials out of examples and chat.
 
@@ -20,17 +22,19 @@ Atlas registration and session tests are passing. The user previously reported r
 - [ADR-012](decisions/ADR-012-public-homepage-preview.md): accepted public homepage, design reference and planned-feature preview scope.
 - [ADR-013](decisions/ADR-013-registration-email-verification.md): first auth increment, email-link verification, private configuration and remaining session work.
 - [ADR-014](decisions/ADR-014-login-persistent-sessions.md): login, rotating persistent sessions, same-origin relay, cookie scope and protected page guards.
+- [ADR-015](decisions/ADR-015-password-recovery.md): password recovery, transactional all-session revocation and the local email-dispatch/deployment boundary.
+- [ADR-016](decisions/ADR-016-frontend-state-management.md): current frontend state approach and criteria for assessing additional libraries.
 - Root [AGENTS.md](../AGENTS.md) and applicable application instructions. Inspect the actual source and `git status` before editing; preserve existing user changes.
 
 ## Milestone history
 
-| Milestone                                               | Status                                                           | Recorded dates                                  |
-| ------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------- |
-| Runnable project scaffold and V1 dependency preparation | Complete locally; business features deferred                     | 13–14 October 2026                              |
-| Public product homepage                                 | Complete locally; future features remain previews                | 17 October 2026; refinements 18–19 October 2026 |
-| Registration and email verification                     | Implemented; Atlas checked; user reports real email verification | 19–20 October 2026                              |
-| Login, persistent sessions and logout                   | Implemented and checked locally; dashboard remains sample data   | 20–21 October 2026                              |
-| Password recovery                                       | Next increment; not implemented                                  | After login/session/logout                      |
+| Milestone                                               | Status                                                                       | Recorded dates                                  |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------- |
+| Runnable project scaffold and V1 dependency preparation | Complete locally; business features deferred                                 | 13–14 October 2026                              |
+| Public product homepage                                 | Complete locally; future features remain previews                            | 17 October 2026; refinements 18–19 October 2026 |
+| Registration and email verification                     | Implemented; Atlas checked; user reports real email verification             | 19–20 October 2026                              |
+| Login, persistent sessions and logout                   | Implemented and checked locally; dashboard remains sample data               | 20–21 October 2026                              |
+| Password recovery                                       | Implemented and checked locally; user reports real inbox/reset/login success | 21 October 2026                                 |
 
 ### 1. Runnable project scaffold
 
@@ -130,16 +134,49 @@ Review follow-up, 21 October:
 - Added four Atlas regression cases. Both reported backend failures were reproduced before the fix; the expanded session suite now passes all 16 checks, including both logout/refresh orderings and guessed-token non-revocation. The 29 local tests, lint and formatting also pass.
 - A targeted browser wrapper rejected exactly one server page-session check for only the disposable fixture. Client navigation retained the workspace shell, showed recovery, and then restored the same page automatically without a reload. An earlier temporary test-clock run also exercised renewal of expired access. Saved environment files were unchanged. All temporary wrappers, clock and lifetime overrides were removed, normal combined development startup was restored, and the disposable fixture was cleaned up. The final build and production smoke checks passed, as did all 10 registration database checks. Browser checks also covered production desktop/mobile navigation, corrected Profile copy and API-unavailable retry recovery. A stale production test server held old browser connections during the mode switch and was stopped; this required no source change.
 
-Remaining limitations: password reset, wedding setup/membership/role authorization and planning APIs remain unimplemented. Production requires HTTPS, a trusted client-IP chain through the relay and shared rate-limit storage; current limits are in process memory and see the relay's IP. Hosting compatibility remains unresolved. The milestone and review fixes are committed in `29c249a`; pushing remains unrequested.
+Limitations at the login milestone: password reset was the next increment (delivered below); wedding setup/membership/role authorization and planning APIs remain unimplemented. Production requires HTTPS, a trusted client-IP chain through the relay and shared rate-limit storage; current limits are in process memory and see the relay's IP. Hosting compatibility remains unresolved. The milestone and review fixes are committed in `29c249a` and were pushed along with status commit `92117fb`. Password recovery is delivered separately below.
+
+### 5. Forgot and reset password
+
+Implemented, 21 October:
+
+- `/forgot-password` and `/reset-password` use the corrected V1 authentication/reset HTML and existing shared auth branding, logo, fonts, artwork and equal-height desktop cards. Login's Forgot password link is enabled. Forms include email validation, a generic inbox confirmation, request cooldown, password/confirmation validation, visibility controls, invalid/expired/used-link recovery and a password-updated screen leading to sign-in. Registration/reset now share their web password policy and requirements component.
+- Express `POST /auth/forgot-password` and `/auth/reset-password` under `/api/v1`, strict input/Origin/JSON checks and IP/email/token-fingerprint rate limits. Reset links use trusted-origin fragments and 256-bit random tokens stored only as hashes with `PASSWORD_RESET` purpose, a 30-minute default lifetime and a 45-second request cooldown. New claims replace older links; opening a link does not consume it.
+- Generic forgot acknowledgement precedes account lookup and email delivery. Bounded work in the local long-lived Express process handles lookup/claim/send, catches safe errors and drains on graceful shutdown. Missing global configuration and capacity errors are uniform. Delivery failure releases only its own claim. This best-effort dispatch is not durable and must be replaced before serverless deployment; see ADR-015.
+- A transaction consumes the valid unused token, updates the Argon2id password hash and revokes all sessions for that account with `PASSWORD_CHANGE`. Failures roll back the entire operation. Login/refresh races cannot bypass revocation. Other accounts remain usable; unverified accounts stay unverified and disabled accounts cannot consume reset links.
+- Success clears auth/CSRF cookies, broadcasts logout to same-origin tabs and offers explicit sign-in without auto-login. A best-effort change-notification email contains no credentials. No wedding setup, invitation acceptance or authenticated Profile/Settings password editing is included.
+- Existing private MongoDB/Resend configuration is reused; no new credential is needed. Credential-free optional reset defaults are in the API example. No actual user credentials or accounts were edited by the agent.
+
+Key files: `apps/api/src/auth/password-recovery.js`, `email.js`, `service.js`, `router.js`, `validation.js`; auth page routes and `forgot-password-form.jsx`, `reset-password-form.jsx`, `password-fields.jsx`; central API client; recovery test scripts; ADR-015.
+
+Verification, 21 October:
+
+- `npm test`: 35 passing local checks, including recovery validation, Origin/JSON, rate limits, cookie clearing, acknowledgement independence from deferred lookup, safe email adapters and all previous contracts.
+- `npm run test:recovery:db`: 14 passing checks; existing registration and session suites also pass all 10 and 16 checks respectively. Each isolated temporary database was dropped and all email senders were fake. Coverage includes complete HTTP reset, hash-only storage, expiry/purpose, concurrent claims/consumption, replacement delivery races, all-device revocation, unrelated-account isolation, disabled/unverified users, transaction rollback and login/refresh races.
+- Browser checks used synthetic non-account addresses and fabricated tokens: required email, generic confirmation/cooldown, password requirements/mismatch, server invalid-link response, Request a new link navigation and reset/forgot layouts without overflow at 320/390 px. No real password was changed through the browser. Desktop/mobile screenshots were captured with no personal data.
+
+- Final lint, formatting, production build and live smoke checks passed. Independent production web/API startup and combined development startup were checked. The request form showed a safe error with the API stopped and retained its input; after Express restarted, resubmission returned the generic confirmation.
+- An isolated UI-only mock on `127.0.0.1:3001`/port 4100 verified the success transition, token-fragment removal, persistent confirmation and explicit Continue to sign in navigation. It used a fabricated token, no database or email sender, and changed no real credentials. Both mock servers were stopped afterward and normal development mode restored.
+
+Review follow-up, 21 October:
+
+- The user reports a clear code review and completed manual regression testing with no functional bugs reproduced. The supplied tester report records 75 passing automated checks, disposable-account session revocation and new-password sign-in, desktop/mobile recovery and authentication regression checks, plus lint, formatting, build and smoke checks. Its success-screen check used an isolated UI mock; it did not validate a real Resend inbox-to-browser reset.
+- The shared above-the-fold brand logo in `apps/web/src/features/home/brand.jsx` now loads eagerly, addressing the tester's minor loading warning while preserving the existing image and dimensions.
+- Logo follow-up verification: lint, formatting, production build and live production smoke checks passed. A fresh browser check confirmed `loading="eager"`, a loaded logo at desktop/mobile sizes, no horizontal overflow at 390 px and no captured warnings/errors on the checked production recovery page. The viewport override was reset afterward. The 75 automated checks above are the supplied tester's results; database suites were not repeated for this image-loading change.
+
+- Real-email follow-up, 21 October: the user confirms completing the actual email → reset link → new password → login flow. This is user-reported success; the agent did not independently inspect the real account or inbox. Automated HTTP/Atlas checks with fake senders remain separate evidence.
+
+Commit handoff, 21 October: `npm test` passed all 35 checks, lint and formatting passed, and live development smoke checks passed. The first sandboxed test attempt could not bind temporary HTTP listeners; rerunning with local-listener access passed. The production build/startup, desktop/mobile and API-unavailable checks recorded above remain the latest evidence for the unchanged application code. Atlas suites and browser checks were not repeated solely for this commit; the tester's 75-check report and the user's real-email result remain separate evidence.
+
+The remaining real-inbox check is complete based on the user's report for the configured sender/recipient. The onboarding sender's recipient restrictions still apply to broader delivery. The user authorized commit and push on 21 October. Wedding setup is for discussion next; implementation and deployment are not included in this handoff.
 
 ## Remaining V1 development
 
 Agreed incremental order, continuing one feature at a time:
 
-1. Implement forgot/reset password, including expired-link/error states and the approved session-revocation behavior. Preserve the distinction between automated tests and the user-reported real email flow above.
-2. Wedding setup and a real planning-workspace entry flow.
-3. Dashboard structure for the authenticated wedding, then members/invitations, events, tasks/recurrence and checklist templates in agreed increments.
-4. Live dashboard/activity, profile/settings and recovery, completing the remaining V1 requirements.
+1. Wedding setup and a real planning-workspace entry flow.
+2. Dashboard structure for the authenticated wedding, then members/invitations, events, tasks/recurrence and checklist templates in agreed increments.
+3. Live dashboard/activity, profile/settings and recovery, completing the remaining V1 requirements.
 
 Discussion decision, 20 October: the user selected the existing `/dashboard` as the interim destination after successful login. Authentication protection is delivered there while retaining the sample-data labels and placeholder scope. Wedding setup and routing based on real wedding membership remain the following milestone. Milestone 4 implements this approved destination.
 

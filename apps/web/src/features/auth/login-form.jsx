@@ -98,14 +98,12 @@ export function LoginForm() {
             error={errors.password?.message}
           />
           <div className="text-right">
-            <button
-              type="button"
-              disabled
-              aria-describedby="recovery-note"
+            <Link
+              href="/forgot-password"
               className="text-sm font-medium text-[#6E334E]"
             >
               Forgot password?
-            </button>
+            </Link>
           </div>
           <FormError message={errors.root?.message} />
           <SubmitButton busy={isSubmitting} busyLabel="Signing in…">
@@ -113,12 +111,6 @@ export function LoginForm() {
           </SubmitButton>
         </fieldset>
       </form>
-      <p
-        id="recovery-note"
-        className="mt-4 text-xs leading-relaxed text-[#5C5457]"
-      >
-        Password recovery is coming in the next increment.
-      </p>
       {unverified && (
         <div className="mt-6 border-t border-[#E7DED7] pt-6">
           <ResendVerification initialEmail={unverified} />

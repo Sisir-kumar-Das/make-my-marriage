@@ -5,22 +5,17 @@ import Link from 'next/link';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Check, MailCheck } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { Field, FormError, SubmitButton } from './form-controls';
 import { ResendVerification } from './resend-verification';
+import { passwordSchema, PasswordRequirements } from './password-fields';
 
 const schema = z
   .object({
     name: z.string().trim().min(2, 'Enter at least 2 characters.').max(100),
     email: z.string().trim().max(254).email('Enter a valid email address.'),
-    password: z
-      .string()
-      .min(8, 'Use at least 8 characters.')
-      .max(128)
-      .regex(/[A-Z]/, 'Include an uppercase letter.')
-      .regex(/[a-z]/, 'Include a lowercase letter.')
-      .regex(/[0-9]/, 'Include a number.'),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -148,37 +143,7 @@ export function RegisterForm() {
             error={errors.password?.message}
             aria-describedby="password-requirements"
           />
-          <div
-            id="password-requirements"
-            className="rounded-xl bg-[#F5EEE7] p-4"
-          >
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide">
-              Password requirements
-            </p>
-            <ul className="grid gap-2 text-xs sm:grid-cols-2">
-              {[
-                [password.length >= 8, 'At least 8 characters'],
-                [/[A-Z]/.test(password), 'One uppercase letter'],
-                [/[a-z]/.test(password), 'One lowercase letter'],
-                [/[0-9]/.test(password), 'One number'],
-              ].map(([met, label]) => (
-                <li key={label} className="flex items-center gap-2">
-                  <Check
-                    size={14}
-                    className={met ? 'text-emerald-800' : 'text-[#5C5457]/50'}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    {label}
-                    {met && <span className="sr-only"> — met</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-xs text-[#5C5457]">
-              Special characters are optional.
-            </p>
-          </div>
+          <PasswordRequirements password={password} />
           <Field
             id="register-confirm"
             label="Confirm password"

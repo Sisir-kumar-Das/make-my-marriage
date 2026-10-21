@@ -40,6 +40,12 @@ export const config = {
     45,
     3600,
   ),
+  resetTtlMinutes: positiveInteger('AUTH_RESET_TTL_MINUTES', 30, 30),
+  resetCooldownSeconds: positiveInteger(
+    'AUTH_RESET_COOLDOWN_SECONDS',
+    45,
+    3600,
+  ),
   authRateLimitMax: positiveInteger('AUTH_RATE_LIMIT_MAX', 10, 1000),
   jwtSecret: process.env.AUTH_JWT_SECRET?.trim() || '',
   accessTtlMinutes: positiveInteger('AUTH_ACCESS_TTL_MINUTES', 15, 30),

@@ -7,6 +7,8 @@ import {
   resendSchema,
   verifySchema,
   loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from './validation.js';
 import { createAuthCookies } from './cookies.js';
 
@@ -65,6 +67,14 @@ export function createAuthRouter({ service, settings }) {
       return createHash('sha256')
         .update(req.body.email.trim().toLowerCase())
         .digest('hex');
+    },
+  });
+  const resetTokenLimit = rateLimit({
+    ...options,
+    keyGenerator(req) {
+      return typeof req.body?.token === 'string'
+        ? createHash('sha256').update(req.body.token).digest('hex')
+        : ipKeyGenerator(req.ip);
     },
   });
 
@@ -129,6 +139,35 @@ export function createAuthRouter({ service, settings }) {
     async (req, res) => {
       await service.verify(req.authInput);
       res.json({ success: true, data: { emailVerified: true } });
+    },
+  );
+  router.post(
+    '/forgot-password',
+    publicLimit,
+    emailLimit,
+    validate(forgotPasswordSchema),
+    async (req, res) => {
+      await service.forgotPassword(req.authInput);
+      res.status(202).json({
+        success: true,
+        data: {
+          message:
+            'If an eligible account exists for this address, we will email password reset instructions. Check your inbox and spam folder.',
+          retryAfterSeconds: settings.resetCooldownSeconds,
+          resetTtlMinutes: settings.resetTtlMinutes,
+        },
+      });
+    },
+  );
+  router.post(
+    '/reset-password',
+    publicLimit,
+    resetTokenLimit,
+    validate(resetPasswordSchema),
+    async (req, res) => {
+      await service.resetPassword(req.authInput);
+      cookies.clear(res);
+      res.json({ success: true, data: { passwordReset: true } });
     },
   );
   router.get('/csrf', (req, res) => {
