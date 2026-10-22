@@ -4,7 +4,7 @@ A wedding planning workspace for Indian weddings, with an initial emphasis on Od
 
 **Plan every moment. Enjoy every memory.**
 
-The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, forgot/reset password, a protected sample dashboard, explicit placeholder pages and an Express health endpoint. Wedding setup and wedding-planning business features remain subsequent increments. Real email delivery requires the private Resend settings.
+The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, forgot/reset password, protected three-step wedding setup, initial Admin membership, a dashboard with real wedding details, explicit planning placeholders and an Express health endpoint. Custom cover uploads and planning business features remain subsequent increments. Real email delivery requires the private Resend settings.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:3000>. The API runs at <http://localhost:4000/api/v1/health>. The homepage and health endpoint need no credentials. Workspace pages require login with a verified account and the private configuration described below.
+Open <http://localhost:3000>. The API runs at <http://localhost:4000/api/v1/health>. The homepage and health endpoint need no credentials. Setup requires a verified login; planning pages also require active wedding membership and the private configuration described below.
 
 To override configuration, copy `apps/web/.env.example` to `apps/web/.env.local` and `apps/api/.env.example` to `apps/api/.env`, then update the values. Never put secrets in `NEXT_PUBLIC_` variables.
 
@@ -30,6 +30,7 @@ npm test              # HTTP/auth and API-client tests; no real email
 npm run test:auth:db   # Registration/verification Atlas tests; temporary database
 npm run test:sessions:db # Login/session/logout Atlas tests; temporary database
 npm run test:recovery:db # Password recovery Atlas tests; fake email, temporary database
+npm run test:weddings:db # Wedding/Admin creation and authorization; temporary database
 ```
 
 After a successful build, `npm run start:web` starts the production web server locally. `npm run start:api` starts Express without watch mode. Stop development servers before using the same ports.
@@ -49,7 +50,7 @@ For registration, fill `MONGODB_URI`, `RESEND_API_KEY` and `EMAIL_FROM` in the i
 
 For login, also set a strong, stable `AUTH_JWT_SECRET` in the ignored API `.env` (at least 43 characters; generate it with a cryptographically secure random generator). It is already configured for the current local checkout. Browser API calls use the web origin’s `/api/v1` relay; `API_BASE_URL` is the server-only Express target. See [ADR-014](docs/decisions/ADR-014-login-persistent-sessions.md).
 
-The protected workspace at `/dashboard` retains its provisional scaffold styling and sample data. See [ADR-012](docs/decisions/ADR-012-public-homepage-preview.md) for the homepage scope and reference handling. Original Stitch exports and Word documents remain ignored.
+After login, accounts without an active wedding enter `/wedding-setup`. Its three steps collect the couple/date, location/tradition and optional budget, then review with the existing cover. Final confirmation atomically creates one wedding and Admin membership. Existing members enter `/dashboard`, which shows their real wedding and planning empty states. Custom cover uploads are the next increment. See [ADR-017](docs/decisions/ADR-017-wedding-setup-and-workspace-entry.md). See [ADR-012](docs/decisions/ADR-012-public-homepage-preview.md) for the homepage scope and reference handling. Original Stitch exports and Word documents remain ignored.
 
 Deployment is deferred. The intended targets remain Amplify for web and Lambda/API Gateway with SAM for API. Amplify compatibility with Next.js 16 is unresolved; no hosting changes or deployments are included.
 

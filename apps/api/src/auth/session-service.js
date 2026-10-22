@@ -36,14 +36,19 @@ const refreshId = (token) =>
     ? token.split('.')[0]
     : null;
 
-export function createSessionService({ database, settings, now }) {
+export function createSessionService({
+  database,
+  settings,
+  now,
+  getWeddingContext = async () => ({ wedding: null, membership: null }),
+}) {
   let dummyHash;
   const signingKey = () => {
     requireSessionConfiguration(settings);
     return new TextEncoder().encode(settings.jwtSecret);
   };
   const active = () => ({ revokedAt: null, expiresAt: { $gt: now() } });
-  const data = (user, session) => ({
+  const data = async (user, session) => ({
     user: {
       id: String(user._id),
       email: user.email,
@@ -51,7 +56,7 @@ export function createSessionService({ database, settings, now }) {
       emailVerified: true,
     },
     session: { expiresAt: session.expiresAt.toISOString() },
-    wedding: null,
+    ...(await getWeddingContext(String(user._id))),
   });
   async function issue(user, session, refreshToken) {
     const instant = now();
@@ -70,7 +75,7 @@ export function createSessionService({ database, settings, now }) {
       .setExpirationTime(Math.floor(accessExpiresAt.getTime() / 1000))
       .sign(signingKey());
     return {
-      data: data(user, session),
+      data: await data(user, session),
       accessToken,
       refreshToken,
       accessExpiresAt,

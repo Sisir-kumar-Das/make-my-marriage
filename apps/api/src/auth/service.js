@@ -20,6 +20,7 @@ export function createAuthService({
   sendPasswordChanged,
   settings,
   now = () => new Date(),
+  getWeddingContext,
 }) {
   const recovery = createPasswordRecovery({
     database,
@@ -29,7 +30,12 @@ export function createAuthService({
     sendPasswordChanged,
   });
   const cooldownMs = settings.verificationCooldownSeconds * 1000;
-  const sessions = createSessionService({ database, settings, now });
+  const sessions = createSessionService({
+    database,
+    settings,
+    now,
+    getWeddingContext,
+  });
   const invalidLink = () =>
     new ApiError(
       400,
@@ -221,10 +227,14 @@ export function createAuthService({
   };
 }
 
-export function createProductionAuthService(settings) {
+export function createProductionAuthService(
+  settings,
+  { database = createAuthDatabase(settings), getWeddingContext } = {},
+) {
   return createAuthService({
     settings,
-    database: createAuthDatabase(settings),
+    database,
+    getWeddingContext,
     sendVerification: createVerificationSender(settings),
     sendReset: createResetSender(settings),
     sendPasswordChanged: createPasswordChangedSender(settings),

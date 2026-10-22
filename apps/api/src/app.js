@@ -7,10 +7,22 @@ import { requestContext } from './middleware/request-context.js';
 import { errorHandler, notFound } from './middleware/error-handler.js';
 import { createAuthRouter } from './auth/router.js';
 import { createProductionAuthService } from './auth/service.js';
+import { createAuthDatabase } from './auth/database.js';
+import { createWeddingService } from './weddings/service.js';
+import { createWeddingRouter } from './weddings/router.js';
 
-export const authService = createProductionAuthService(config);
+const database = createAuthDatabase(config);
+export const weddingService = createWeddingService({ database });
+export const authService = createProductionAuthService(config, {
+  database,
+  getWeddingContext: weddingService.current,
+});
 
-export function createApp({ service = authService, settings = config } = {}) {
+export function createApp({
+  service = authService,
+  weddings = weddingService,
+  settings = config,
+} = {}) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -21,7 +33,7 @@ export function createApp({ service = authService, settings = config } = {}) {
       origin: (origin, callback) =>
         callback(null, !origin || origin === settings.webOrigin),
       credentials: true,
-      exposedHeaders: ['x-request-id', 'Retry-After'],
+      exposedHeaders: ['x-request-id', 'Retry-After', 'ETag'],
     }),
   );
   app.use(express.json({ limit: '100kb' }));
@@ -37,6 +49,10 @@ export function createApp({ service = authService, settings = config } = {}) {
   });
 
   app.use('/api/v1/auth', createAuthRouter({ service, settings }));
+  app.use(
+    '/api/v1/weddings',
+    createWeddingRouter({ service, weddings, settings }),
+  );
   app.use(notFound);
   app.use(errorHandler);
   return app;

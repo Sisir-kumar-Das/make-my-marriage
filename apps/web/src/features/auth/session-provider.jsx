@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
 
 const SessionContext = createContext(null);
@@ -73,13 +73,21 @@ export function SessionNotice({ error, onRetry, embedded = false }) {
   );
 }
 
-export function SessionProvider({ initialSession, children }) {
+export function SessionProvider({
+  initialSession,
+  children,
+  preserveSetupState = false,
+}) {
   const router = useRouter();
+  const pathname = usePathname();
   const [session, setSession] = useState(initialSession);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const revoked = useRef(false);
+  const contextKey = useRef(
+    JSON.stringify([initialSession.wedding, initialSession.membership]),
+  );
   useEffect(() => {
     let active = true;
     const leave = () => {
@@ -96,6 +104,19 @@ export function SessionProvider({ initialSession, children }) {
         if (active && !revoked.current) {
           setSession(result.data);
           setError('');
+          const key = JSON.stringify([
+            result.data.wedding,
+            result.data.membership,
+          ]);
+          if (contextKey.current !== key) {
+            contextKey.current = key;
+            // Recheck server-rendered content when membership/permissions change.
+            if (pathname !== '/wedding-setup') router.refresh();
+          }
+          if (!result.data.wedding && pathname !== '/wedding-setup') {
+            router.replace('/wedding-setup');
+            router.refresh();
+          }
         }
       } catch (failure) {
         if (!active || revoked.current) return;
@@ -126,7 +147,7 @@ export function SessionProvider({ initialSession, children }) {
       document.removeEventListener('visibilitychange', check);
       window.removeEventListener('mmm:session-expired', leave);
     };
-  }, [router, attempt]);
+  }, [router, attempt, pathname]);
   async function logout() {
     setPending(true);
     setError('');
@@ -151,7 +172,12 @@ export function SessionProvider({ initialSession, children }) {
       setPending(false);
     }
   }
-  if (!session || error)
+  const preserveDraft = preserveSetupState && pathname === '/wedding-setup';
+  if (
+    !session ||
+    (error && !preserveDraft) ||
+    (!session.wedding && pathname !== '/wedding-setup')
+  )
     return (
       <SessionNotice
         error={error}
@@ -159,8 +185,55 @@ export function SessionProvider({ initialSession, children }) {
       />
     );
   return (
-    <SessionContext.Provider value={{ user: session.user, logout, pending }}>
-      {children}
+    <SessionContext.Provider
+      value={{
+        user: session.user,
+        wedding: session.wedding,
+        membership: session.membership,
+        logout,
+        pending,
+      }}
+    >
+      {preserveDraft ? (
+        <>
+          {error && (
+            <section
+              role="alert"
+              aria-labelledby="setup-connection-heading"
+              className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-5 py-5 text-[#242124] shadow-sm"
+            >
+              <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 id="setup-connection-heading" className="font-semibold">
+                    We could not check your session.
+                  </h2>
+                  <p className="mt-1 text-sm">
+                    Your unsaved wedding details are kept in this tab. Reconnect
+                    and retry to continue.
+                  </p>
+                  <p className="mt-1 text-sm text-[#5C5457]">{error}</p>
+                </div>
+                <button
+                  type="button"
+                  className="min-h-11 rounded border border-[#6E334E] px-4 text-sm font-medium text-[#6E334E]"
+                  onClick={() => setAttempt((value) => value + 1)}
+                >
+                  Retry session check
+                </button>
+              </div>
+            </section>
+          )}
+          {/* Keep the same subtree mounted while preventing interaction until revalidation. */}
+          <div
+            inert={error ? true : undefined}
+            className={error ? 'opacity-60' : undefined}
+          >
+            {children}
+          </div>
+        </>
+      ) : (
+        children
+      )}
     </SessionContext.Provider>
   );
 }

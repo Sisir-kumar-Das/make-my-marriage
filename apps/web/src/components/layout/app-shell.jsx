@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Heart, Menu, MapPin } from 'lucide-react';
+import { Menu, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,26 +17,9 @@ import {
 } from '@/components/ui/sheet';
 import { navigation } from '@/lib/navigation';
 import { cn } from 'cn';
+import { Brand } from '@/features/home/brand';
+import { inter, playfair } from '@/features/home/fonts';
 import { LogoutButton, useSession } from '@/features/auth/session-provider';
-
-function Brand() {
-  return (
-    <Link
-      href="/dashboard"
-      className="flex items-center gap-3"
-      aria-label="Make My Marriage dashboard"
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-card text-primary">
-        <Heart className="size-5" aria-hidden="true" />
-      </span>
-      <span className="font-serif text-xl leading-tight">
-        Make My
-        <br />
-        Marriage<span className="text-primary">.</span>
-      </span>
-    </Link>
-  );
-}
 
 function Navigation({ pathname, mobile = false }) {
   return (
@@ -73,28 +56,34 @@ function Navigation({ pathname, mobile = false }) {
 }
 
 export function AppShell({ children }) {
-  const { user } = useSession();
+  const { user, wedding, membership } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const pageLabel =
     navigation.find((item) => item.href === pathname)?.label ?? 'Workspace';
 
   return (
-    <div className="min-h-screen">
+    <div
+      className={[
+        inter.variable,
+        playfair.variable,
+        'min-h-screen font-[family-name:var(--font-landing-sans)]',
+      ].join(' ')}
+    >
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-sidebar px-5 py-8 lg:flex">
-        <Brand />
+        <Brand href="/dashboard" />
         <p className="mt-9 mb-3 px-3 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
           Your planning space
         </p>
         <Navigation pathname={pathname} />
         <div className="mt-auto rounded-xl border bg-card/70 p-4">
           <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-            Sample wedding
+            Your wedding
           </p>
-          <p className="mt-2 font-serif text-lg">Ananya & Arjun</p>
+          <p className="mt-2 break-words font-serif text-lg">{wedding.name}</p>
           <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             <MapPin className="size-3" aria-hidden="true" />
-            Bhubaneswar, Odisha
+            {wedding.location.city}, {wedding.location.state}
           </p>
         </div>
       </aside>
@@ -122,9 +111,7 @@ export function AppShell({ children }) {
                     <SheetTitle className="font-serif text-xl">
                       Make My Marriage
                     </SheetTitle>
-                    <SheetDescription>
-                      Your planning space · sample preview
-                    </SheetDescription>
+                    <SheetDescription>{wedding.name}</SheetDescription>
                   </SheetHeader>
                   <div className="px-4">
                     <Navigation pathname={pathname} mobile />
@@ -143,7 +130,11 @@ export function AppShell({ children }) {
                 variant="outline"
                 className="hidden border-primary/20 text-primary sm:inline-flex"
               >
-                Sample preview
+                {membership.role === 'ADMIN'
+                  ? 'Admin'
+                  : membership.role === 'FAMILY_MEMBER'
+                    ? 'Family Member'
+                    : 'Viewer'}
               </Badge>
               <Link
                 href="/profile"
@@ -167,10 +158,10 @@ export function AppShell({ children }) {
           className="mx-auto max-w-7xl px-5 py-7 sm:px-8 sm:py-9"
         >
           <div className="mb-7 flex items-start gap-2 rounded-lg border border-primary/10 bg-primary/5 px-4 py-3 text-xs leading-relaxed text-primary">
-            <span className="font-semibold">Development preview.</span>
+            <span className="font-semibold">Your planning space.</span>
             <span>
-              All planning content is sample data. Features are placeholders and
-              changes are not saved.
+              Your wedding details are saved. Events, tasks, checklists and
+              family invitations are coming soon.
             </span>
           </div>
           {children}

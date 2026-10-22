@@ -1,6 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
 import { AppShell } from '@/components/layout/app-shell';
 import { SessionProvider, SessionRestore } from './session-provider';
@@ -30,8 +31,14 @@ export const getWorkspaceSession = cache(async () => {
   return session.data;
 });
 
-export async function WorkspaceGate({ children }) {
+export async function getPlanningSession() {
   const session = await getWorkspaceSession();
+  if (session && !session.wedding) redirect('/wedding-setup');
+  return session;
+}
+
+export async function WorkspaceGate({ children }) {
+  const session = await getPlanningSession();
   if (!session) return <SessionRestore />;
   return (
     <SessionProvider initialSession={session}>

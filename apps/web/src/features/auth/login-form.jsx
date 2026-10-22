@@ -31,9 +31,9 @@ export function LoginForm() {
   useEffect(() => {
     let active = true;
     apiRequest('/auth/session')
-      .then(() => {
+      .then((result) => {
         if (active) {
-          router.replace('/dashboard');
+          router.replace(result.data.wedding ? '/dashboard' : '/wedding-setup');
           router.refresh();
         }
       })
@@ -50,14 +50,14 @@ export function LoginForm() {
   async function submit(values) {
     setUnverified('');
     try {
-      await apiRequest('/auth/login', {
+      const result = await apiRequest('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
         timeoutMs: 20000,
       });
       resetField('password');
-      router.replace('/dashboard');
+      router.replace(result.data.wedding ? '/dashboard' : '/wedding-setup');
       router.refresh();
     } catch (failure) {
       setError('root', { message: failure.message });

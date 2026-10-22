@@ -160,6 +160,7 @@ try {
   assert.equal((await malformedReset.json()).error.code, 'VALIDATION_ERROR');
 
   for (const route of [
+    'wedding-setup',
     'dashboard',
     'events',
     'tasks',
@@ -177,11 +178,11 @@ try {
       `/${route} should require a session`,
     );
     assert.ok(
-      !html.includes('Your wedding, taking shape.'),
+      !html.includes('Your celebration starts here'),
       'Anonymous responses must not embed workspace content',
     );
     assert.ok(
-      !html.includes('All planning content is sample data.'),
+      !html.includes('Your wedding details are saved.'),
       'Anonymous responses must not embed the workspace shell',
     );
   }
@@ -189,7 +190,7 @@ try {
   assert.equal(unknownPage.status, 404);
   await unknownPage.arrayBuffer();
   console.info(
-    'PASS: public homepage/auth routes, planned previews, local assets, all eight workspace gates and unknown-page 404.',
+    'PASS: public homepage/auth routes, planned previews, local assets, setup and all eight workspace gates and unknown-page 404.',
   );
   console.info(
     'Browser connectivity, API-unavailable states and responsive navigation require browser verification.',

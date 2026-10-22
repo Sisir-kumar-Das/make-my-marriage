@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { ApiError } from '../lib/api-error.js';
 import { authModels } from './models.js';
+import { weddingModels } from '../weddings/models.js';
 
 export function createAuthDatabase(settings) {
   let connection;
@@ -31,6 +32,11 @@ export function createAuthDatabase(settings) {
           await User.init();
           await AuthToken.init();
           await Session.init();
+          await Promise.all(
+            Object.values(weddingModels(candidate)).map((model) =>
+              model.init(),
+            ),
+          );
           connection = candidate;
           return candidate;
         } catch {

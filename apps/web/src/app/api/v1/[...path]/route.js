@@ -73,6 +73,7 @@ async function relay(request, { params }) {
       'retry-after',
       'ratelimit',
       'ratelimit-policy',
+      'etag',
     ]) {
       const value = response.headers.get(name);
       if (value) outgoing.set(name, value);
