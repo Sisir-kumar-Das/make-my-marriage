@@ -2,6 +2,7 @@ import argon2 from 'argon2';
 import { ApiError } from '../lib/api-error.js';
 import { authModels } from './models.js';
 import { generateToken, hashToken } from './tokens.js';
+import { emailConfigured } from './email.js';
 
 const invalidLink = () =>
   new ApiError(
@@ -88,8 +89,7 @@ export function createPasswordRecovery({
   async function forgot({ email }) {
     if (
       !settings.mongodbUri ||
-      !settings.resendApiKey ||
-      !settings.emailFrom ||
+      !emailConfigured(settings) ||
       typeof sendReset !== 'function'
     ) {
       throw new ApiError(

@@ -14,7 +14,7 @@ const schema = z.object({
   email: z.string().trim().max(254).email('Enter a valid email address.'),
   password: z.string().min(1, 'Enter your password.').max(128),
 });
-export function LoginForm() {
+export function LoginForm({ accountExists = false }) {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [unverified, setUnverified] = useState('');
@@ -70,6 +70,15 @@ export function LoginForm() {
       <p className="mb-7 mt-3 text-sm leading-relaxed text-[#5C5457]">
         Sign in to continue planning every moment.
       </p>
+      {accountExists && (
+        <p
+          role="status"
+          className="mb-5 rounded-xl bg-[#F5EEE7] p-4 text-sm leading-relaxed text-[#6E334E]"
+        >
+          An account already exists for this email. Sign in with your existing
+          password, or choose Forgot password if you need to reset it.
+        </p>
+      )}
       {checking && (
         <p role="status" className="mb-5 text-sm text-[#5C5457]">
           Checking your session…

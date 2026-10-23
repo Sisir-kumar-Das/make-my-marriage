@@ -33,9 +33,10 @@ At the user's request on 14 October 2026, the planned V1 libraries are installed
 | API       | `argon2`, `jose`                                      | Argon2id password hashing and JWT signing/verification                            |
 | API       | `cookie-parser`, `express-rate-limit`, `csrf-csrf`    | Cookie parsing, auth endpoint throttling and signed double-submit CSRF protection |
 | API       | `resend`                                              | Verification, recovery and member-invitation email                                |
+| API       | `nodemailer`                                          | Gmail SMTP for verification, recovery and password-change notices (ADR-018)       |
 | API       | `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` | Cloudflare R2's S3-compatible API and signed upload/access URLs                   |
 
-The first auth increment uses React Hook Form/Zod, Mongoose, Argon2id and rate limiting for registration/email verification. The Resend email adapter uses Node's native fetch with a bounded timeout and safe provider-error handling. Login/session handling now uses jose, cookie-parser and csrf-csrf. Password recovery is implemented; upload work remains deferred. Installing a dependency does not implement its feature.
+The first auth increment uses React Hook Form/Zod, Mongoose, Argon2id and rate limiting for registration/email verification. The email adapter supports Gmail SMTP through Nodemailer and the retained Resend alternative through Node's native fetch. Both have bounded transport timeouts and safe provider-error handling. Login/session handling now uses jose, cookie-parser and csrf-csrf. Password recovery is implemented; upload work remains deferred. Installing a dependency does not implement its feature.
 
 `jose` supplies JWT support through ES modules; a second JWT library is unnecessary. Argon2id follows the approved password design. Node's native environment loading, watch mode and `crypto`, plus native `fetch`, avoid duplicate dotenv, nodemon, UUID or HTTP-client dependencies. No multipart upload middleware is needed for the approved direct-to-R2 upload design.
 
@@ -62,14 +63,17 @@ Examples are separate for each application. Environment files are ignored; examp
 
 The homepage and health defaults work without copying examples. Workspace pages require a verified login. Restart after environment changes. The old public `NEXT_PUBLIC_API_BASE_URL` setting is superseded by server-only `API_BASE_URL`; it is not used.
 
-Registration/email verification uses private settings in `apps/api/.env`:
+Email uses private settings in `apps/api/.env`. ADR-018 selects Gmail SMTP for this small project. Provider selection is explicit; it never falls back to another sender after a failure. An omitted `EMAIL_PROVIDER` retains Resend for existing environments; the new example and current local environment select Gmail:
 
 | Setting                              | Purpose                                                                                |
 | ------------------------------------ | -------------------------------------------------------------------------------------- |
 | `MONGODB_URI`                        | Atlas Drivers URI with the database user's credentials; never print or commit it.      |
 | `MONGODB_DB_NAME`                    | Application database, default `make_my_marriage_dev`; distinct from the cluster name.  |
-| `RESEND_API_KEY`                     | Private Resend sending API key.                                                        |
-| `EMAIL_FROM`                         | Sender address on the configured Resend domain.                                        |
+| `EMAIL_PROVIDER`                     | `gmail` or `resend`; omitted defaults to Resend for existing configurations.           |
+| `SMTP_USER`                          | Gmail sending account in Gmail mode; also determines the From address.                 |
+| `SMTP_APP_PASSWORD`                  | Separate 16-character Google App Password; display spaces are removed automatically.   |
+| `RESEND_API_KEY`                     | Required only in Resend mode.                                                          |
+| `EMAIL_FROM`                         | Sender on the verified domain in Resend mode; ignored in Gmail mode.                   |
 | `AUTH_VERIFICATION_TTL_HOURS`        | Verification token lifetime, default 24 hours.                                         |
 | `AUTH_VERIFICATION_COOLDOWN_SECONDS` | Atomic resend cooldown, default 45 seconds.                                            |
 | `AUTH_JWT_SECRET`                    | Strong stable private signing key, minimum 43 characters; current checkout configured. |
@@ -84,11 +88,26 @@ The homepage and health endpoint remain runnable without these values; the works
 
 For alternate web/API ports, update `WEB_ORIGIN` and server-only `API_BASE_URL` consistently. Root web scripts forward arguments to Next.js: use `npm run dev:web -- --port 3001`, or `npm run start:web -- --port 3001` after building. The root build script also forwards Next.js build options. API `PORT` is supplied through its environment. Smoke URLs can be overridden with `SMOKE_WEB_URL` and `SMOKE_API_BASE_URL`.
 
+## Gmail sender setup
+
+[ADR-018](decisions/ADR-018-gmail-smtp-for-small-project.md) records the owner's choice of Gmail SMTP for fewer than 20 expected users and a small personal demonstration. Express now supports this provider for verification, resets and password-change notices. See PROJECT_STATUS.md for actual live delivery results; support in code and SMTP authentication alone do not establish inbox delivery.
+
+1. Use an existing Gmail account you own or create a dedicated one at [Google account signup](https://accounts.google.com/signup). The owner chose an existing test account after Google's verification flow delayed the newly created one. Complete account creation, password entry and any phone verification yourself. Keep recovery details private.
+2. While signed in to that account, open [Google Account Security](https://myaccount.google.com/security). Find How you sign in to Google, open 2-Step Verification and follow Google's steps to enable it. Google documents these steps [here](https://support.google.com/accounts/answer/185839?hl=en).
+3. Open [App Passwords](https://myaccount.google.com/apppasswords) in the same account. Sign in again if asked. Give the app a name such as Make My Marriage and choose Create. An App Password is a separate 16-character secret; do not use your ordinary Gmail password for SMTP. Google explains availability and restrictions [here](https://support.google.com/accounts/answer/185833?hl=en).
+4. Save the generated App Password privately. It is shown only once. Never send it, your Google password, recovery codes or a screenshot of the secret in chat. If App Passwords is unavailable, first confirm the correct account and enabled 2-Step Verification; work/school policies, Advanced Protection or a security-key-only setup can prevent it. Report the non-sensitive error text rather than trying a weaker sign-in method.
+5. In the ignored `apps/api/.env`, set `EMAIL_PROVIDER=gmail`, enter the sending address as `SMTP_USER` and paste its App Password as `SMTP_APP_PASSWORD`. Spaces in the displayed password are removed automatically. Leave existing MongoDB, signing and Resend values unchanged. Gmail mode does not use `EMAIL_FROM`; the branded From address is derived from `SMTP_USER`.
+6. Restart the API after editing `.env`; Node's source watch does not reload an environment edit by itself. Verify registration/resend to an approved different inbox, follow the link and verify the account. Then test forgot/reset password with a disposable account; a successful SMTP connection is only a configuration check.
+
+The transport uses `smtp.gmail.com:465` with TLS, normal certificate verification, bounded DNS/connect/greeting/socket timeouts and no connection pool. SMTP debug/protocol logging and file/URL content access are disabled. The account is the sender, so no custom domain is required. SMTP has no Resend-style idempotency key: application cooldown/claim protection remains, but automatic retry or provider fallback after an uncertain send is not performed. Gmail has sending limits and may block automated connections; see [Nodemailer's Gmail guide](https://nodemailer.com/guides/using-gmail). No deployment is authorized by this setup.
+
 ## Application boundaries
 
 The public root `/` renders the homepage from `src/features/home`. Its layout follows the selected Stitch Platform 2 HTML. Future features stay visible with “Planned” labels and unavailable actions are disabled. Start Planning opens `/register`; Log In opens `/login`. Inter and Playfair Display are self-hosted with `next/font/local`, with OFL licenses beside the font files. The full “M” logo and supplied couple artwork are local public assets.
 
 The `(auth)` route group shares `src/features/auth/auth-shell.jsx` for `/register`, `/verify-email`, `/login`, `/forgot-password` and `/reset-password`. Forms use the central API client and never access MongoDB directly. Password confirmation is checked locally; auth secrets are not stored in the browser. Verification links carry a fragment token and require an explicit Verify email POST. Verification creates verified accounts without automatic login, wedding membership or wedding setup. The success screen links to login. See ADR-013, ADR-014 and ADR-015.
+
+Registration checks normalized email uniqueness in Express. Under the owner's ADR-019 usability decision, duplicates return HTTP 409 `EMAIL_ALREADY_REGISTERED`; the form clears its password fields and opens `/login?from=registration` with a sign-in explanation. Existing verified, unverified and disabled accounts receive the same conflict, without replacing details, sending email or issuing a session. The query contains only a fixed display flag, never an email or password. This intentionally reveals registration existence; resend/forgot responses and invalid-credential login remain generic. New accounts continue through verification. An existing unverified user can sign in with the original password to reach verification resend.
 
 The `(workspace)` Next.js route group shares a layout without changing URLs. Eight explicit planning route files serve `/dashboard`, `/events`, `/tasks`, `/checklist`, `/members`, `/profile`, `/settings` and `/recovery`. There is no generic section route. The layout and every planning page use a request-cached Express session/wedding-membership check before returning workspace content, including RSC payloads. Verified accounts without a wedding go to the separate protected `/wedding-setup` page. The browser restores an expired access cookie using its refresh cookie, then refreshes the page; signed-out visitors go to `/login`. Keep both guard levels when adding pages.
 
@@ -141,23 +160,25 @@ Browser verification covers the dashboard's “API connected” state, stopping 
 
 The approved documents and `design/reference/` are excluded from automatic formatting/linting so baseline content is preserved. Generated build output and dependency folders are ignored.
 
-ESLint is pinned to 9.39.5 because the React/import/accessibility plugins bundled by `eslint-config-next@16.4.0` declare ESLint support through version 9. npm marks ESLint 9 deprecated. Revisit this tooling limitation when those upstream plugins support ESLint 10; do not bypass peer constraints with force/legacy-peer-deps.
+ESLint is pinned to 9.39.5 because the React/import/accessibility plugin constraints remain on version 9. npm marks ESLint 9 deprecated. `eslint-config-next` now matches the patched Next.js 16.4.2 release. Revisit the ESLint limitation when those upstream plugins support version 10; do not bypass peer constraints with force/legacy-peer-deps.
+
+Security maintenance, 23 October: Next.js and its lint configuration are pinned to 16.4.2; production build/startup no longer show the reported 16.4.0 security interruption. `npm audit --omit=dev` reports zero vulnerabilities. The full audit still reports five development-only entries from the unpatched braces advisory in the lint dependency chain; this is tracked in ADR-011. Avoid `npm audit fix --force`, which currently proposes a mismatched 14.x lint configuration. Verification-link browser state is now scoped to the current fragment; replacing a bad link in the same tab restores its explicit Verify email action without a refresh.
 
 ## Visual and deployment status
 
 `design/reference/` was absent during scaffolding. The user subsequently supplied a locally ignored Stitch export and selected its Platform 2 landing-page HTML for the public homepage. Original exports remain untouched. Only the approved logo/artwork needed by the public page are copied into `apps/web/public`; this does not make the design export folder tracked. Homepage-specific colors and fonts are scoped to `src/features/home` so the workspace shell retains its provisional PRD-inspired styling. Supplied PNG previews may be stale; HTML remains the implementation reference.
 
-Registration/verification, login, persistent cookie sessions, protected workspace gates and logout are implemented. See ADR-014 for transport/session details. Real inbox delivery requires configured Resend credentials/sender. Docker, SAM, CI deployment and future-version modules remain deferred. Amplify/Next.js 16 compatibility remains unresolved; see ADR-011 before deployment work.
+Registration/verification, login, persistent cookie sessions, protected workspace gates and logout are implemented. See ADR-014 for transport/session details. Real inbox delivery requires the selected Gmail or Resend provider to be configured and tested. Docker, SAM, CI deployment and future-version modules remain deferred. Amplify/Next.js 16 compatibility remains unresolved; see ADR-011 before deployment work.
 
 Production prerequisites: local rate limits are in memory, and Express observes the relay server’s IP. Define trusted client-IP forwarding and shared rate-limit storage before deployment; do not accept arbitrary forwarded IPs. Secure cookies require HTTPS. The browser restart behavior uses persistent cookie expiry and refresh; clearing browser cookies still signs the user out.
 
 ## Password recovery
 
-The current private MongoDB and Resend settings are reused; no new credential is required. Forgot requests always give a generic 202 acknowledgement. Bounded work in the local long-lived Express process performs account lookup, cooldown/claim and email sending after acknowledgement so account/provider timing does not alter the public response. This is best-effort local delivery, not a durable queue: graceful shutdown drains work within its deadline, but crashes can lose pending sends. A serverless deployment must replace this dispatch design before launch.
+The current private MongoDB and selected email-provider settings are reused; recovery has no separate sender credential. Forgot requests always give a generic 202 acknowledgement. Bounded work in the local long-lived Express process performs account lookup, cooldown/claim and email sending after acknowledgement so account/provider timing does not alter the public response. This is best-effort local delivery, not a durable queue: graceful shutdown drains work within its deadline, but crashes can lose pending sends. A serverless deployment must replace this dispatch design before launch.
 
 Reset links use `/reset-password#token=…`, have a 30-minute default lifetime, and are consumed only on explicit form submission. New password and confirmation follow the registration policy. Express atomically changes the password, consumes the token and revokes all sessions for that account; failure rolls back the transaction. Unverified users still need email verification. Success clears browser cookies and leads to sign-in, with no automatic login. A notification email is best effort and does not contain credentials.
 
-Run `npm run test:recovery:db` for isolated Atlas checks with fake senders. It covers complete HTTP recovery, hash-only storage, expiry, cooldown/concurrency, replacement links, privacy/provider failures, rollback, all-device revocation and concurrent login/refresh. It never sends a real email and drops only its uniquely named temporary database. Real inbox delivery must be checked separately using an eligible sender/recipient; the Resend onboarding sender still has recipient restrictions. See ADR-015.
+Run `npm run test:recovery:db` for isolated Atlas checks with fake senders. It covers complete HTTP recovery, hash-only storage, expiry, cooldown/concurrency, replacement links, privacy/provider failures, rollback, all-device revocation and concurrent login/refresh. It never sends a real email and drops only its uniquely named temporary database. Real inbox delivery must be checked separately using an approved sender/recipient. Gmail/Resend selection follows ADR-018; the Resend onboarding sender still has recipient restrictions when explicitly selected. See ADR-015.
 
 ## Wedding setup
 

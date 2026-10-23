@@ -1,4 +1,23 @@
+import nodemailer from 'nodemailer';
 import { ApiError } from '../lib/api-error.js';
+
+export function emailConfigured(settings) {
+  if ((settings.emailProvider ?? 'resend') === 'resend')
+    return Boolean(settings.resendApiKey && settings.emailFrom);
+  if (settings.emailProvider === 'gmail')
+    return (
+      /^[a-z0-9][a-z0-9.+_-]*@(gmail|googlemail)\.com$/i.test(
+        settings.smtpUser || '',
+      ) && /^[a-z0-9]{16}$/i.test(settings.smtpAppPassword || '')
+    );
+  return false;
+}
+
+function senderAddress(settings) {
+  return settings.emailProvider === 'gmail'
+    ? { name: 'Make My Marriage', address: settings.smtpUser }
+    : settings.emailFrom;
+}
 
 export function verificationEmail({ to, token, webOrigin, ttlHours, from }) {
   const url = new URL('/verify-email', webOrigin);
@@ -32,9 +51,39 @@ export function passwordChangedEmail({ to, from }) {
   };
 }
 
-function createSender(settings, compose, prefix, message, request) {
+function createSender(
+  settings,
+  compose,
+  prefix,
+  message,
+  { request = fetch, createTransport = nodemailer.createTransport } = {},
+) {
+  let transport;
   return async (input) => {
     try {
+      if (!emailConfigured(settings)) throw new Error('Email not configured.');
+      if (settings.emailProvider === 'gmail') {
+        transport ??= createTransport({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
+          auth: { user: settings.smtpUser, pass: settings.smtpAppPassword },
+          pool: false,
+          dnsTimeout: 3000,
+          connectionTimeout: 4000,
+          greetingTimeout: 3000,
+          socketTimeout: 8000,
+          tls: { minVersion: 'TLSv1.2', rejectUnauthorized: true },
+          logger: false,
+          debug: false,
+          disableFileAccess: true,
+          disableUrlAccess: true,
+        });
+        const result = await transport.sendMail(compose(input));
+        if (result.accepted?.length !== 1 || result.rejected?.length)
+          throw new Error('Email recipient not accepted.');
+        return;
+      }
       const response = await request('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -54,7 +103,7 @@ function createSender(settings, compose, prefix, message, request) {
   };
 }
 
-export function createVerificationSender(settings, request = fetch) {
+export function createVerificationSender(settings, dependencies) {
   return createSender(
     settings,
     ({ email, token }) =>
@@ -63,15 +112,15 @@ export function createVerificationSender(settings, request = fetch) {
         token,
         webOrigin: settings.webOrigin,
         ttlHours: settings.verificationTtlHours,
-        from: settings.emailFrom,
+        from: senderAddress(settings),
       }),
     'email-verify',
     'We could not send the verification email. Please try sending another link.',
-    request,
+    dependencies,
   );
 }
 
-export function createResetSender(settings, request = fetch) {
+export function createResetSender(settings, dependencies) {
   return createSender(
     settings,
     ({ email, token }) =>
@@ -80,21 +129,21 @@ export function createResetSender(settings, request = fetch) {
         token,
         webOrigin: settings.webOrigin,
         ttlMinutes: settings.resetTtlMinutes,
-        from: settings.emailFrom,
+        from: senderAddress(settings),
       }),
     'password-reset',
     'We could not send the reset email. Please request another link.',
-    request,
+    dependencies,
   );
 }
 
-export function createPasswordChangedSender(settings, request = fetch) {
+export function createPasswordChangedSender(settings, dependencies) {
   return createSender(
     settings,
     ({ email }) =>
-      passwordChangedEmail({ to: email, from: settings.emailFrom }),
+      passwordChangedEmail({ to: email, from: senderAddress(settings) }),
     'password-changed',
     'We could not send the password change notification.',
-    request,
+    dependencies,
   );
 }

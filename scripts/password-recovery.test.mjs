@@ -15,6 +15,7 @@ import { ApiError } from '../apps/api/src/lib/api-error.js';
 
 const settings = {
   ...config,
+  emailProvider: 'resend',
   mongodbUri: 'test-only',
   resendApiKey: 'test-only',
   emailFrom: 'test@example.com',
@@ -193,10 +194,11 @@ test('reset emails use trusted-origin fragment links, separate idempotency and s
     messages.push(options);
     return Response.json({ id: 'test-id' });
   };
-  await createResetSender(
-    settings,
-    request,
-  )({ email: 'couple@example.com', token, tokenHash: 'hash-only' });
+  await createResetSender(settings, { request })({
+    email: 'couple@example.com',
+    token,
+    tokenHash: 'hash-only',
+  });
   const email = JSON.parse(messages[0].body);
   const url = new URL(email.text.match(/https?:\/\/[^\s]+/)[0]);
   assert.equal(url.origin, settings.webOrigin);
@@ -208,18 +210,19 @@ test('reset emails use trusted-origin fragment links, separate idempotency and s
     messages[0].headers['Idempotency-Key'],
     'password-reset-hash-only',
   );
-  await createPasswordChangedSender(
-    settings,
-    request,
-  )({ email: 'couple@example.com', tokenHash: 'hash-only' });
+  await createPasswordChangedSender(settings, { request })({
+    email: 'couple@example.com',
+    tokenHash: 'hash-only',
+  });
   assert.equal(
     messages[1].headers['Idempotency-Key'],
     'password-changed-hash-only',
   );
   assert.ok(!messages[1].body.includes(token));
-  const failure = createResetSender(settings, async () =>
-    Response.json({ error: 'private-provider-detail' }, { status: 500 }),
-  );
+  const failure = createResetSender(settings, {
+    request: async () =>
+      Response.json({ error: 'private-provider-detail' }, { status: 500 }),
+  });
   await assert.rejects(
     failure({ email: 'couple@example.com', token, tokenHash: 'hash-only' }),
     (error) =>

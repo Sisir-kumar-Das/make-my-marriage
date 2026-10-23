@@ -21,8 +21,11 @@ test(
     const settings = {
       ...config,
       mongodbDbName: `mmm_auth_test_${randomBytes(8).toString('hex')}`,
-      resendApiKey: 'test-transport',
-      emailFrom: 'verify@example.com',
+      emailProvider: 'gmail',
+      smtpUser: 'fixture@gmail.com',
+      smtpAppPassword: 'testonlypassword',
+      resendApiKey: '',
+      emailFrom: '',
     };
     const database = createAuthDatabase(settings);
     let instant = new Date();
@@ -69,11 +72,14 @@ test(
       await t.test(
         'duplicate registration cannot replace existing credentials',
         async () => {
-          await service.register({
-            ...account,
-            name: 'Replacement',
-            password: 'Another123',
-          });
+          await assert.rejects(
+            service.register({
+              ...account,
+              name: 'Replacement',
+              password: 'Another123',
+            }),
+            { status: 409, code: 'EMAIL_ALREADY_REGISTERED' },
+          );
           assert.equal(
             await User.countDocuments({ emailNormalized: account.email }),
             1,
@@ -184,7 +190,68 @@ test(
         },
       );
       await t.test(
-        'provider failures preserve identical HTTP acknowledgements across account states',
+        'verified and disabled duplicates receive the same conflict without modifying accounts or verification claims',
+        async () => {
+          const attemptsBefore = deliveryAttempts;
+          for (const email of [account.email, 'disabled@example.com']) {
+            const before = await User.findOne({ emailNormalized: email })
+              .select('+passwordHash')
+              .lean();
+            const claimsBefore = await AuthToken.find({ userId: before._id })
+              .select('+tokenHash')
+              .lean();
+            await assert.rejects(
+              service.register({
+                ...account,
+                email,
+                name: 'Replacement',
+                password: 'Another123',
+              }),
+              { status: 409, code: 'EMAIL_ALREADY_REGISTERED' },
+            );
+            assert.deepEqual(
+              await User.findById(before._id).select('+passwordHash').lean(),
+              before,
+            );
+            assert.deepEqual(
+              await AuthToken.find({ userId: before._id })
+                .select('+tokenHash')
+                .lean(),
+              claimsBefore,
+            );
+          }
+          assert.equal(deliveryAttempts, attemptsBefore);
+        },
+      );
+      await t.test(
+        'concurrent registration creates one account and sends one email while the duplicate returns a conflict',
+        async () => {
+          const email = 'concurrent@example.com';
+          const attemptsBefore = deliveryAttempts;
+          const results = await Promise.allSettled([
+            service.register({ ...account, email }),
+            service.register({ ...account, email }),
+          ]);
+          assert.equal(
+            results.filter((result) => result.status === 'fulfilled').length,
+            1,
+          );
+          const duplicate = results.find(
+            (result) => result.status === 'rejected',
+          );
+          assert.equal(duplicate.reason.status, 409);
+          assert.equal(duplicate.reason.code, 'EMAIL_ALREADY_REGISTERED');
+          const user = await User.findOne({ emailNormalized: email }).lean();
+          assert.equal(
+            await User.countDocuments({ emailNormalized: email }),
+            1,
+          );
+          assert.equal(await AuthToken.countDocuments({ userId: user._id }), 1);
+          assert.equal(deliveryAttempts - attemptsBefore, 1);
+        },
+      );
+      await t.test(
+        'provider failures retain generic resend responses and the new/duplicate registration contract',
         async () => {
           const app = createApp({ service, settings });
           const server = await new Promise((resolve) => {
@@ -228,8 +295,16 @@ test(
                 ...account,
                 email,
               });
-              assert.equal(response.status, 202);
-              assert.deepEqual(await response.json(), acknowledgement);
+              if (email === newEmail) {
+                assert.equal(response.status, 202);
+                assert.deepEqual(await response.json(), acknowledgement);
+              } else {
+                assert.equal(response.status, 409);
+                assert.equal(
+                  (await response.json()).error.code,
+                  'EMAIL_ALREADY_REGISTERED',
+                );
+              }
             }
             assert.equal(deliveryAttempts - attemptsBefore, 2);
             for (const email of [newEmail, 'expired@example.com']) {

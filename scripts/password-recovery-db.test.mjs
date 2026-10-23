@@ -18,8 +18,11 @@ test(
       ...config,
       mongodbDbName: `mmm_recovery_test_${randomBytes(8).toString('hex')}`,
       jwtSecret: randomBytes(48).toString('base64url'),
-      resendApiKey: 'test-only',
-      emailFrom: 'test@example.com',
+      emailProvider: 'gmail',
+      smtpUser: 'fixture@gmail.com',
+      smtpAppPassword: 'testonlypassword',
+      resendApiKey: '',
+      emailFrom: '',
     };
     const database = createAuthDatabase(settings);
     let instant = new Date();

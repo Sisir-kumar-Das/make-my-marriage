@@ -21,7 +21,7 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs scripts/sessions.test.mjs scripts/password-recovery.test.mjs scripts/weddings.test.mjs",
+    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs scripts/sessions.test.mjs scripts/password-recovery.test.mjs scripts/weddings.test.mjs scripts/email.test.mjs",
     "test:auth:db": "node --env-file-if-exists=apps/api/.env --test scripts/auth-db.test.mjs",
     "test:sessions:db": "node --env-file-if-exists=apps/api/.env --test scripts/sessions-db.test.mjs",
     "smoke": "node scripts/smoke.mjs",
@@ -32,7 +32,7 @@
     "@eslint/js": "9.39.5",
     "concurrently": "^9.0.0",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.2",
     "eslint-config-prettier": "^10.0.0",
     "globals": "^16.0.0",
     "prettier": "^3.0.0"

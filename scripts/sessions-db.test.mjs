@@ -14,6 +14,7 @@ test(
   async (t) => {
     const settings = {
       ...config,
+      emailProvider: 'resend',
       mongodbDbName: `mmm_sessions_test_${randomBytes(8).toString('hex')}`,
       jwtSecret: randomBytes(48).toString('base64url'),
       resendApiKey: 'test-only',

@@ -138,7 +138,23 @@ try {
     const html = await response.text();
     assert.ok(html.includes(title));
     assert.ok(html.includes('name="robots" content="noindex, nofollow"'));
+    if (route === 'login')
+      assert.equal(
+        html.includes('An account already exists for this email.'),
+        false,
+      );
   }
+
+  const existingAccountLogin = await request(
+    `${webUrl}/login?from=registration`,
+  );
+  assert.equal(existingAccountLogin.status, 200);
+  const existingAccountHtml = await existingAccountLogin.text();
+  assert.ok(
+    existingAccountHtml.includes('An account already exists for this email.'),
+  );
+  assert.ok(existingAccountHtml.includes('href="/forgot-password"'));
+  assert.equal(existingAccountHtml.includes('Check your inbox.'), false);
 
   const malformedVerification = await request(`${apiUrl}/auth/verify-email`, {
     method: 'POST',

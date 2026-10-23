@@ -1,11 +1,16 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { BadgeCheck, MailCheck } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { FormError, SubmitButton } from './form-controls';
 import { ResendVerification } from './resend-verification';
+import {
+  cancelVerificationAttempt,
+  runVerificationAttempt,
+  verificationState,
+} from './verification-state';
 
 const subscribe = (notify) => {
   window.addEventListener('hashchange', notify);
@@ -18,30 +23,44 @@ export function VerifyEmailForm() {
     () => window.location.hash,
     () => '',
   );
-  const token = new URLSearchParams(hash.slice(1)).get('token') || '';
-  const validToken = /^[A-Za-z0-9_-]{43}$/.test(token);
-  const [state, setState] = useState('idle');
-  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(null);
+  const request = useRef(null);
+  const { token, validToken, state, error } = verificationState(hash, attempt);
+
+  useEffect(
+    () => () => {
+      const operation = request.current;
+      if (operation?.hash !== hash) return;
+      request.current = null;
+      operation.controller.abort();
+      setAttempt((previous) => cancelVerificationAttempt(previous, operation));
+    },
+    [hash],
+  );
 
   async function verify(event) {
     event.preventDefault();
-    setState('pending');
-    setError('');
-    try {
-      await apiRequest('/auth/verify-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-        timeoutMs: 15000,
-      });
-      window.history.replaceState(null, '', window.location.pathname);
-      setState('verified');
-    } catch (failure) {
-      setError(failure.message);
-      setState(
-        failure.code === 'INVALID_VERIFICATION_LINK' ? 'invalid' : 'idle',
-      );
-    }
+    if (!validToken || state === 'pending') return;
+    request.current?.controller.abort();
+    const operation = { hash, controller: new AbortController() };
+    request.current = operation;
+    setAttempt({ hash, state: 'pending', error: '', operation });
+    await runVerificationAttempt({
+      operation,
+      request,
+      setAttempt,
+      readHash: () => window.location.hash,
+      send: () =>
+        apiRequest('/auth/verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+          timeoutMs: 15000,
+          signal: operation.controller.signal,
+        }),
+      onVerified: () =>
+        window.history.replaceState(null, '', window.location.pathname),
+    });
   }
 
   if (state === 'verified')

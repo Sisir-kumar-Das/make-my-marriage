@@ -4,6 +4,8 @@
 - Date: 19 October 2026
 - Scope: registration, verification and verification resend only
 
+Follow-up, 22 October: [ADR-019](ADR-019-existing-email-registration-login.md) supersedes the identical new/duplicate registration response at the owner's request. Existing emails now receive a conflict and lead to login; resend and forgot responses remain generic. The decision below records the original increment.
+
 ## Decision
 
 Implement the approved first authentication increment in the existing npm workspaces. Use the corrected `make_my_marriage_v1_authentication_verification_states/code.html` for registration/verification and the existing homepage logo, artwork, fonts and palette. The sign-in desktop and authentication-states gallery remain references for the next increment. Ignore stale PNG content and older drafts specifying OTP codes, disabled persistent sessions, automatic invitation acceptance or alternate roles.
@@ -33,3 +35,9 @@ Public auth mutations require the exact configured browser Origin and JSON conte
 ## Verification
 
 Use Node's existing test runner for validation, HTTP contracts, Origin/content-type checks, rate limits, safe errors, token/email construction and API-client deadlines. Atlas integration tests use a unique test-owned database and a test email sender, then remove only that temporary database. They never send a real email. Real Resend/inbox delivery is a separate check after sender configuration.
+
+Verification-screen correction, 23 October: verification UI results are scoped to the current URL fragment, so another link cannot retain an older error, pending state or success. Link changes/unmount abort the old browser request, and completion checks its request identity/current fragment before altering state or removing the token. An aborted client request may already have reached Express; server-side token consumption remains transactional and one-time. Success still clears the fragment and does not automatically log in. Native state regressions and a disposable real-backend browser fixture cover link replacement and late completion; see PROJECT_STATUS.md for results.
+
+Cancellation follow-up, 23 October: cleanup also releases the canceled request reference and clears its matching pending attempt. Returning A → B → A with browser Back therefore presents an enabled action, without waiting for a request that no longer exists. Operation identity protects newer pending work and completed results from stale cleanup. Native and synthetic production-browser regressions cover this sequence; no backend/token rule changed.
+
+Stale-completion follow-up, 23 October: the shared request lifecycle also clears its matching pending attempt in `finally`, independently of effect cleanup. This covers a response finishing after the URL changes but before cleanup, including both success and rejection. It preserves completed results and a newer operation, even when the newer request uses the same token. Controlled deferred-response tests exercise the actual async lifecycle with queued state updates and both cleanup/completion orders; the browser remains responsible only for API transport and fragment updates.

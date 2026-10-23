@@ -6,6 +6,7 @@ import {
   createVerificationSender,
   createResetSender,
   createPasswordChangedSender,
+  emailConfigured,
 } from './email.js';
 import { createPasswordRecovery } from './password-recovery.js';
 import { createSessionService } from './session-service.js';
@@ -42,9 +43,15 @@ export function createAuthService({
       'INVALID_VERIFICATION_LINK',
       'This link is invalid, expired or already used. Request another verification email.',
     );
+  const accountExists = () =>
+    new ApiError(
+      409,
+      'EMAIL_ALREADY_REGISTERED',
+      'An account already exists for this email. Sign in with your existing password.',
+    );
 
   function requireEmailConfiguration() {
-    if (!settings.resendApiKey || !settings.emailFrom) {
+    if (!emailConfigured(settings)) {
       throw new ApiError(
         503,
         'AUTH_UNAVAILABLE',
@@ -95,7 +102,7 @@ export function createAuthService({
     const connection = await database.connect();
     const { User, AuthToken } = authModels(connection);
     // Duplicates never replace another account's name or password.
-    if (await User.exists({ emailNormalized: email })) return;
+    if (await User.exists({ emailNormalized: email })) throw accountExists();
     const passwordHash = await argon2.hash(password, {
       type: argon2.argon2id,
       memoryCost: 19456,
@@ -124,7 +131,11 @@ export function createAuthService({
         { maxCommitTimeMS: 5000 },
       );
     } catch (error) {
-      if (error.code === 11000) return;
+      if (
+        error.code === 11000 &&
+        (await User.exists({ emailNormalized: email }))
+      )
+        throw accountExists();
       throw error;
     }
     await deliver(connection, email, issued);

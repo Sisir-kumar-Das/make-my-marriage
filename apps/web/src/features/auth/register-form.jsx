@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,6 +25,7 @@ const schema = z
   });
 
 export function RegisterForm() {
+  const router = useRouter();
   const [submitted, setSubmitted] = useState(null);
   const {
     register,
@@ -58,7 +60,10 @@ export function RegisterForm() {
       });
       reset({ ...values, password: '', confirmPassword: '' });
     } catch (error) {
-      if (error.code === 'EMAIL_UNAVAILABLE') {
+      if (error.code === 'EMAIL_ALREADY_REGISTERED') {
+        reset({ ...values, password: '', confirmPassword: '' });
+        router.replace('/login?from=registration');
+      } else if (error.code === 'EMAIL_UNAVAILABLE') {
         setSubmitted({
           email: values.email,
           cooldown: 0,

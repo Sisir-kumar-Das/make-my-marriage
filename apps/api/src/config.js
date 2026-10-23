@@ -32,8 +32,12 @@ export const config = {
   webOrigin,
   mongodbUri: process.env.MONGODB_URI?.trim() || '',
   mongodbDbName: process.env.MONGODB_DB_NAME?.trim() || 'make_my_marriage_dev',
+  emailProvider: process.env.EMAIL_PROVIDER?.trim() || 'resend',
   resendApiKey: process.env.RESEND_API_KEY?.trim() || '',
   emailFrom: process.env.EMAIL_FROM?.trim() || '',
+  smtpUser: process.env.SMTP_USER?.trim().toLowerCase() || '',
+  // Google displays App Passwords in groups separated by spaces.
+  smtpAppPassword: process.env.SMTP_APP_PASSWORD?.replace(/\s/g, '') || '',
   verificationTtlHours: positiveInteger('AUTH_VERIFICATION_TTL_HOURS', 24, 168),
   verificationCooldownSeconds: positiveInteger(
     'AUTH_VERIFICATION_COOLDOWN_SECONDS',
@@ -53,6 +57,10 @@ export const config = {
   cookieSecure: nodeEnv === 'production',
   cookieSameSite: process.env.AUTH_COOKIE_SAME_SITE || 'lax',
 };
+
+if (!['resend', 'gmail'].includes(config.emailProvider)) {
+  throw new Error('EMAIL_PROVIDER must be resend or gmail.');
+}
 
 if (
   !['lax', 'strict', 'none'].includes(config.cookieSameSite) ||
