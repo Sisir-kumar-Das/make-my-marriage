@@ -6,6 +6,10 @@ Updated: 22 October 2026 — review fixes and user-approved creation-date rule
 
 Status: Accepted for the basic local V1 increment
 
+Subsequent cover increment, 23 October: [ADR-020](ADR-020-private-wedding-cover-uploads.md) implements optional custom covers and narrowly supersedes the default-only/disabled-upload scope below. The atomic creation, retry, date, money and membership rules remain in force.
+
+Subsequent visual alignment, 23 October: [ADR-021](ADR-021-stitch-page-alignment.md) supersedes the provisional workspace styling and warm setup palette with the owner-approved corrected Stitch references. Creation, retry, date, money and membership rules remain unchanged.
+
 ## Context and scope
 
 The user approved basic wedding setup before custom cover uploads. Use the corrected three-step Stitch setup flow and desktop review HTML in the ignored local export, adapt the older mobile reference to the same flow, and preserve the homepage's full logo, Inter/Playfair Display fonts, colors and existing couple artwork. Original reference files remain unchanged and ignored. The user initially requested an editable name such as “Sisir weds Priyanka”, with Playfair names, a smaller italic “weds” and subtle plum outline hearts. In the 21 October visual follow-up, the user approved matching the original Stitch setup screens more closely. The setup uses clean, compact name styling without the large decorated preview; the workspace heading remains part of the separate dashboard foundation.

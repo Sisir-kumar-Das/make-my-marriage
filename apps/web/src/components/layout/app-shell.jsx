@@ -1,10 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, MapPin } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { DropdownMenu } from 'radix-ui';
+import {
+  CalendarDays,
+  ChevronDown,
+  Eye,
+  Menu,
+  Settings,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -16,158 +24,197 @@ import {
   SheetClose,
 } from '@/components/ui/sheet';
 import { navigation } from '@/lib/navigation';
-import { cn } from 'cn';
 import { Brand } from '@/features/home/brand';
 import { inter, playfair } from '@/features/home/fonts';
-import { LogoutButton, useSession } from '@/features/auth/session-provider';
+import { weddingDate } from '@/features/weddings/form-data';
+import { useSession } from '@/features/auth/session-provider';
+import styles from './workspace.module.css';
 
 function Navigation({ pathname, mobile = false }) {
   return (
     <nav
       aria-label={mobile ? 'Mobile navigation' : 'Main navigation'}
-      className="space-y-1"
+      className={styles.nav}
     >
-      {navigation.map(({ href, label, icon: Icon }, index) => {
-        const link = (
-          <Link
-            href={href}
-            aria-current={pathname === href ? 'page' : undefined}
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-sidebar-accent/70',
-              pathname === href &&
-                'bg-sidebar-accent font-semibold text-sidebar-accent-foreground',
-            )}
-          >
-            <Icon className="size-4" aria-hidden="true" />
-            {label}
-          </Link>
-        );
-        return (
-          <div
-            key={href}
-            className={index === 5 ? 'mt-6 border-t pt-5' : undefined}
-          >
-            {mobile ? <SheetClose asChild>{link}</SheetClose> : link}
-          </div>
-        );
-      })}
+      {navigation
+        .filter(({ href }) => !['/profile', '/recovery'].includes(href))
+        .map(({ href, label, icon: Icon }) => {
+          const link = (
+            <Link
+              href={href}
+              aria-current={
+                pathname === href ||
+                (href === '/settings' &&
+                  ['/profile', '/recovery'].includes(pathname))
+                  ? 'page'
+                  : undefined
+              }
+            >
+              <Icon size={20} aria-hidden="true" />
+              {label}
+            </Link>
+          );
+          return mobile ? (
+            <SheetClose key={href} asChild>
+              {link}
+            </SheetClose>
+          ) : (
+            <div key={href}>{link}</div>
+          );
+        })}
     </nav>
   );
 }
-
+function WeddingCard({ wedding }) {
+  return (
+    <div className={styles.weddingCard}>
+      <div>
+        <h2 className={styles.weddingName}>{wedding.name}</h2>
+        <span className={styles.weddingBadge}>Wedding</span>
+      </div>
+      <p>
+        <CalendarDays size={14} aria-hidden="true" />
+        {weddingDate(wedding.mainDate)}
+      </p>
+    </div>
+  );
+}
+function BrandRow() {
+  return (
+    <div className={styles.brandRow}>
+      <Brand href="/dashboard" className="!w-24" />
+      <span>Make My Marriage</span>
+    </div>
+  );
+}
 export function AppShell({ children }) {
-  const { user, wedding, membership } = useSession();
+  const { user, wedding, membership, logout, pending } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const pageLabel =
-    navigation.find((item) => item.href === pathname)?.label ?? 'Workspace';
-
+  const role =
+    membership.role === 'ADMIN'
+      ? 'Admin'
+      : membership.role === 'FAMILY_MEMBER'
+        ? 'Family Member'
+        : 'Viewer';
   return (
-    <div
-      className={[
-        inter.variable,
-        playfair.variable,
-        'min-h-screen font-[family-name:var(--font-landing-sans)]',
-      ].join(' ')}
-    >
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-sidebar px-5 py-8 lg:flex">
-        <Brand href="/dashboard" />
-        <p className="mt-9 mb-3 px-3 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-          Your planning space
-        </p>
-        <Navigation pathname={pathname} />
-        <div className="mt-auto rounded-xl border bg-card/70 p-4">
-          <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-            Your wedding
-          </p>
-          <p className="mt-2 break-words font-serif text-lg">{wedding.name}</p>
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="size-3" aria-hidden="true" />
-            {wedding.location.city}, {wedding.location.state}
-          </p>
+    <div className={`${styles.shell} ${inter.variable} ${playfair.variable}`}>
+      <aside className={styles.sidebar}>
+        <BrandRow />
+        <WeddingCard wedding={wedding} />
+        <div className={styles.navArea}>
+          <p className={styles.navLabel}>Workspace</p>
+          <Navigation pathname={pathname} />
         </div>
+        <Link href="/profile" className={styles.userCard}>
+          <span className={styles.avatar}>
+            <UserRound size={18} />
+          </span>
+          <div>
+            <strong>{user.displayName}</strong>
+            <p>{role}</p>
+          </div>
+          <Settings size={16} aria-hidden="true" />
+        </Link>
       </aside>
-
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b bg-card">
-          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-            <div className="flex items-center gap-3">
+      <div className={styles.body}>
+        <header className={styles.header}>
+          <div className={styles.headerInner}>
+            <div className={styles.breadcrumb}>
               <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="lg:hidden"
+                    className={styles.mobileTrigger}
                     aria-label="Open navigation"
                   >
-                    <Menu className="size-5" />
+                    <Menu size={22} />
                   </Button>
                 </SheetTrigger>
                 <SheetContent
                   side="left"
-                  className="w-72 overflow-y-auto bg-sidebar"
+                  className="w-72 overflow-y-auto bg-sidebar p-0"
                 >
-                  <SheetHeader className="pb-4">
-                    <SheetTitle className="font-serif text-xl">
-                      Make My Marriage
-                    </SheetTitle>
-                    <SheetDescription>{wedding.name}</SheetDescription>
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>Make My Marriage</SheetTitle>
+                    <SheetDescription>
+                      Wedding workspace navigation
+                    </SheetDescription>
                   </SheetHeader>
+                  <BrandRow />
+                  <WeddingCard wedding={wedding} />
                   <div className="px-4">
                     <Navigation pathname={pathname} mobile />
                   </div>
                 </SheetContent>
               </Sheet>
-              <p className="text-sm text-muted-foreground">
-                <span className="hidden sm:inline">
-                  Workspace <span className="mx-2 text-border">/</span>
-                </span>
-                <span className="font-medium text-foreground">{pageLabel}</span>
-              </p>
+              <span>Project /</span>
+              <strong>{wedding.name}</strong>
             </div>
-            <div className="flex items-center gap-3">
-              <Badge
-                variant="outline"
-                className="hidden border-primary/20 text-primary sm:inline-flex"
-              >
-                {membership.role === 'ADMIN'
-                  ? 'Admin'
-                  : membership.role === 'FAMILY_MEMBER'
-                    ? 'Family Member'
-                    : 'Viewer'}
-              </Badge>
-              <Link
-                href="/profile"
-                aria-label="Open profile placeholder"
-                className="flex size-9 items-center justify-center rounded-full bg-champagne text-xs font-semibold text-primary"
-              >
-                {user.displayName
-                  .split(/\s+/)
-                  .slice(0, 2)
-                  .map((part) => part[0])
-                  .join('')
-                  .toUpperCase()}
-              </Link>
-              <LogoutButton />
+            <div className={styles.account}>
+              <span className={`${styles.role} ${styles.headerRole}`}>
+                {role}
+              </span>
+              <div className={styles.accountMenu}>
+                <DropdownMenu.Root key={pathname} modal={false}>
+                  <DropdownMenu.Trigger
+                    className={styles.accountTrigger}
+                    aria-label="Account menu"
+                  >
+                    <span className={styles.avatar}>
+                      <UserRound size={18} />
+                    </span>
+                    <span className={styles.accountName}>
+                      {user.displayName}
+                    </span>
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content
+                    className={styles.accountPopover}
+                    align="end"
+                    sideOffset={8}
+                    collisionPadding={16}
+                  >
+                    <DropdownMenu.Label>
+                      <strong>{user.displayName}</strong>
+                      <p>{user.email}</p>
+                    </DropdownMenu.Label>
+                    <DropdownMenu.Item asChild className={styles.accountItem}>
+                      <Link href="/profile">My Profile</Link>
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className={styles.accountItem}
+                      disabled={pending}
+                      onSelect={() => logout()}
+                    >
+                      {pending ? 'Signing out…' : 'Log out'}
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </div>
             </div>
           </div>
         </header>
-
-        <main
-          id="main-content"
-          className="mx-auto max-w-7xl px-5 py-7 sm:px-8 sm:py-9"
-        >
-          <div className="mb-7 flex items-start gap-2 rounded-lg border border-primary/10 bg-primary/5 px-4 py-3 text-xs leading-relaxed text-primary">
-            <span className="font-semibold">Your planning space.</span>
+        <main id="main-content" className={styles.main}>
+          <div className={styles.statusBar}>
             <span>
-              Your wedding details are saved. Events, tasks, checklists and
-              family invitations are coming soon.
+              <span className="size-1.5 rounded-full bg-primary" />
+              Your wedding workspace · Planning tools coming soon
+            </span>
+            <span className={styles.accessMode}>
+              {membership.role === 'VIEWER' ? (
+                <Eye size={14} />
+              ) : (
+                <ShieldCheck size={14} />
+              )}
+              Viewing as {role}
             </span>
           </div>
           {children}
         </main>
-        <footer className="mx-auto max-w-7xl px-5 pb-7 text-xs text-muted-foreground sm:px-8">
-          Plan every moment. Enjoy every memory.
+        <footer className={styles.footer}>
+          Make My Marriage · Plan every moment. Enjoy every memory.
         </footer>
       </div>
     </div>

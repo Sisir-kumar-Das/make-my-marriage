@@ -26,7 +26,7 @@ export function Field({ label, id, error, type = 'text', ...props }) {
             aria-label={`${visible ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
             aria-pressed={visible}
             onClick={() => setVisible(!visible)}
-            className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center rounded-r-lg text-[#5C5457]"
+            className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center rounded-r-lg text-[var(--auth-muted)]"
           >
             {visible ? (
               <EyeOff size={18} aria-hidden="true" />
@@ -54,7 +54,7 @@ export function SubmitButton({ busy, children, busyLabel }) {
     <button
       type="submit"
       disabled={busy}
-      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#6E334E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#542439]"
+      className="flex min-h-12 w-full items-center justify-center gap-2 rounded bg-[var(--auth-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[#542439]"
     >
       {busy && (
         <LoaderCircle className="animate-spin" size={18} aria-hidden="true" />

@@ -24,7 +24,7 @@ const schema = z
     path: ['confirmPassword'],
   });
 
-export function RegisterForm() {
+export function RegisterForm({ accountMissing = false }) {
   const router = useRouter();
   const [submitted, setSubmitted] = useState(null);
   const {
@@ -86,16 +86,16 @@ export function RegisterForm() {
     return (
       <>
         <MailCheck
-          className="mb-5 text-[#6E334E]"
+          className="mb-5 text-[var(--auth-primary)]"
           size={36}
           aria-hidden="true"
         />
         <h1 id="auth-title">Check your inbox.</h1>
-        <p className="mt-4 text-sm leading-relaxed text-[#5C5457]">
+        <p className="mt-4 text-sm leading-relaxed text-[var(--auth-muted)]">
           If this address needs verification, you’ll receive an email with a
           secure link. Open it to confirm your email before continuing.
         </p>
-        <p className="mt-3 text-sm text-[#5C5457]">
+        <p className="mt-3 text-sm text-[var(--auth-muted)]">
           Check your spam folder too. Each link can be used once
           {submitted.ttlHours
             ? ` and expires after ${submitted.ttlHours} hours.`
@@ -113,9 +113,17 @@ export function RegisterForm() {
   return (
     <>
       <h1 id="auth-title">Create your wedding account.</h1>
-      <p className="mb-7 mt-3 text-sm leading-relaxed text-[#5C5457]">
+      <p className="mb-7 mt-3 text-sm leading-relaxed text-[var(--auth-muted)]">
         Begin planning every moment with your family.
       </p>
+      {accountMissing && (
+        <p
+          role="status"
+          className="mb-5 rounded bg-[var(--auth-soft)] p-4 text-sm leading-relaxed text-[var(--auth-primary)]"
+        >
+          You don’t have an account yet. Please create one to continue.
+        </p>
+      )}
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-5">
         <fieldset disabled={isSubmitting} className="space-y-5">
           <Field
@@ -165,11 +173,11 @@ export function RegisterForm() {
           Create account
         </SubmitButton>
       </form>
-      <p className="mt-6 text-center text-sm text-[#5C5457]">
+      <p className="mt-6 text-center text-sm text-[var(--auth-muted)]">
         Already have an account?{' '}
         <Link
           href="/login"
-          className="font-semibold text-[#6E334E] underline underline-offset-4"
+          className="font-semibold text-[var(--auth-primary)] underline underline-offset-4"
         >
           Sign in
         </Link>

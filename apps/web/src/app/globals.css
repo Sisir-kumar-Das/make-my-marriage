@@ -1,40 +1,40 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-/* Provisional PRD palette. Replace with approved Stitch tokens when supplied. */
+/* Corrected Stitch V1 workspace tokens; landing/login retain their own reference palette. */
 :root {
-  --background: #faf7f2;
-  --foreground: #302b29;
-  --card: #fffefd;
-  --card-foreground: #302b29;
-  --popover: #fffefd;
-  --popover-foreground: #302b29;
-  --primary: #684052;
-  --primary-foreground: #fffaf5;
-  --secondary: #eee7e1;
-  --secondary-foreground: #493b40;
-  --muted: #f3eee8;
-  --muted-foreground: #756b65;
-  --accent: #efe3dd;
-  --accent-foreground: #684052;
+  --background: #fff7fb;
+  --foreground: #1d1b1e;
+  --card: #ffffff;
+  --card-foreground: #1d1b1e;
+  --popover: #ffffff;
+  --popover-foreground: #1d1b1e;
+  --primary: #531d37;
+  --primary-foreground: #ffffff;
+  --secondary: #f3ecf0;
+  --secondary-foreground: #514348;
+  --muted: #f9f2f6;
+  --muted-foreground: #514348;
+  --accent: #ffd5dd;
+  --accent-foreground: #7a5a61;
   --destructive: #ac3d32;
-  --border: #e8e0d8;
-  --input: #e8e0d8;
-  --ring: #a17a8c;
-  --sidebar: #f4efe8;
-  --sidebar-foreground: #493e39;
-  --sidebar-primary: #684052;
-  --sidebar-primary-foreground: #fffaf5;
-  --sidebar-accent: #eae0e2;
-  --sidebar-accent-foreground: #684052;
-  --sidebar-border: #e8e0d8;
-  --sidebar-ring: #a17a8c;
+  --border: #eee6ea;
+  --input: #d5c1c7;
+  --ring: #8a4a66;
+  --sidebar: #f9f2f6;
+  --sidebar-foreground: #514348;
+  --sidebar-primary: #6e334e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f3ecf0;
+  --sidebar-accent-foreground: #531d37;
+  --sidebar-border: #ede6ea;
+  --sidebar-ring: #8a4a66;
   --success: #416650;
   --success-soft: #edf2eb;
   --warning: #8a642c;
   --warning-soft: #fcf2df;
-  --champagne: #efe2c5;
-  --radius: 0.875rem;
+  --champagne: #f9dfb0;
+  --radius: 0.5rem;
 }
 
 @theme inline {
@@ -73,8 +73,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-landing-sans), Arial, sans-serif;
+  --font-serif: var(--font-landing-serif), Georgia, serif;
 }
 
 @layer base {

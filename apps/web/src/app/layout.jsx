@@ -1,4 +1,5 @@
 import './globals.css';
+import { inter, playfair } from '@/features/home/fonts';
 
 export const metadata = {
   title: { default: 'Make My Marriage', template: '%s | Make My Marriage' },
@@ -8,7 +9,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
         <a
           href="#main-content"

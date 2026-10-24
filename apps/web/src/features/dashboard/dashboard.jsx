@@ -1,112 +1,202 @@
-import Image from 'next/image';
+import Link from 'next/link';
 import {
   CalendarDays,
   MapPin,
   CalendarPlus,
   ListChecks,
   Users,
-  Heart,
+  Zap,
+  TriangleAlert,
+  Clock3,
+  ShieldCheck,
 } from 'lucide-react';
 import { WeddingTitle } from '@/features/weddings/wedding-title';
 import {
   weddingDate,
+  weddingToday,
   traditions,
   budgetLabel,
 } from '@/features/weddings/form-data';
 import { ApiStatus } from './api-status';
+import { DashboardCover } from '@/features/weddings/dashboard-cover';
+import {
+  ComingSoon,
+  EmptyPanel,
+  FutureButton,
+  MetricPanels,
+} from './workspace-ui';
+import styles from './workspace-ui.module.css';
 
 export function Dashboard({ wedding, membership }) {
+  const days = Math.round(
+    (Date.parse(wedding.mainDate) - Date.parse(weddingToday())) / 86400000,
+  );
+  const tradition =
+    traditions.find(([key]) => key === wedding.tradition)?.[1] ||
+    wedding.tradition;
   return (
-    <div className="space-y-7">
-      <section className="overflow-hidden rounded-3xl border bg-card shadow-sm">
-        <div className="relative aspect-[2/1] min-h-64">
-          <Image
-            src="/images/sample-couple.webp"
-            alt="Default wedding cover"
-            fill
-            loading="eager"
-            sizes="(min-width: 1024px) calc(100vw - 320px), 100vw"
-            className="object-cover object-[center_25%]"
-          />
-          <span className="absolute bottom-4 left-4 rounded-full bg-white/95 px-3 py-1.5 text-xs text-primary">
-            Signature cover · personal uploads coming soon
-          </span>
-        </div>
-        <div className="p-5 text-center sm:p-9">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Your celebration starts here
-          </p>
-          <WeddingTitle as="h1" name={wedding.name} />
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
-            <p className="flex items-center gap-2">
-              <CalendarDays size={16} aria-hidden="true" />
-              {weddingDate(wedding.mainDate)}
+    <div className={styles.stack}>
+      <section className="overflow-hidden rounded-lg bg-white shadow-sm">
+        <DashboardCover wedding={wedding} membership={membership}>
+          <div className={styles.heroText}>
+            <div className={styles.heroMeta}>
+              <span className="rounded-full bg-champagne px-2 py-1 text-primary">
+                <ShieldCheck size={12} />
+                {tradition} wedding tradition
+              </span>
+              <span>
+                <MapPin size={13} />
+                {wedding.location.city}, {wedding.location.state}
+              </span>
+            </div>
+            <WeddingTitle as="h1" name={wedding.name} />
+            <p className={styles.description}>
+              Your ceremonies, family and shared plans, together in one private
+              wedding workspace.
             </p>
-            <p className="flex items-center gap-2">
-              <MapPin size={16} aria-hidden="true" />
-              {wedding.location.city}, {wedding.location.state}
+            <div className={styles.heroDate}>
+              <span>
+                <strong className={styles.countdown}>{Math.abs(days)}</strong>
+                {days < 0
+                  ? 'days since celebration'
+                  : days === 0
+                    ? 'Wedding day'
+                    : 'days to go'}
+              </span>
+              <span>
+                <CalendarDays size={14} />
+                Wedding date: <strong>{weddingDate(wedding.mainDate)}</strong>
+              </span>
+            </div>
+            <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock3 size={13} />
+              India · Asia/Kolkata (IST)
+            </p>
+            {wedding.estimatedBudget && membership.financeAccess && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Estimated budget:{' '}
+                <strong className="text-foreground">
+                  {budgetLabel(wedding.estimatedBudget.amountMinor)}
+                </strong>
+              </p>
+            )}
+          </div>
+        </DashboardCover>
+      </section>
+      {membership.role !== 'VIEWER' ? (
+        <section className={`${styles.card} ${styles.row}`}>
+          <div className="flex items-center gap-3">
+            <span className={styles.iconTile}>
+              <Zap size={19} />
+            </span>
+            <div>
+              <h2>Coordinator Actions</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Direct additions to your timeline & assignments · Coming soon
+              </p>
+            </div>
+          </div>
+          <div className={styles.actions}>
+            <FutureButton primary>
+              <ListChecks size={16} />
+              Add Task
+            </FutureButton>
+            <FutureButton>
+              <CalendarPlus size={16} />
+              Add Event
+            </FutureButton>
+            {membership.role === 'ADMIN' && (
+              <FutureButton>
+                <Users size={16} />
+                Invite Member
+              </FutureButton>
+            )}
+          </div>
+        </section>
+      ) : (
+        <p className={styles.note}>
+          <ShieldCheck size={18} />
+          You are viewing this wedding as a Viewer. Planning access is
+          read-only.
+        </p>
+      )}
+      <div className={styles.progressRow}>
+        <section className={styles.card}>
+          <div className={styles.row}>
+            <div>
+              <p className={styles.eyebrow}>Planning status</p>
+              <h2 className="mt-1">Planning Completion</h2>
+            </div>
+            <ComingSoon />
+          </div>
+          <div className={styles.progressBody}>
+            <div className={styles.dial}>—</div>
+            <p>
+              Your task progress will appear here when planning tools are
+              available.
             </p>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {traditions.find(([key]) => key === wedding.tradition)?.[1] ||
-              wedding.tradition}{' '}
-            · India · IST
-          </p>
-          {wedding.estimatedBudget && membership.financeAccess && (
-            <p className="mt-5 text-sm">
-              Estimated budget:{' '}
-              <span className="font-semibold">
-                {budgetLabel(wedding.estimatedBudget.amountMinor)}
-              </span>
-            </p>
-          )}
-        </div>
-      </section>
-      <section className="rounded-2xl border bg-card p-6 sm:p-8">
-        <Heart className="mb-3 text-primary" size={22} aria-hidden="true" />
-        <h2 className="font-serif text-2xl">
-          A fresh beginning, just for you.
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Your wedding is saved. Your ceremonies, tasks and shared plans will
-          take shape here as you add them. No events or tasks have been
-          generated automatically.
-        </p>
-      </section>
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          [
-            CalendarPlus,
-            'Your celebrations',
-            'Add ceremonies, dates and venues to bring your wedding timeline together.',
-          ],
-          [
-            ListChecks,
-            'Your planning checklist',
-            'Choose your tasks and tradition-based checklists when the planning tools arrive.',
-          ],
-          [
-            Users,
-            'Plan with family',
-            'Invite trusted people as Admin, Family Member or Viewer when invitations arrive.',
-          ],
-        ].map(([Icon, title, description]) => (
-          <section key={title} className="rounded-2xl border bg-card p-6">
-            <Icon className="mb-4 text-primary" size={22} aria-hidden="true" />
-            <h2 className="font-semibold">{title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {description}
-            </p>
-            <button
-              disabled
-              className="mt-5 min-h-11 rounded-full border px-4 py-2 text-xs text-muted-foreground disabled:cursor-not-allowed"
-            >
-              Coming soon
-            </button>
-          </section>
-        ))}
+          <div className={styles.progressTrack} />
+        </section>
+        <MetricPanels />
       </div>
-      <ApiStatus />
+      <section className={styles.card}>
+        <div className={styles.sectionHeader}>
+          <h2 className="flex items-center gap-2">
+            <TriangleAlert size={18} className="text-primary" />
+            Attention Required
+          </h2>
+          <ComingSoon />
+        </div>
+        <EmptyPanel icon={TriangleAlert}>
+          <p>
+            Planning reminders, missing details and overdue tasks will appear
+            here.
+          </p>
+        </EmptyPanel>
+      </section>
+      <div className={styles.columns}>
+        <section className={styles.card}>
+          <p className={styles.eyebrow}>Schedule</p>
+          <div className={`${styles.sectionHeader} mt-2`}>
+            <h2>Upcoming Ceremonies</h2>
+            <Link href="/events">View all →</Link>
+          </div>
+          <EmptyPanel icon={CalendarDays}>
+            <p>
+              Your ceremony schedule will take shape here. No events have been
+              generated automatically.
+            </p>
+          </EmptyPanel>
+        </section>
+        <div className={styles.stack}>
+          <section className={styles.card}>
+            <p className={styles.eyebrow}>Host & family queue</p>
+            <div className={`${styles.sectionHeader} mt-2`}>
+              <h2>My Tasks</h2>
+              <Link href="/tasks">View all →</Link>
+            </div>
+            <EmptyPanel icon={ListChecks}>
+              <p>
+                Your assigned tasks and upcoming due dates will appear here.
+              </p>
+            </EmptyPanel>
+          </section>
+          <section className={styles.card}>
+            <p className={styles.eyebrow}>Collaborators log</p>
+            <h2 className="mt-2">Recent Activity</h2>
+            <EmptyPanel icon={Users}>
+              <p>Updates from your planning team are coming soon.</p>
+            </EmptyPanel>
+          </section>
+        </div>
+      </div>
+      <details className="text-xs text-muted-foreground">
+        <summary className="cursor-pointer">Connection status</summary>
+        <div className="mt-3">
+          <ApiStatus />
+        </div>
+      </details>
     </div>
   );
 }

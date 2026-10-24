@@ -55,10 +55,9 @@ test(
           userAgent: 'Native auth integration test',
         });
       await t.test(
-        'wrong, missing and disabled accounts receive the same credential error; unverified status requires the correct password',
+        'missing accounts lead to registration; wrong/disabled credentials stay generic and verification requires the correct password',
         async () => {
           for (const input of [
-            { email: 'missing@example.com', password: account.password },
             { email: account.email, password: 'Wrong123' },
             { email: 'disabled@example.com', password: account.password },
             { email: 'unverified@example.com', password: 'Wrong123' },
@@ -67,6 +66,13 @@ test(
               code: 'INVALID_CREDENTIALS',
               status: 401,
             });
+          await assert.rejects(
+            service.login({
+              email: 'missing@example.com',
+              password: account.password,
+            }),
+            { code: 'ACCOUNT_NOT_FOUND', status: 404 },
+          );
           await assert.rejects(
             service.login({
               email: 'unverified@example.com',

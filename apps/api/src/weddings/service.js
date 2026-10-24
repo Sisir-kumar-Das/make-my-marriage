@@ -2,6 +2,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import { ApiError } from '../lib/api-error.js';
 import { authModels } from '../auth/models.js';
 import { weddingModels } from './models.js';
+import { config } from '../config.js';
+import { attachCover, detachCover } from '../media/references.js';
+import { defaultCoverFrame, saveCoverSchema } from '../media/validation.js';
 import {
   createWeddingSchema,
   idempotencyKeySchema,
@@ -26,7 +29,13 @@ function context(wedding, member) {
       timezone: wedding.timezone,
       tradition: wedding.tradition,
       location: wedding.location,
-      cover: 'DEFAULT',
+      cover: wedding.coverMediaId ? 'CUSTOM' : 'DEFAULT',
+      ...(wedding.coverMediaId
+        ? {
+            coverMediaId: String(wedding.coverMediaId),
+            coverFrame: wedding.coverFrame || defaultCoverFrame,
+          }
+        : {}),
       mode: wedding.mode,
       version: wedding.__v,
       ...(budgetAllowed && wedding.estimatedBudget
@@ -42,7 +51,11 @@ function context(wedding, member) {
   };
 }
 
-export function createWeddingService({ database, now = () => new Date() }) {
+export function createWeddingService({
+  database,
+  settings = config,
+  now = () => new Date(),
+}) {
   async function current(userId) {
     const { Wedding, WeddingMember } = weddingModels(await database.connect());
     const member = await WeddingMember.findOne({
@@ -232,6 +245,14 @@ export function createWeddingService({ database, now = () => new Date() }) {
           ],
           { session: transaction },
         );
+        await attachCover(connection, transaction, {
+          mediaId: input.coverMediaId,
+          userId,
+          weddingId: wedding._id,
+          setup: true,
+          settings,
+          instant,
+        });
         // Keep only hashes/resource identity, never form details or a response
         // containing role-restricted data. Expired keys are replaced atomically.
         await WeddingCreationRequest.findOneAndUpdate(
@@ -256,6 +277,110 @@ export function createWeddingService({ database, now = () => new Date() }) {
     }
     return result;
   }
+  async function setCover(userId, weddingId, raw) {
+    if (!/^[a-f\d]{24}$/.test(weddingId)) throw absent();
+    const parsed = saveCoverSchema.safeParse(raw);
+    if (!parsed.success)
+      throw new ApiError(
+        400,
+        'INVALID_COVER',
+        'Check your photo selection and position.',
+      );
+    const { mediaId, frame, version } = parsed.data;
+    const connection = await database.connect();
+    const { User } = authModels(connection);
+    const { Wedding, WeddingMember } = weddingModels(connection);
+    let result;
+    await connection.transaction(async (transaction) => {
+      const eligible = await User.updateOne(
+        { _id: userId, status: 'ACTIVE', emailVerifiedAt: { $ne: null } },
+        { $inc: { __v: 1 } },
+        { session: transaction },
+      );
+      if (eligible.matchedCount !== 1)
+        throw new ApiError(
+          401,
+          'SESSION_EXPIRED',
+          'Please sign in to continue.',
+        );
+      const member = await WeddingMember.findOne({
+        userId,
+        weddingId,
+        status: 'ACTIVE',
+      })
+        .session(transaction)
+        .lean();
+      const wedding =
+        member &&
+        (await Wedding.findOne({ _id: weddingId, deletedAt: null })
+          .session(transaction)
+          .lean());
+      if (!wedding) throw absent();
+      if (member.role !== 'ADMIN')
+        throw new ApiError(
+          403,
+          'ADMIN_REQUIRED',
+          'Only an Admin can change the wedding cover.',
+        );
+      const sameId = String(wedding.coverMediaId || '') === (mediaId || '');
+      const previousFrame = wedding.coverFrame || defaultCoverFrame;
+      if (
+        sameId &&
+        (!mediaId ||
+          ['x', 'y', 'zoom'].every((key) => previousFrame[key] === frame[key]))
+      ) {
+        result = context(wedding, member);
+        return;
+      }
+      if (wedding.__v !== version)
+        throw new ApiError(
+          409,
+          'VERSION_CONFLICT',
+          'The cover changed in another tab. Reload the current cover before saving again.',
+        );
+      await WeddingMember.updateOne(
+        { _id: member._id, role: 'ADMIN', status: 'ACTIVE' },
+        { $inc: { __v: 1 } },
+        { session: transaction },
+      );
+      const instant = now();
+      if (!sameId) {
+        await attachCover(connection, transaction, {
+          mediaId,
+          userId,
+          weddingId,
+          setup: false,
+          settings,
+          instant,
+        });
+        await detachCover(
+          connection,
+          transaction,
+          wedding.coverMediaId,
+          instant,
+        );
+      }
+      const updated = await Wedding.findOneAndUpdate(
+        { _id: weddingId, __v: version },
+        {
+          $set: {
+            coverMediaId: mediaId,
+            coverFrame: mediaId ? frame : defaultCoverFrame,
+          },
+          $inc: { __v: 1 },
+        },
+        { session: transaction, returnDocument: 'after' },
+      ).lean();
+      if (!updated)
+        throw new ApiError(
+          409,
+          'VERSION_CONFLICT',
+          'The cover changed. Please reload and retry.',
+        );
+      result = context(updated, member);
+    });
+    return result;
+  }
   const safe =
     (operation) =>
     async (...args) => {
@@ -271,5 +396,10 @@ export function createWeddingService({ database, now = () => new Date() }) {
         );
       }
     };
-  return { current: safe(current), read: safe(read), create: safe(create) };
+  return {
+    current: safe(current),
+    read: safe(read),
+    create: safe(create),
+    setCover: safe(setCover),
+  };
 }

@@ -34,7 +34,7 @@ export function ResetPasswordForm() {
     return (
       <>
         <h1 id="auth-title">Set a new password.</h1>
-        <p role="status" className="mt-4 text-sm text-[#5C5457]">
+        <p role="status" className="mt-4 text-sm text-[var(--auth-muted)]">
           Reading your secure reset link…
         </p>
       </>
@@ -92,25 +92,25 @@ function ResetPasswordFields({ token, onSuccess }) {
     return (
       <>
         <TimerOff
-          className="mb-5 text-[#6E334E]"
+          className="mb-5 text-[var(--auth-primary)]"
           size={36}
           aria-hidden="true"
         />
         <h1 id="auth-title">Link expired or invalid.</h1>
-        <p className="mt-4 text-sm leading-relaxed text-[#5C5457]">
+        <p className="mt-4 text-sm leading-relaxed text-[var(--auth-muted)]">
           This password reset link is missing, expired or already used. For your
           security, request a new single-use link.
         </p>
         <Link
           href="/forgot-password"
-          className="mt-7 inline-flex min-h-12 items-center rounded-full bg-[#6E334E] px-6 py-3 text-sm font-semibold text-white"
+          className="mt-7 inline-flex min-h-12 items-center rounded bg-[var(--auth-primary)] px-6 py-3 text-sm font-semibold text-white"
         >
           Request a new link
         </Link>
         <p className="mt-5 text-sm">
           <Link
             href="/login"
-            className="font-semibold text-[#6E334E] underline underline-offset-4"
+            className="font-semibold text-[var(--auth-primary)] underline underline-offset-4"
           >
             Back to sign in
           </Link>
@@ -119,9 +119,13 @@ function ResetPasswordFields({ token, onSuccess }) {
     );
   return (
     <>
-      <KeyRound className="mb-5 text-[#6E334E]" size={36} aria-hidden="true" />
+      <KeyRound
+        className="mb-5 text-[var(--auth-primary)]"
+        size={36}
+        aria-hidden="true"
+      />
       <h1 id="auth-title">Set a new password.</h1>
-      <p className="mb-7 mt-3 text-sm leading-relaxed text-[#5C5457]">
+      <p className="mb-7 mt-3 text-sm leading-relaxed text-[var(--auth-muted)]">
         Choose and confirm a strong password for your account. Changing it signs
         out existing sessions.
       </p>
@@ -161,7 +165,7 @@ function ResetPasswordFields({ token, onSuccess }) {
       <p className="mt-7 text-center text-sm">
         <Link
           href="/login"
-          className="font-semibold text-[#6E334E] underline underline-offset-4"
+          className="font-semibold text-[var(--auth-primary)] underline underline-offset-4"
         >
           Back to sign in
         </Link>
@@ -174,18 +178,21 @@ function ResetSuccess() {
   return (
     <>
       <BadgeCheck
-        className="mb-5 text-[#6E334E]"
+        className="mb-5 text-[var(--auth-primary)]"
         size={40}
         aria-hidden="true"
       />
       <h1 id="auth-title">Password updated.</h1>
-      <p role="status" className="mt-4 text-sm leading-relaxed text-[#5C5457]">
+      <p
+        role="status"
+        className="mt-4 text-sm leading-relaxed text-[var(--auth-muted)]"
+      >
         Your password has been changed. Existing sessions for this account have
         been signed out. Sign in with your new password to continue.
       </p>
       <Link
         href="/login"
-        className="mt-7 inline-flex min-h-12 items-center rounded-full bg-[#6E334E] px-6 py-3 text-sm font-semibold text-white"
+        className="mt-7 inline-flex min-h-12 items-center rounded bg-[var(--auth-primary)] px-6 py-3 text-sm font-semibold text-white"
       >
         Continue to sign in
       </Link>

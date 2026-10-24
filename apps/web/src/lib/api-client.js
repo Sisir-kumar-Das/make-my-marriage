@@ -201,3 +201,64 @@ export async function apiRequest(path, options = {}) {
     throw error;
   }
 }
+
+// Binary uploads go only to the R2 URL authorized by Express, without app cookies.
+export function uploadFile(
+  url,
+  file,
+  { signal, onProgress, xhrFactory = () => new XMLHttpRequest() } = {},
+) {
+  const target = new URL(url);
+  if (
+    target.protocol !== 'https:' ||
+    !target.hostname.endsWith('.r2.cloudflarestorage.com')
+  )
+    return Promise.reject(
+      apiError(
+        'The upload address is not available. Please retry.',
+        'INVALID_UPLOAD_URL',
+      ),
+    );
+  return new Promise((resolve, reject) => {
+    const xhr = xhrFactory();
+    const abort = () => xhr.abort();
+    const finish = (failure) => {
+      signal?.removeEventListener('abort', abort);
+      if (failure) reject(failure);
+      else resolve();
+    };
+    xhr.open('PUT', url);
+    xhr.withCredentials = false;
+    xhr.timeout = 180000;
+    xhr.setRequestHeader('Content-Type', file.type);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable)
+        onProgress?.(Math.round((event.loaded * 100) / event.total));
+    };
+    xhr.onload = () =>
+      finish(
+        xhr.status >= 200 && xhr.status < 300
+          ? null
+          : apiError('Photo upload failed. Please retry.', 'UPLOAD_FAILED'),
+      );
+    xhr.onerror = () =>
+      finish(
+        apiError(
+          'Could not upload your photo. Check your connection and retry.',
+          'UPLOAD_FAILED',
+        ),
+      );
+    xhr.ontimeout = () =>
+      finish(
+        apiError('Photo upload timed out. Please retry.', 'UPLOAD_TIMEOUT'),
+      );
+    xhr.onabort = () =>
+      finish(apiError('Photo upload was cancelled.', 'ABORTED'));
+    if (signal?.aborted) {
+      finish(apiError('Photo upload was cancelled.', 'ABORTED'));
+      return;
+    }
+    signal?.addEventListener('abort', abort, { once: true });
+    xhr.send(file);
+  });
+}

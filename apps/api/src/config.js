@@ -56,6 +56,10 @@ export const config = {
   sessionTtlDays: positiveInteger('AUTH_SESSION_TTL_DAYS', 30, 90),
   cookieSecure: nodeEnv === 'production',
   cookieSameSite: process.env.AUTH_COOKIE_SAME_SITE || 'lax',
+  r2AccountId: process.env.R2_ACCOUNT_ID?.trim() || '',
+  r2Bucket: process.env.R2_BUCKET_NAME?.trim() || '',
+  r2AccessKeyId: process.env.R2_ACCESS_KEY_ID?.trim() || '',
+  r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY?.trim() || '',
 };
 
 if (!['resend', 'gmail'].includes(config.emailProvider)) {

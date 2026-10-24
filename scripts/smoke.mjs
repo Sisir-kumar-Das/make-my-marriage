@@ -156,6 +156,16 @@ try {
   assert.ok(existingAccountHtml.includes('href="/forgot-password"'));
   assert.equal(existingAccountHtml.includes('Check your inbox.'), false);
 
+  const missingAccountRegistration = await request(
+    `${webUrl}/register?from=login`,
+  );
+  assert.equal(missingAccountRegistration.status, 200);
+  assert.ok(
+    (await missingAccountRegistration.text()).includes(
+      'Please create one to continue.',
+    ),
+  );
+
   const malformedVerification = await request(`${apiUrl}/auth/verify-email`, {
     method: 'POST',
     headers: { Origin: origin, 'Content-Type': 'application/json' },

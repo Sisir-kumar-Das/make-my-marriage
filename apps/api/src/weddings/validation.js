@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mediaIdSchema, coverFrameSchema } from '../media/validation.js';
 
 export function weddingToday(now = new Date()) {
   const parts = Object.fromEntries(
@@ -70,8 +71,14 @@ export const createWeddingSchema = z
       })
       .strict()
       .optional(),
+    coverMediaId: mediaIdSchema.optional(),
+    coverFrame: coverFrameSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => !data.coverFrame || data.coverMediaId,
+    'Choose a photo before setting its position.',
+  );
 
 export const idempotencyKeySchema = z
   .string()

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Brand } from '@/features/home/brand';
 
 export default function NotFound() {
   return (
@@ -6,12 +7,15 @@ export default function NotFound() {
       id="main-content"
       className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 px-6"
     >
-      <p className="text-sm font-semibold tracking-widest text-primary">
-        MAKE MY MARRIAGE
+      <Brand href="/" className="!w-40" />
+      <p className="mt-4 text-xs uppercase tracking-widest text-muted-foreground">
+        Page not found · 404
       </p>
-      <h1 className="font-serif text-4xl">This page isn’t here.</h1>
+      <h1 className="font-serif text-4xl text-primary">
+        This page isn’t here.
+      </h1>
       <p className="text-muted-foreground">
-        Return to the sample dashboard to continue exploring.
+        Return to your wedding workspace to continue planning.
       </p>
       <Link
         href="/dashboard"

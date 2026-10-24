@@ -67,21 +67,21 @@ export function VerifyEmailForm() {
     return (
       <>
         <BadgeCheck
-          className="mb-5 text-[#6E334E]"
+          className="mb-5 text-[var(--auth-primary)]"
           size={40}
           aria-hidden="true"
         />
         <h1 id="auth-title">Email verified.</h1>
         <p
           role="status"
-          className="mt-4 text-sm leading-relaxed text-[#5C5457]"
+          className="mt-4 text-sm leading-relaxed text-[var(--auth-muted)]"
         >
           Your email address is confirmed. Your account is ready for the next
           step.
         </p>
         <Link
           href="/login"
-          className="mt-7 inline-flex min-h-12 items-center rounded-full bg-[#6E334E] px-6 py-3 text-sm font-semibold text-white"
+          className="mt-7 inline-flex min-h-12 items-center rounded bg-[var(--auth-primary)] px-6 py-3 text-sm font-semibold text-white"
         >
           Continue to sign in
         </Link>
@@ -90,13 +90,17 @@ export function VerifyEmailForm() {
 
   return (
     <>
-      <MailCheck className="mb-5 text-[#6E334E]" size={36} aria-hidden="true" />
+      <MailCheck
+        className="mb-5 text-[var(--auth-primary)]"
+        size={36}
+        aria-hidden="true"
+      />
       <h1 id="auth-title">
         {validToken && state !== 'invalid'
           ? 'Verify your email.'
           : 'Check your inbox.'}
       </h1>
-      <p className="mt-4 text-sm leading-relaxed text-[#5C5457]">
+      <p className="mt-4 text-sm leading-relaxed text-[var(--auth-muted)]">
         {validToken && state !== 'invalid'
           ? 'Confirm your email address to finish creating your account. Verification links expire and can only be used once.'
           : 'Open the verification link in your email. If your link expired or was already used, you can request a new one below.'}

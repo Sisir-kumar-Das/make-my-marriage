@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import argon2 from 'argon2';
 import { createApp } from '../apps/api/src/app.js';
 import { config } from '../apps/api/src/config.js';
 import { ApiError } from '../apps/api/src/lib/api-error.js';
+import { createSessionService } from '../apps/api/src/auth/session-service.js';
 
 const settings = {
   ...config,
@@ -275,5 +277,88 @@ test('refresh is CSRF-protected and expired sessions clear credentials', async (
         throw new ApiError(401, 'SESSION_EXPIRED', 'Sign in.');
       },
     },
+  );
+});
+
+test('login distinguishes absent emails without creating accounts, sessions or sending mail', async () => {
+  const passwordHash = await argon2.hash('Wedding123');
+  const users = {
+    'verified@example.com': {
+      status: 'ACTIVE',
+      emailVerifiedAt: new Date(),
+      passwordHash,
+    },
+    'unverified@example.com': {
+      status: 'ACTIVE',
+      emailVerifiedAt: null,
+      passwordHash,
+    },
+    'disabled@example.com': {
+      status: 'DISABLED',
+      emailVerifiedAt: new Date(),
+      passwordHash,
+    },
+  };
+  const connection = {
+    models: {
+      User: {
+        findOne: ({ emailNormalized }) => ({
+          select: () => ({ lean: async () => users[emailNormalized] || null }),
+        }),
+      },
+      AuthToken: {},
+      Session: {
+        create: () => assert.fail('A rejected login must not create a session'),
+      },
+    },
+    transaction: () =>
+      assert.fail('A rejected login must not start account mutation'),
+  };
+  const service = createSessionService({
+    database: { connect: async () => connection },
+    settings,
+    now: () => new Date(),
+  });
+  for (const email of [
+    'verified@example.com',
+    'unverified@example.com',
+    'disabled@example.com',
+  ]) {
+    await assert.rejects(service.login({ email, password: 'Incorrect123' }), {
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+    });
+  }
+  await assert.rejects(
+    service.login({ email: 'disabled@example.com', password: 'Wedding123' }),
+    {
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+    },
+  );
+  await assert.rejects(
+    service.login({ email: 'unverified@example.com', password: 'Wedding123' }),
+    {
+      status: 403,
+      code: 'EMAIL_NOT_VERIFIED',
+    },
+  );
+  await withApi(
+    async ({ request, csrf }) => {
+      const response = await request('/login', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': await csrf() },
+        body: { email: '  Missing@Example.COM  ', password: 'Wedding123' },
+      });
+      const payload = await response.json();
+      assert.equal(response.status, 404);
+      assert.equal(payload.error.code, 'ACCOUNT_NOT_FOUND');
+      assert.match(payload.error.message, /create one to continue/);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal(response.headers.getSetCookie().length, 0);
+      assert.equal(payload.data, undefined);
+    },
+    {},
+    { login: service.login },
   );
 });

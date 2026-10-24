@@ -21,12 +21,15 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs scripts/sessions.test.mjs scripts/password-recovery.test.mjs scripts/weddings.test.mjs scripts/email.test.mjs",
+    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs scripts/sessions.test.mjs scripts/password-recovery.test.mjs scripts/weddings.test.mjs scripts/email.test.mjs scripts/media.test.mjs",
     "test:auth:db": "node --env-file-if-exists=apps/api/.env --test scripts/auth-db.test.mjs",
     "test:sessions:db": "node --env-file-if-exists=apps/api/.env --test scripts/sessions-db.test.mjs",
     "smoke": "node scripts/smoke.mjs",
     "test:recovery:db": "node --env-file-if-exists=apps/api/.env --test scripts/password-recovery-db.test.mjs",
-    "test:weddings:db": "node --env-file-if-exists=apps/api/.env --test scripts/weddings-db.test.mjs"
+    "test:weddings:db": "node --env-file-if-exists=apps/api/.env --test scripts/weddings-db.test.mjs",
+    "test:media:db": "node --env-file-if-exists=apps/api/.env --test scripts/media-db.test.mjs",
+    "test:media:r2": "node --env-file-if-exists=apps/api/.env --test scripts/media-r2.test.mjs",
+    "media:cleanup": "node --env-file-if-exists=apps/api/.env scripts/media-cleanup.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

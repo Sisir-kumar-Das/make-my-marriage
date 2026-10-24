@@ -68,6 +68,17 @@ const setupFields = z.object({
       (value) => budgetMinor(value) !== null,
       'Enter an amount with up to two decimal places.',
     ),
+  coverMediaId: z
+    .string()
+    .regex(/^(?:[a-f\d]{24})?$/)
+    .optional(),
+  coverFrame: z
+    .object({
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      zoom: z.number().min(1).max(3),
+    })
+    .optional(),
 });
 export function setupSchemaForSubmission(previous, now = () => new Date()) {
   return setupFields.superRefine((data, context) => {
@@ -103,6 +114,12 @@ function toWeddingInput(data) {
     tradition: data.tradition,
     timezone: 'Asia/Kolkata',
     location: { city: data.city, state: data.state, countryCode: 'IN' },
+    ...(data.coverMediaId
+      ? {
+          coverMediaId: data.coverMediaId,
+          coverFrame: data.coverFrame || { x: 0.5, y: 0.5, zoom: 1 },
+        }
+      : {}),
     ...(amountMinor === undefined
       ? {}
       : { estimatedBudget: { amountMinor, currency: 'INR' } }),

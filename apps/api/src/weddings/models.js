@@ -31,6 +31,11 @@ const weddingSchema = new Schema(
       default: 'PLANNING',
     },
     createdBy: { type: Schema.Types.ObjectId, required: true, index: true },
+    coverMediaId: { type: Schema.Types.ObjectId, default: null },
+    coverFrame: {
+      type: new Schema({ x: Number, y: Number, zoom: Number }, { _id: false }),
+      default: undefined,
+    },
     deletedAt: { type: Date, default: null },
   },
   { timestamps: true, optimisticConcurrency: true, collection: 'weddings' },

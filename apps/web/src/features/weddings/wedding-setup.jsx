@@ -20,6 +20,8 @@ import { LogoutButton } from '@/features/auth/session-provider';
 import { Field, FormError } from '@/features/auth/form-controls';
 import { apiRequest } from '@/lib/api-client';
 import { SetupComplete, WeddingReview } from './setup-review';
+import { useCoverUpload } from './use-cover-upload';
+import { defaultFrame } from './cover-data';
 import {
   setupSchemaForSubmission,
   suggestedWeddingName,
@@ -69,6 +71,15 @@ export function WeddingSetup() {
       state: '',
       tradition: 'ODIA',
       budget: '',
+      coverMediaId: '',
+      coverFrame: defaultFrame,
+    },
+  });
+  const cover = useCoverUpload({
+    onSelection: () => {
+      setValue('coverMediaId', '');
+      setValue('coverFrame', defaultFrame);
+      clearErrors('root');
     },
   });
   const values = useWatch({ control });
@@ -105,10 +116,17 @@ export function WeddingSetup() {
   }
   async function create(values) {
     setExisting(false);
-    const body = JSON.stringify(weddingInput(values, submission.current));
-    if (submission.current?.body !== body)
-      submission.current = { body, key: crypto.randomUUID() };
     try {
+      const mediaId = await cover.upload();
+      setValue('coverMediaId', mediaId || '');
+      const body = JSON.stringify(
+        weddingInput(
+          { ...values, coverMediaId: mediaId || '', coverFrame: cover.frame },
+          submission.current,
+        ),
+      );
+      if (submission.current?.body !== body)
+        submission.current = { body, key: crypto.randomUUID() };
       const result = await apiRequest('/weddings', {
         method: 'POST',
         headers: {
@@ -120,6 +138,10 @@ export function WeddingSetup() {
       });
       setCreated(result.data.wedding);
     } catch (failure) {
+      if (failure.code === 'COVER_NOT_READY') {
+        cover.invalidate();
+        setValue('coverMediaId', '');
+      }
       if (
         failure.code === 'WEDDING_ALREADY_EXISTS' ||
         failure.code === 'IDEMPOTENCY_CONFLICT'
@@ -496,7 +518,13 @@ export function WeddingSetup() {
                   )}
                   {step === 2 && (
                     <div className={styles.reviewGrid}>
-                      <WeddingReview values={values} onEdit={goBack} />
+                      <WeddingReview
+                        values={values}
+                        onEdit={goBack}
+                        cover={cover}
+                        busy={isSubmitting}
+                        onFrameChange={(frame) => setValue('coverFrame', frame)}
+                      />
                     </div>
                   )}
                   <div

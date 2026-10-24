@@ -22,6 +22,8 @@ This deliberately exposes whether a submitted registration email is already regi
 
 The approved PRD, API, database and system-design baselines remain unchanged. No standalone email-availability endpoint or client-side database lookup is introduced.
 
+Follow-up, 24 October 2026: ADR-022 narrowly supersedes the generic missing-account login rule above at the owner's request. Unregistered login emails now lead to registration; the existing-email registration behavior in this decision remains unchanged.
+
 ## Verification
 
 Native HTTP/service tests cover normalized existing-email conflicts and the duplicate-key race with no mail/cookies. Isolated Atlas checks cover unchanged credentials/verification claims across account states, concurrent registration uniqueness and retained generic resend failures. Browser checks should confirm that existing email submission reaches login without an inbox screen and that new registration still reaches verification, using only disposable accounts and fake delivery. Actual results and remaining limitations belong in PROJECT_STATUS.md.

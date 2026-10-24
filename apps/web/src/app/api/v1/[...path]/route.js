@@ -64,7 +64,9 @@ async function relay(request, { params }) {
       body,
       cache: 'no-store',
       redirect: 'manual',
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(
+        path.includes('media') && path.at(-1) === 'complete' ? 30000 : 20000,
+      ),
     });
     const outgoing = new Headers();
     for (const name of [

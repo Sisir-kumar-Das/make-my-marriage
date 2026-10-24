@@ -101,8 +101,14 @@ export function createSessionService({
       user?.passwordHash || (await dummyHash),
       password,
     );
-    if (!matches || !user || user.status !== 'ACTIVE')
-      throw invalidCredentials();
+    if (!user) {
+      throw new ApiError(
+        404,
+        'ACCOUNT_NOT_FOUND',
+        'You don’t have an account yet. Please create one to continue.',
+      );
+    }
+    if (!matches || user.status !== 'ACTIVE') throw invalidCredentials();
     if (!user.emailVerifiedAt) {
       throw new ApiError(
         403,

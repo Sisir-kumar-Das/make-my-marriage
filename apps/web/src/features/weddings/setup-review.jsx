@@ -1,5 +1,10 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { useId } from 'react';
+import { useRouter } from 'next/navigation';
+import { Dialog } from 'radix-ui';
 import {
   ArrowRight,
   CalendarDays,
@@ -15,10 +20,12 @@ import {
   Sparkles,
   Layers,
   Users,
+  X,
 } from 'lucide-react';
 import { Brand } from '@/features/home/brand';
 import { budgetLabel, budgetMinor, traditions, weddingDate } from './form-data';
 import styles from './weddings.module.css';
+import { CoverEditor } from './cover-editor';
 
 const nextActions = [
   [
@@ -38,7 +45,8 @@ const nextActions = [
   ],
 ];
 
-export function WeddingReview({ values, onEdit }) {
+export function WeddingReview({ values, onEdit, cover, busy, onFrameChange }) {
+  const coverFileId = useId();
   const tradition = traditions.find(([key]) => key === values.tradition)?.[1];
   const budget = budgetMinor(values.budget);
   const budgetText =
@@ -121,9 +129,14 @@ export function WeddingReview({ values, onEdit }) {
             </span>
           </div>
           <div className={styles.coverGrid}>
-            <article
-              className={styles.selectedCover}
-              aria-label="Editorial illustration, selected wedding cover"
+            <button
+              type="button"
+              className={
+                cover.selection ? styles.futureCover : styles.selectedCover
+              }
+              aria-pressed={!cover.selection}
+              aria-label="Use signature wedding cover"
+              onClick={cover.reset}
             >
               <div className={styles.coverImage}>
                 <Image
@@ -133,10 +146,14 @@ export function WeddingReview({ values, onEdit }) {
                   sizes="(min-width: 1024px) 240px, (min-width: 640px) 30vw, 85vw"
                   className="object-cover object-[center_25%]"
                 />
-                <span className={styles.selectedCheck}>
-                  <Check size={14} aria-hidden="true" />
+                {!cover.selection && (
+                  <span className={styles.selectedCheck}>
+                    <Check size={14} aria-hidden="true" />
+                  </span>
+                )}
+                <span className={styles.imageBadge}>
+                  {cover.selection ? 'Signature' : 'Selected'}
                 </span>
-                <span className={styles.imageBadge}>Selected</span>
               </div>
               <h3>Editorial Illustration</h3>
               <p>
@@ -146,18 +163,31 @@ export function WeddingReview({ values, onEdit }) {
               <span className={styles.coverNote}>
                 <ShieldCheck size={14} aria-hidden="true" /> Included cover
               </span>
-            </article>
-            <button type="button" disabled className={styles.futureCover}>
+            </button>
+            <label
+              htmlFor={coverFileId}
+              className={
+                cover.selection ? styles.selectedCover : styles.futureCover
+              }
+            >
               <span className={styles.coverPlaceholder}>
                 <CloudUpload size={30} aria-hidden="true" />
-                <span>Bring your own memories</span>
+                <span>
+                  {cover.selection
+                    ? 'Your photo is selected'
+                    : 'Bring your own memories'}
+                </span>
               </span>
               <span className={styles.coverOptionTitle}>Custom Upload</span>
               <span className={styles.coverOptionDescription}>
-                Personalize your workspace with a photo of the two of you.
+                Personalize your workspace with a JPG or PNG up to 15 MB.
               </span>
-              <span className={styles.comingSoon}>Coming soon</span>
-            </button>
+              <span className={styles.coverNote}>
+                {cover.selection
+                  ? 'Selected · preview below'
+                  : 'Choose your photo'}
+              </span>
+            </label>
             <button type="button" disabled className={styles.futureCover}>
               <span className={styles.coverPlaceholder}>
                 <Layers size={28} aria-hidden="true" />
@@ -176,6 +206,12 @@ export function WeddingReview({ values, onEdit }) {
               <span className={styles.comingSoon}>Coming soon</span>
             </button>
           </div>
+          <CoverEditor
+            fileInputId={coverFileId}
+            cover={cover}
+            disabled={busy}
+            onFrameChange={onFrameChange}
+          />
           <p className={styles.privacyNote}>
             <LockKeyhole size={17} aria-hidden="true" /> Your wedding workspace
             is private. Creating it does not publish a guest website.
@@ -217,7 +253,12 @@ export function WeddingReview({ values, onEdit }) {
             />
             <Recap label="Wedding tradition" value={tradition} />
             <Recap label="Estimated budget" value={budgetText} />
-            <Recap label="Artwork selection" value="Editorial illustration" />
+            <Recap
+              label="Artwork selection"
+              value={
+                cover.selection ? 'Custom photo' : 'Editorial illustration'
+              }
+            />
           </dl>
           <div className={styles.cleanCanvas}>
             <CheckCheck size={20} aria-hidden="true" />
@@ -295,57 +336,85 @@ function Recap({ label, value }) {
 }
 
 export function SetupComplete({ wedding, headingRef }) {
+  const router = useRouter();
   return (
-    <section className={styles.complete} aria-labelledby="complete-heading">
-      <div className={styles.completeHero}>
-        <p className={styles.completeLabel}>
-          <PartyPopper size={15} aria-hidden="true" /> Your wedding workspace is
-          ready!
-        </p>
-        <h1
-          id="complete-heading"
-          ref={headingRef}
-          tabIndex={-1}
-          className={`${styles.heading} ${styles.completeTitle}`}
+    <Dialog.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) router.push('/dashboard');
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Overlay className={styles.completeOverlay} />
+        <Dialog.Content
+          className={styles.complete}
+          aria-labelledby="complete-heading"
+          aria-describedby="complete-description"
         >
-          Welcome to {wedding.name}
-        </h1>
-        <p>
-          Your celebration on <strong>{weddingDate(wedding.mainDate)}</strong>{' '}
-          in <strong>{wedding.location.city}</strong> has a place to begin.
-        </p>
-      </div>
-      <div className={styles.completeBody}>
-        <p className={styles.eyebrow}>Your next chapter</p>
-        <h2>You’re the Admin of your wedding workspace.</h2>
-        <p className={styles.description}>
-          Your details are saved. Start with a clean canvas and build your plans
-          together as each feature arrives.
-        </p>
-        <div className={styles.launchGrid}>
-          {nextActions.map(([Icon, title, description]) => (
-            <button
-              type="button"
-              disabled
-              key={title}
-              className={styles.launchCard}
+          <div className={styles.completeHero}>
+            <div className={styles.completeBrand}>
+              <Brand href="/" className="!w-24 brightness-0 invert" />
+              <span>Launchpad activated</span>
+            </div>
+            <Dialog.Close
+              className={styles.completeClose}
+              aria-label="Close confirmation and enter workspace"
             >
-              <Icon size={23} aria-hidden="true" />
-              <strong>{title}</strong>
-              <span>{description}</span>
-              <span className={styles.comingSoon}>Coming soon</span>
-            </button>
-          ))}
-        </div>
-        <div className={styles.completeFooter}>
-          <span>
-            <Heart size={15} aria-hidden="true" /> A little more organized.
-          </span>
-          <Link href="/dashboard" className={styles.primaryButton}>
-            Enter your workspace <ArrowRight size={17} aria-hidden="true" />
-          </Link>
-        </div>
-      </div>
-    </section>
+              <X size={20} />
+            </Dialog.Close>
+            <p className={styles.completeLabel}>
+              <PartyPopper size={15} aria-hidden="true" /> Your wedding
+              workspace is ready!
+            </p>
+            <Dialog.Title asChild>
+              <h1
+                id="complete-heading"
+                ref={headingRef}
+                tabIndex={-1}
+                className={`${styles.heading} ${styles.completeTitle}`}
+              >
+                Welcome to {wedding.name}
+              </h1>
+            </Dialog.Title>
+            <p id="complete-description">
+              Your celebration on{' '}
+              <strong>{weddingDate(wedding.mainDate)}</strong> in{' '}
+              <strong>{wedding.location.city}</strong> has a place to begin.
+            </p>
+          </div>
+          <div className={styles.completeBody}>
+            <p className={styles.eyebrow}>Your next chapter</p>
+            <h2>You’re the Admin of your wedding workspace.</h2>
+            <p className={styles.description}>
+              Your details are saved. Start with a clean canvas and build your
+              plans together as each feature arrives.
+            </p>
+            <div className={styles.launchGrid}>
+              {nextActions.map(([Icon, title, description]) => (
+                <button
+                  type="button"
+                  disabled
+                  key={title}
+                  className={styles.launchCard}
+                >
+                  <Icon size={23} aria-hidden="true" />
+                  <strong>{title}</strong>
+                  <span>{description}</span>
+                  <span className={styles.comingSoon}>Coming soon</span>
+                </button>
+              ))}
+            </div>
+            <div className={styles.completeFooter}>
+              <span>
+                <Heart size={15} aria-hidden="true" /> A little more organized.
+              </span>
+              <Link href="/dashboard" className={styles.primaryButton}>
+                Enter your workspace <ArrowRight size={17} aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -14,7 +14,7 @@ export function PasswordRequirements({
   id = 'password-requirements',
 }) {
   return (
-    <div id={id} className="rounded-xl bg-[#F5EEE7] p-4">
+    <div id={id} className="rounded bg-[var(--auth-soft)] p-4">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide">
         Password requirements
       </p>
@@ -28,7 +28,9 @@ export function PasswordRequirements({
           <li key={label} className="flex items-center gap-2">
             <Check
               size={14}
-              className={met ? 'text-emerald-800' : 'text-[#5C5457]/50'}
+              className={
+                met ? 'text-emerald-800' : 'text-[var(--auth-muted)]/50'
+              }
               aria-hidden="true"
             />
             <span>
@@ -38,7 +40,7 @@ export function PasswordRequirements({
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs text-[#5C5457]">
+      <p className="mt-3 text-xs text-[var(--auth-muted)]">
         Special characters are optional.
       </p>
     </div>

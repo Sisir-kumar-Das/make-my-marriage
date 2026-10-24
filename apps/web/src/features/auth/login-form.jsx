@@ -23,6 +23,7 @@ export function LoginForm({ accountExists = false }) {
     handleSubmit,
     resetField,
     setError,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
@@ -60,6 +61,11 @@ export function LoginForm({ accountExists = false }) {
       router.replace(result.data.wedding ? '/dashboard' : '/wedding-setup');
       router.refresh();
     } catch (failure) {
+      if (failure.code === 'ACCOUNT_NOT_FOUND') {
+        resetField('password');
+        router.replace('/register?from=login');
+        return;
+      }
       setError('root', { message: failure.message });
       if (failure.code === 'EMAIL_NOT_VERIFIED') setUnverified(values.email);
     }
@@ -67,20 +73,20 @@ export function LoginForm({ accountExists = false }) {
   return (
     <>
       <h1 id="auth-title">Welcome back.</h1>
-      <p className="mb-7 mt-3 text-sm leading-relaxed text-[#5C5457]">
+      <p className="mb-7 mt-3 text-sm leading-relaxed text-[var(--auth-muted)]">
         Sign in to continue planning every moment.
       </p>
       {accountExists && (
         <p
           role="status"
-          className="mb-5 rounded-xl bg-[#F5EEE7] p-4 text-sm leading-relaxed text-[#6E334E]"
+          className="mb-5 rounded bg-[var(--auth-soft)] p-4 text-sm leading-relaxed text-[var(--auth-primary)]"
         >
           An account already exists for this email. Sign in with your existing
           password, or choose Forgot password if you need to reset it.
         </p>
       )}
       {checking && (
-        <p role="status" className="mb-5 text-sm text-[#5C5457]">
+        <p role="status" className="mb-5 text-sm text-[var(--auth-muted)]">
           Checking your session…
         </p>
       )}
@@ -93,7 +99,12 @@ export function LoginForm({ accountExists = false }) {
             autoComplete="username"
             maxLength={254}
             required
-            {...register('email')}
+            {...register('email', {
+              onChange: () => {
+                setUnverified('');
+                clearErrors('root');
+              },
+            })}
             error={errors.email?.message}
           />
           <Field
@@ -109,7 +120,7 @@ export function LoginForm({ accountExists = false }) {
           <div className="text-right">
             <Link
               href="/forgot-password"
-              className="text-sm font-medium text-[#6E334E]"
+              className="text-sm font-medium text-[var(--auth-primary)]"
             >
               Forgot password?
             </Link>
@@ -121,15 +132,19 @@ export function LoginForm({ accountExists = false }) {
         </fieldset>
       </form>
       {unverified && (
-        <div className="mt-6 border-t border-[#E7DED7] pt-6">
-          <ResendVerification initialEmail={unverified} />
+        <div className="mt-6 border-t border-[var(--auth-border)] pt-6">
+          <ResendVerification
+            key={unverified}
+            initialEmail={unverified}
+            compact
+          />
         </div>
       )}
-      <p className="mt-7 text-center text-sm text-[#5C5457]">
+      <p className="mt-7 text-center text-sm text-[var(--auth-muted)]">
         New to Make My Marriage?{' '}
         <Link
           href="/register"
-          className="font-semibold text-[#6E334E] underline underline-offset-4"
+          className="font-semibold text-[var(--auth-primary)] underline underline-offset-4"
         >
           Create an account
         </Link>

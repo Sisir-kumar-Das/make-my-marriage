@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { ApiError } from '../lib/api-error.js';
 import { authModels } from './models.js';
 import { weddingModels } from '../weddings/models.js';
+import { mediaModel } from '../media/models.js';
 
 export function createAuthDatabase(settings) {
   let connection;
@@ -32,6 +33,7 @@ export function createAuthDatabase(settings) {
           await User.init();
           await AuthToken.init();
           await Session.init();
+          await mediaModel(candidate).init();
           await Promise.all(
             Object.values(weddingModels(candidate)).map((model) =>
               model.init(),

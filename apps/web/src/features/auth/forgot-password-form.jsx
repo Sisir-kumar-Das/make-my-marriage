@@ -51,14 +51,14 @@ export function ForgotPasswordForm() {
       {sent ? (
         <>
           <MailCheck
-            className="mb-5 text-[#6E334E]"
+            className="mb-5 text-[var(--auth-primary)]"
             size={36}
             aria-hidden="true"
           />
           <h1 id="auth-title">Check your inbox.</h1>
           <p
             role="status"
-            className="mt-4 text-sm leading-relaxed text-[#5C5457]"
+            className="mt-4 text-sm leading-relaxed text-[var(--auth-muted)]"
           >
             If an eligible account exists for{' '}
             <span className="break-words font-semibold">
@@ -67,7 +67,7 @@ export function ForgotPasswordForm() {
             , we will email password reset instructions. Check your inbox and
             spam folder.
           </p>
-          <p className="mt-3 text-sm leading-relaxed text-[#5C5457]">
+          <p className="mt-3 text-sm leading-relaxed text-[var(--auth-muted)]">
             Each link expires after {ttl} minutes and can be used once.
             Requesting a newer link replaces the previous one.
           </p>
@@ -78,7 +78,7 @@ export function ForgotPasswordForm() {
             type="button"
             onClick={handleSubmit(submit)}
             disabled={seconds > 0 || isSubmitting}
-            className="mt-6 flex min-h-12 w-full items-center justify-center rounded-full bg-[#6E334E] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            className="mt-6 flex min-h-12 w-full items-center justify-center rounded bg-[var(--auth-primary)] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
           >
             {isSubmitting
               ? 'Requesting link…'
@@ -90,7 +90,7 @@ export function ForgotPasswordForm() {
             type="button"
             disabled={isSubmitting}
             onClick={() => setSent(false)}
-            className="mt-4 text-sm font-medium text-[#6E334E] underline underline-offset-4"
+            className="mt-4 text-sm font-medium text-[var(--auth-primary)] underline underline-offset-4"
           >
             Use a different email
           </button>
@@ -98,12 +98,12 @@ export function ForgotPasswordForm() {
       ) : (
         <>
           <KeyRound
-            className="mb-5 text-[#6E334E]"
+            className="mb-5 text-[var(--auth-primary)]"
             size={36}
             aria-hidden="true"
           />
           <h1 id="auth-title">Reset your password.</h1>
-          <p className="mb-7 mt-3 text-sm leading-relaxed text-[#5C5457]">
+          <p className="mb-7 mt-3 text-sm leading-relaxed text-[var(--auth-muted)]">
             Enter your account email and we’ll send you a secure reset link.
           </p>
           <form
@@ -133,7 +133,7 @@ export function ForgotPasswordForm() {
       <p className="mt-7 text-center text-sm">
         <Link
           href="/login"
-          className="font-semibold text-[#6E334E] underline underline-offset-4"
+          className="font-semibold text-[var(--auth-primary)] underline underline-offset-4"
         >
           Back to sign in
         </Link>

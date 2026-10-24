@@ -10,9 +10,12 @@ import { createProductionAuthService } from './auth/service.js';
 import { createAuthDatabase } from './auth/database.js';
 import { createWeddingService } from './weddings/service.js';
 import { createWeddingRouter } from './weddings/router.js';
+import { createMediaService } from './media/service.js';
+import { createMediaRouter } from './media/router.js';
 
 const database = createAuthDatabase(config);
 export const weddingService = createWeddingService({ database });
+export const mediaService = createMediaService({ database, settings: config });
 export const authService = createProductionAuthService(config, {
   database,
   getWeddingContext: weddingService.current,
@@ -21,6 +24,7 @@ export const authService = createProductionAuthService(config, {
 export function createApp({
   service = authService,
   weddings = weddingService,
+  media = mediaService,
   settings = config,
 } = {}) {
   const app = express();
@@ -49,6 +53,7 @@ export function createApp({
   });
 
   app.use('/api/v1/auth', createAuthRouter({ service, settings }));
+  app.use('/api/v1', createMediaRouter({ service, weddings, media, settings }));
   app.use(
     '/api/v1/weddings',
     createWeddingRouter({ service, weddings, settings }),
