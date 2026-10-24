@@ -92,7 +92,7 @@ export function Dashboard({ wedding, membership }) {
             <div>
               <h2>Coordinator Actions</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Direct additions to your timeline & assignments · Coming soon
+                Create a ceremony now. Tasks and invitations are coming soon.
               </p>
             </div>
           </div>
@@ -101,10 +101,13 @@ export function Dashboard({ wedding, membership }) {
               <ListChecks size={16} />
               Add Task
             </FutureButton>
-            <FutureButton>
+            <Link
+              href="/events?create=1"
+              className={`${styles.action} ${styles.primary}`}
+            >
               <CalendarPlus size={16} />
               Add Event
-            </FutureButton>
+            </Link>
             {membership.role === 'ADMIN' && (
               <FutureButton>
                 <Users size={16} />
@@ -164,8 +167,8 @@ export function Dashboard({ wedding, membership }) {
           </div>
           <EmptyPanel icon={CalendarDays}>
             <p>
-              Your ceremony schedule will take shape here. No events have been
-              generated automatically.
+              Your dashboard ceremony summary is coming soon. View Events for
+              your saved ceremonies and venue details.
             </p>
           </EmptyPanel>
         </section>

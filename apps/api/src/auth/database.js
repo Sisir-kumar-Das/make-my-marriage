@@ -3,6 +3,7 @@ import { ApiError } from '../lib/api-error.js';
 import { authModels } from './models.js';
 import { weddingModels } from '../weddings/models.js';
 import { mediaModel } from '../media/models.js';
+import { eventModels } from '../events/models.js';
 
 export function createAuthDatabase(settings) {
   let connection;
@@ -34,6 +35,8 @@ export function createAuthDatabase(settings) {
           await AuthToken.init();
           await Session.init();
           await mediaModel(candidate).init();
+          for (const model of Object.values(eventModels(candidate)))
+            await model.init();
           await Promise.all(
             Object.values(weddingModels(candidate)).map((model) =>
               model.init(),

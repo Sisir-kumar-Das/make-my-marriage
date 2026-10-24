@@ -200,7 +200,7 @@ export function AppShell({ children }) {
           <div className={styles.statusBar}>
             <span>
               <span className="size-1.5 rounded-full bg-primary" />
-              Your wedding workspace · Planning tools coming soon
+              Your wedding workspace · More planning tools coming soon
             </span>
             <span className={styles.accessMode}>
               {membership.role === 'VIEWER' ? (

@@ -4,7 +4,7 @@ A wedding planning workspace for Indian weddings, with an initial emphasis on Od
 
 **Plan every moment. Enjoy every memory.**
 
-The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, forgot/reset password, protected three-step wedding setup, initial Admin membership, private custom wedding covers, a dashboard with real wedding details, explicit planning placeholders and an Express health endpoint. Planning business features remain subsequent increments. Real email delivery uses the configured private Gmail or Resend settings.
+The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, forgot/reset password, protected three-step wedding setup, initial Admin membership, private custom wedding covers, ceremony create/list/details/edit with manual venues, a dashboard with real wedding details, explicit planning placeholders and an Express health endpoint. Other planning business features remain subsequent increments. Real email delivery uses the configured private Gmail or Resend settings.
 
 ## Quick start
 
@@ -31,6 +31,7 @@ npm run test:auth:db   # Registration/verification Atlas tests; temporary databa
 npm run test:sessions:db # Login/session/logout Atlas tests; temporary database
 npm run test:recovery:db # Password recovery Atlas tests; fake email, temporary database
 npm run test:weddings:db # Wedding/Admin creation and authorization; temporary database
+npm run test:events:db # Events/roles/retries/concurrent edits; temporary database
 ```
 
 After a successful build, `npm run start:web` starts the production web server locally. `npm run start:api` starts Express without watch mode. Stop development servers before using the same ports.
@@ -55,6 +56,8 @@ For login, also set a strong, stable `AUTH_JWT_SECRET` in the ignored API `.env`
 The owner-approved account guidance sends duplicate registration to login (ADR-019) and an unregistered login email to registration with an explanation ([ADR-022](docs/decisions/ADR-022-missing-login-account-registration.md)). This intentionally reveals account existence. Wrong passwords stay on login; unverified accounts still require email verification. These redirects never create an account or send mail.
 
 After login, accounts without an active wedding enter `/wedding-setup`. Its three steps collect the couple/date, location/tradition and optional budget, then review with the signature cover or an optional JPG/PNG up to 15 MB. Preview, positioning and zoom preserve the original photo. Final confirmation uploads/verifies the photo, then atomically creates one wedding, Admin membership and cover attachment. Existing members enter `/dashboard`, where Admins can replace/remove the private cover. See [ADR-017](docs/decisions/ADR-017-wedding-setup-and-workspace-entry.md) and [ADR-020](docs/decisions/ADR-020-private-wedding-cover-uploads.md). Set the four private R2 fields from `apps/api/.env.example`; [R2 setup details](docs/DEVELOPMENT.md#private-wedding-cover-uploads) include CORS and cleanup. The owner selected one R2 account/bucket shared by dev/prod with separate generated prefixes. See [ADR-012](docs/decisions/ADR-012-public-homepage-preview.md) for the homepage scope and reference handling. Original Stitch exports and Word documents remain ignored. [ADR-021](docs/decisions/ADR-021-stitch-page-alignment.md) maps every current page to its corrected Stitch reference. The shared workspace and existing auth/setup pages follow those designs; unbuilt planning/profile/settings/recovery features use disabled Coming soon previews. Current account/wedding details remain read-only until their editing increments.
+
+Events Step 1 is available at `/events`: Admin/Family Member can create and edit ceremonies; Viewer can read them. Past/future and overnight timings, optional manual venue details, Maps directions, overlap warnings, safe retries and edit conflicts are included. Filters, activities, deletion/restoration and Google Places follow within Events; Places must be completed before V1 acceptance. See [ADR-023](docs/decisions/ADR-023-events-ceremony-crud.md).
 
 Deployment is deferred. The intended targets remain Amplify for web and Lambda/API Gateway with SAM for API. Amplify compatibility with Next.js 16 is unresolved; no hosting changes or deployments are included.
 

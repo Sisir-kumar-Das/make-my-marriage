@@ -15,7 +15,7 @@ Run commands from the repository root with Node.js 24 and npm. `npm ci` installs
 | `npm run format`           | Format scaffold source/configuration/documentation                               |
 | `npm run format:check`     | Check formatting without changing files                                          |
 | `npm run smoke`            | Live HTTP checks against running web and API                                     |
-| `npm test`                 | API client and authentication contract tests; no cloud services                  |
+| `npm test`                 | API client/auth/wedding/media/event contract tests; no cloud services            |
 | `npm run test:auth:db`     | Isolated Atlas registration/verification tests using the private API environment |
 | `npm run test:recovery:db` | Isolated Atlas password recovery tests; fake email and automatic cleanup         |
 | `npm run test:sessions:db` | Isolated Atlas login, rotation and logout tests                                  |
@@ -224,3 +224,15 @@ Checks: `npm test` includes deterministic storage/decoding/framing/transport/ret
 Follow [ADR-021](decisions/ADR-021-stitch-page-alignment.md) for each route's corrected reference. The ignored local Stitch HTML is the visual source; its PNGs may be stale. Discuss intentional visual departures with the owner before implementing them. Use real authorized account/wedding details and disabled, clearly labelled Coming soon previews for unbuilt business features. Never copy simulated permissions, sample task counts or gallery-only security claims into live behavior.
 
 Check the shared shell and every affected route on desktop and 320/390 px mobile widths. Keep profile/recovery reachable through account/settings navigation, both layout and page-level guards intact, and the existing cover preview/framing consistent. The optional dashboard connection check is under Connection status. Visual-test fixtures must use a separate local origin and synthetic data; do not overwrite the owner's wedding or send real email to test layout.
+
+## Events Step 1
+
+`/events` uses the corrected Stitch ceremony schedule and details/editor drawer. Admin/Family Member can create/edit; Viewer can read. Express owns current account/membership/wedding authorization and all database access. Both SSR guard levels remain. Dates/times display in IST and are stored as UTC; past/future/overnight events are supported, end must follow start and overlap warnings allow saves. Venues are optional manual text, with fixed-origin encoded Maps links.
+
+`POST /api/v1/weddings/:weddingId/events` and `PATCH /:eventId` require UUID Idempotency-Key headers; PATCH also requires a strong numeric If-Match. GET details supplies ETag; list is chronologically paginated (page/limit). Creation and unchanged creation replay also return a one-based schedulePosition for locating the saved ceremony in that ordering. The relay forwards these headers. Receipts last 24 hours; identical retries return the current saved event, while changed requests or stale versions return 409. Event/history/receipt commit atomically. A private eventRevision serializes wedding event writes without affecting cover versions. See [ADR-023](decisions/ADR-023-events-ceremony-crud.md).
+
+Run `npm run test:events:db` with the private Atlas configuration. It creates and drops only its uniquely named database, sends no real email and uses no R2 objects. It covers tenant/role isolation, UTC/time rules, rollback, append-only history, retries, expiry and concurrent edits. Native `npm test` covers validation/serialization/HTTP protections without cloud access. Browser tests should use disposable accounts and verify create/edit/reload, overlap feedback, mobile drawer navigation and in-memory form retention during recoverable session failures. Closing/refreshing an unsaved editor discards it; no persistent drafts are stored.
+
+Filters, ceremony activities/timing warnings, deletion/restore and Google Places remain later Events increments. Google Places must be implemented before closing Events and V1 acceptance; keep the manual fallback. Dashboard aggregation, tasks and live activity display retain their later planned steps. No new credentials or dependencies are required for manual venues.
+
+Events creation UX: a successful create/confirmed retry closes the drawer, shows a schedule success notice with any overlap warning, loads the saved event’s page and focuses its card. The notice offers View created event if concurrent list changes move the card or loading fails. A failed save keeps the draft/key and brings its error into view. Existing-event edits return to details. Dashboard create=1 is consumed without navigation; refresh after close stays on the schedule. Dirty-close choices stay in the fixed footer, receive keyboard focus and cannot dismiss pending requests. Include these cases in future browser regression checks.

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import {
   BookOpen,
-  CalendarDays,
   Camera,
   ListChecks,
   MapPin,
@@ -33,60 +32,6 @@ import {
 import styles from './workspace-ui.module.css';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
 
-export function EventsPreview() {
-  return (
-    <div className={styles.stack}>
-      <PageHeader
-        eyebrow="Master itinerary"
-        title="Ceremony Schedule & Events"
-        description="Bring your wedding celebrations, venues and ceremony activities together."
-      >
-        <FutureButton primary>
-          <Plus size={16} />
-          Add Event
-        </FutureButton>
-      </PageHeader>
-      <SearchFilters kind="events" />
-      <section>
-        <p className={`${styles.eyebrow} mb-4`}>Wedding week celebrations</p>
-        <div className={styles.card}>
-          <EmptyPanel icon={CalendarDays}>
-            <h2>Your ceremony schedule starts here</h2>
-            <p>
-              Event creation, ceremony details and venue planning are coming
-              soon. Your wedding has no automatically generated ceremonies.
-            </p>
-          </EmptyPanel>
-        </div>
-      </section>
-      <div className={styles.columns}>
-        {[
-          [
-            MapPin,
-            'Venues & Locations',
-            'Keep ceremony venues and directions together.',
-          ],
-          [
-            ListChecks,
-            'Ceremony Activities',
-            'Plan the smaller moments within each celebration.',
-          ],
-        ].map(([Icon, title, copy]) => (
-          <section className={styles.card} key={title}>
-            <div className={styles.row}>
-              <h2 className="flex items-center gap-2">
-                <Icon size={18} />
-                {title}
-              </h2>
-              <ComingSoon />
-            </div>
-            <p className={styles.description}>{copy}</p>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
 export function TasksPreview() {
   return (
     <div className={styles.stack}>

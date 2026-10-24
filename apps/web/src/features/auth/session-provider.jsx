@@ -77,6 +77,7 @@ export function SessionProvider({
   initialSession,
   children,
   preserveSetupState = false,
+  preserveEventState = false,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -172,7 +173,9 @@ export function SessionProvider({
       setPending(false);
     }
   }
-  const preserveDraft = preserveSetupState && pathname === '/wedding-setup';
+  const preserveDraft =
+    (preserveSetupState && pathname === '/wedding-setup') ||
+    (preserveEventState && pathname === '/events');
   if (
     !session ||
     (error && !preserveDraft) ||
@@ -192,6 +195,8 @@ export function SessionProvider({
         membership: session.membership,
         logout,
         pending,
+        connectionError: error,
+        retrySession: () => setAttempt((value) => value + 1),
       }}
     >
       {preserveDraft ? (
@@ -208,8 +213,8 @@ export function SessionProvider({
                     We could not check your session.
                   </h2>
                   <p className="mt-1 text-sm">
-                    Your unsaved wedding details are kept in this tab. Reconnect
-                    and retry to continue.
+                    Your unsaved details are kept in this tab. Reconnect and
+                    retry to continue.
                   </p>
                   <p className="mt-1 text-sm text-[#5C5457]">{error}</p>
                 </div>

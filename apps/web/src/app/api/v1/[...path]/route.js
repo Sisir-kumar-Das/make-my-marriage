@@ -32,6 +32,7 @@ async function relay(request, { params }) {
     'x-csrf-token',
     'user-agent',
     'idempotency-key',
+    'if-match',
   ]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
