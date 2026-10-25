@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
+const ceremonyActivitySchema = new Schema({
+  name: { type: String, required: true, maxlength: 160 },
+  startAt: { type: Date, required: true },
+  endAt: { type: Date, default: null },
+  description: { type: String, maxlength: 1000, default: '' },
+});
 const eventSchema = new Schema(
   {
     weddingId: { type: Schema.Types.ObjectId, required: true },
@@ -22,6 +28,11 @@ const eventSchema = new Schema(
     description: { type: String, maxlength: 2000, default: '' },
     startAt: { type: Date, required: true },
     endAt: { type: Date, required: true },
+    activities: {
+      type: [ceremonyActivitySchema],
+      default: [],
+      validate: (rows) => rows.length <= 50,
+    },
     venue: {
       type: new Schema(
         {
@@ -49,6 +60,14 @@ const eventSchema = new Schema(
   { collection: 'events', timestamps: true, optimisticConcurrency: true },
 );
 eventSchema.index({ weddingId: 1, deletedAt: 1, startAt: 1, _id: 1 });
+eventSchema.index({
+  weddingId: 1,
+  deletedAt: 1,
+  status: 1,
+  startAt: 1,
+  _id: 1,
+});
+eventSchema.index({ weddingId: 1, deletedAt: -1, _id: -1 });
 const requestSchema = new Schema(
   {
     weddingId: { type: Schema.Types.ObjectId, required: true },
@@ -69,6 +88,7 @@ const activitySchema = new Schema(
     action: { type: String, required: true, immutable: true },
     entityType: { type: String, required: true, immutable: true },
     entityId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+    parentEventId: { type: Schema.Types.ObjectId, immutable: true },
     displaySnapshot: {
       label: { type: String, maxlength: 160, immutable: true },
     },

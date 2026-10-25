@@ -57,6 +57,27 @@ export function createEventRouter({ service, events, settings }) {
       meta: result.meta,
     });
   });
+  router.get('/deleted', async (req, res) => {
+    const result = await events.listDeleted(
+      req.identity.user.id,
+      req.params.weddingId,
+      req.query,
+    );
+    res.json({
+      success: true,
+      data: { events: result.events },
+      meta: result.meta,
+    });
+  });
+  router.get('/:eventId/recovery', async (req, res) => {
+    const result = await events.readRecovery(
+      req.identity.user.id,
+      req.params.weddingId,
+      req.params.eventId,
+    );
+    res.setHeader('ETag', `"${result.event.version}"`);
+    res.json({ success: true, data: result });
+  });
   router.get('/:eventId', async (req, res) => {
     const result = await events.read(
       req.identity.user.id,
@@ -88,5 +109,43 @@ export function createEventRouter({ service, events, settings }) {
     res.setHeader('ETag', `"${result.event.version}"`);
     res.json({ success: true, data: result });
   });
+  for (const [method, path, operation] of [
+    ['delete', '/:eventId', 'DELETE_EVENT'],
+    ['post', '/:eventId/restore', 'RESTORE_EVENT'],
+  ])
+    router[method](path, cookies.protect, limit, async (req, res) => {
+      const result = await events.changeLifecycle(
+        operation,
+        req.identity.user.id,
+        req.params.weddingId,
+        req.params.eventId,
+        req.body,
+        req.get('idempotency-key'),
+        req.get('if-match'),
+      );
+      res.setHeader('ETag', `"${result.event.version}"`);
+      res.json({ success: true, data: result });
+    });
+  for (const [method, path, operation] of [
+    ['post', '/:eventId/activities', 'ADD'],
+    ['patch', '/:eventId/activities/:activityId', 'EDIT'],
+    ['delete', '/:eventId/activities/:activityId', 'REMOVE'],
+  ])
+    router[method](path, cookies.protect, limit, async (req, res) => {
+      const result = await events.changeActivity(
+        operation,
+        req.identity.user.id,
+        req.params.weddingId,
+        req.params.eventId,
+        req.params.activityId || null,
+        req.body,
+        req.get('idempotency-key'),
+        req.get('if-match'),
+      );
+      res.setHeader('ETag', `"${result.event.version}"`);
+      res
+        .status(operation === 'ADD' ? 201 : 200)
+        .json({ success: true, data: result });
+    });
   return router;
 }

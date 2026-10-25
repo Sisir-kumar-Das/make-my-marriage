@@ -1,0 +1,28 @@
+# ADR-024: Events Step 2 — search, status and date filters
+
+Date: 24 October 2026
+
+Status: Accepted for the owner-authorized second Events increment.
+
+## Context
+
+The V1 PRD requires relevant search, filtering, pagination and responsive states. The API design defines explicit `q`, `status`, `from`, `to`, `page` and `limit` parameters; the database design permits bounded escaped matching without Atlas Search. Corrected Stitch has ceremony search and segmented status buttons. The owner approved compact From/To fields in that bar, inclusion of overnight ceremonies overlapping the selected dates and clearing incompatible filters to reveal a newly created ceremony. Step 1 and its review corrections are committed on DEV as `fa0d628`.
+
+## Decision
+
+- Express list queries accept optional trimmed literal `q` (up to 160 characters, without control characters), one approved status, and real `YYYY-MM-DD` dates from years 1000–9999. Reject objects, arrays, unknown operators/keys, invalid dates and reversed ranges. Existing page/limit bounds remain. Search is case-insensitive across ceremony name and saved venue name/address/city/state. Description and unimplemented Tasks are not searched. Regex metacharacters are escaped; no Atlas Search or new dependency is introduced.
+- `from` and `to` are inclusive India-local calendar dates, independently optional. Interpret the range as `[from 00:00 IST, day after to 00:00 IST)`. A ceremony matches when its interval overlaps that range (`endAt > lower`, `startAt < upper`). A ceremony ending exactly at the lower midnight is excluded; one beginning at the upper midnight is excluded. Overnight, past and future ceremonies remain valid. Event creation timing rules do not change.
+- Apply all filters in MongoDB before pagination, with stable chronological `startAt, _id` ordering and the existing current verified-user/active-wedding-membership checks. Soft-deleted and other-wedding records never contribute rows or counts. Authorization, status counts, page resolution and rows share the read transaction's snapshot. Add the approved wedding/deleted/status/start index with the stable ID tie-breaker.
+- List metadata includes `statusCounts` with `ALL`, `PLANNED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`. These counts include the applied search/date scope and ignore only the selected status, so the other status buttons remain meaningful. `total` and `totalPages` describe the selected status. Empty results return 200, an empty list, zero counts and page 1. Clamp a requested page beyond the last current page, handling an edited-away final result without stranding pagination.
+- An optional validated `locate` event ID asks Express to select that event's page **inside the applied filters**. Its `located` boolean does not disclose inaccessible/deleted/other-wedding event data. The UI uses it after confirmed creation/replay, retaining compatible filters and clearing incompatible ones. Express computes the current filtered position instead of using Step 1's unfiltered POST hint. A concurrent change invalidating the match clears remaining filters and retries location once without them; a subsequently unavailable event retains the creation notice's details action. Receipts and mutation behavior are unchanged.
+- Keep the corrected Stitch palette, typography and segmented controls, with the owner-approved compact dates plus Apply/Clear controls. Applying the form or selecting a status commits the entered search/dates and starts at page 1; Previous/Next retain applied filters. Date inputs submit their native form values. Keep focused controls mounted when applying filters; reset their defaults from changed URLs without losing keyboard focus. Distinguish a genuine empty wedding schedule from no matching ceremonies. Real counts become unavailable indicators while loading; never show old rows/counts as new-filter results.
+- Use the installed Next.js native History API integration with `useSearchParams`. Store only applied `q/status/from/to/page` in the URL, preserving unrelated query parameters and fragments. Filter/page changes add history; automatic page correction, creation location and the consumed `create=1` shortcut replace history. Refresh and Back/Forward restore applied filters. Unsaved filter entries and event drafts remain temporary; no browser storage, Redux or query library is added. URLs can contain user-entered search terms; never put tokens/credentials there.
+- Abort superseded requests, reject results whose URL/sequence no longer matches, and keep loading/error/Retry states scoped to the active query. Existing save locks, idempotency, optimistic conflicts, recoverable-session draft retention, Viewer read-only access and both SSR guard levels remain intact. Opening/filtering reads cannot create events.
+
+## Remaining scope
+
+Ceremony activities and timing warnings follow next, then soft deletion/restoration and Google Places with manual fallback before closing Events/V1. Task-dependent counts/links, venue readiness, export and live dashboard aggregation remain visibly Coming soon. No new credentials, deployment, commit or push is included in this implementation authorization.
+
+## Verification
+
+Meaningful native tests cover query validation, escaped literals, India boundaries, URL round-trips and creation filter retention. The disposable Atlas Events suite exercises real queries/counts, pagination/tie ordering, location, soft-delete/tenant isolation, Viewer reads and one-sided/overnight ranges alongside existing writes/retries/conflicts. Actual browser, production/startup, smoke and check results and limitations are recorded in PROJECT_STATUS.md.

@@ -9,7 +9,6 @@ import {
   Trash2,
   Users,
   Mail,
-  Clock3,
   Info,
   Sparkles,
   LockKeyhole,
@@ -434,48 +433,6 @@ export function SettingsPreview({ session }) {
           </section>
         </div>
       </div>
-    </div>
-  );
-}
-export function RecoveryPreview() {
-  return (
-    <div className={styles.stack}>
-      <PageHeader
-        eyebrow="Settings › Workspace & Account"
-        title="Data Recovery Tray"
-        description="Deleted-item restoration and the wedding’s seven-day recovery window."
-      >
-        <ComingSoon />
-      </PageHeader>
-      <SettingsTabs active="/recovery" />
-      <div className={styles.note}>
-        <Clock3 size={20} />
-        <p>
-          Recovery tools are coming soon. This page does not list deleted
-          records or perform deletions/restorations yet.
-        </p>
-      </div>
-      <section className={styles.card}>
-        <div className={styles.row}>
-          <h2>Deleted Items Recovery</h2>
-          <ComingSoon />
-        </div>
-        <EmptyPanel icon={Trash2}>
-          <p>
-            Recover supported deleted records when the recovery tools are
-            implemented.
-          </p>
-        </EmptyPanel>
-        <FutureButton>Restore Selected Items</FutureButton>
-      </section>
-      <section className={styles.card}>
-        <h2 className={styles.danger}>Wedding Workspace Lifecycle</h2>
-        <p className={`${styles.description} mb-5`}>
-          Workspace deletion, its seven-day recovery period and permanent
-          removal controls are coming soon.
-        </p>
-        <FutureButton>Delete Wedding Workspace</FutureButton>
-      </section>
     </div>
   );
 }

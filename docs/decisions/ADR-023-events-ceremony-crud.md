@@ -29,6 +29,16 @@ Owner-approved on 24 October 2026:
 - Consume the Dashboard `create=1` shortcut with the supported native history replacement after mounting. Remove only that parameter, preserving other query values and the fragment, without navigating or resetting the in-memory form. Refresh after completion or cancellation must not reopen creation.
 - Dirty-close confirmation lives in the fixed footer, with focus on Keep editing and draft retention on cancellation. Saving/loading clears the decision; every discard/dismissal path checks the synchronous request lock, with disabled controls during pending work. While deciding whether to discard, the form and ordinary Save/Close controls are disabled. This prevents the stale Discard action from dismissing an in-flight write and losing its retry key.
 
+## Owner-approved status timing follow-up
+
+Accepted on 24 October 2026 after reviewing Step 2:
+
+- Do not infer completion from a passed date or rewrite existing statuses. Past Planned/Confirmed ceremonies remain editable and receive a non-blocking “This ceremony's date has passed. Please review its status.” reminder after their scheduled end. Completed/Cancelled records do not receive that reminder. Use the full India-local schedule; an overnight ceremony is not past merely because midnight passed.
+- A new create/update resulting in Completed must not have `startAt` after the server's current instant. This also covers later-today ceremonies. Completed becomes available once the ceremony has started; members still explicitly record whether it actually finished, including an earlier-than-scheduled finish. The form disables the future Completed choice, explains why, watches schedule changes and rechecks fresh time on submission. Its clock refreshes while open and on focus. A status already selected is never silently replaced when dates change; invalid completion gets a field error with the draft preserved.
+- Express validates the merged event for PATCH, so changing dates on a Completed record cannot bypass the rule. A rejected transaction leaves event/history/receipt unchanged. Existing future Completed records remain readable without migration; a new edit must correct the status or schedule before it can save.
+- Current authorization and a matching valid receipt are checked before the temporal guard, preserving unchanged replay of an earlier committed operation. Browser validation permits only an identical previously attempted payload/version identity to reach that recovery path; serialization remains structural and time-independent. Invalid form fields still fail before retry identity serialization. New/changed requests receive ordinary validation and server time remains authoritative.
+- This narrowly refines the PRD's four approved statuses; it changes no baseline document, date-entry scope, role, visual layout, deployment or feature order. Read-only status filters continue to include historical saved data honestly.
+
 ## Remaining Events increments
 
 Search/status/date filters; ceremony micro-activities and their timing warnings; soft deletion/restore with retained related data; Google Places search/autofill with manual fallback. Keep their Stitch-shaped controls disabled and visibly Coming soon. Task-dependent counts, linked-task actions, venue-readiness cards and unselected export functionality must not imply live records. Dashboard aggregation and full Recovery UI remain later scheduled work. Do not mark all Events or V1 complete after this increment.
@@ -36,3 +46,7 @@ Search/status/date filters; ceremony micro-activities and their timing warnings;
 ## Verification
 
 Native validation/HTTP/client checks and a disposable Atlas suite cover interval/venue rules, tenant/role boundaries, atomic history, duplicate retries, expired receipts, stale/concurrent edits and rollback. Browser and production/startup evidence, actual results and skipped checks belong in `docs/PROJECT_STATUS.md`.
+
+## Owner-approved event lifecycle follow-up
+
+On 25 October 2026 the owner explicitly selected Admin-only whole-event removal/restoration and requested that the decision be retained for future reference. ADR-027 records the policy and the implemented soft-delete/recovery increment. Family Members retain create/edit and individual activity management; Viewers read only. Search/filter and activity increments are recorded in ADR-024/025. Google Places remains required before closing Events/V1.

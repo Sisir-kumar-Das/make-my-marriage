@@ -111,6 +111,20 @@ try {
   assert.ok(homeHtml.includes('id="wedding-website"'));
   assert.ok(homeHtml.includes('Planned'));
   assert.ok(homeHtml.includes('href="/register"'));
+  // Forged/stale hints may request recovery, but must never authorize a redirect.
+  for (const cookie of [
+    'mmm_access=invalid',
+    'mmm_csrf_context=invalid',
+    '__Host-mmm_csrf_context=invalid',
+  ]) {
+    const hintedHome = await request(webUrl, {
+      headers: { Cookie: cookie },
+      redirect: 'manual',
+    });
+    assert.equal(hintedHome.status, 200);
+    assert.equal(hintedHome.headers.get('location'), null);
+    assert.ok((await hintedHome.text()).includes('Checking your session'));
+  }
   assert.match(
     homeHtml,
     /<button[^>]*disabled=""[^>]*>\s*RSVP Now\s*<\/button>/,

@@ -1,0 +1,126 @@
+.reassurance {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: #f9f2f6;
+}
+.reassurance > svg {
+  flex-shrink: 0;
+  color: #6e334e;
+}
+.reassurance p {
+  margin-top: 0.5rem;
+}
+.admin {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #f9dfb0;
+  color: #554421;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+}
+.subtle {
+  font-size: 0.75rem;
+  color: #514348;
+}
+.rows {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f9f2f6;
+  min-width: 0;
+}
+.row > svg {
+  color: #6e334e;
+  flex-shrink: 0;
+}
+.details {
+  min-width: 0;
+  flex: 1 1 15rem;
+  overflow-wrap: anywhere;
+}
+.details h3 {
+  font-size: 0.9rem;
+}
+.details p {
+  font-size: 0.75rem;
+  color: #514348;
+  margin-top: 0.3rem;
+}
+.tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 1rem;
+  background: #ede6ea;
+  margin-left: 0.25rem;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.75rem;
+  background: white;
+  color: #6e334e;
+  border: 1px solid #ede6ea;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: normal;
+}
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.button:focus-visible {
+  outline: 2px solid #6e334e;
+  outline-offset: 2px;
+}
+.error {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid #ffb4ab;
+  border-radius: 0.6rem;
+  background: #fff0ed;
+  color: #93000a;
+  overflow-wrap: anywhere;
+}
+.notice {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.2rem;
+  border: 1px solid #d6bfc8;
+  border-radius: 0.75rem;
+  background: #f9f2f6;
+  overflow-wrap: anywhere;
+}
+.notice .button {
+  justify-self: start;
+}
+.empty {
+  padding: 2rem 0;
+  font-size: 0.875rem;
+  color: #514348;
+}
+.pagination {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #514348;
+}
+.pagination span {
+  margin-right: auto;
+}

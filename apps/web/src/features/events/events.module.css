@@ -36,13 +36,50 @@
   cursor: default;
 }
 .filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
+  display: grid;
+  gap: 0.75rem;
   background: white;
   padding: 1rem;
   border-radius: 0.5rem;
+}
+.filterForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.dateFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.dateFilters label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  color: #514348;
+}
+.dateFilters input {
+  background: #f9f2f6;
+  border: 1px solid #d5c1c7;
+  border-radius: 0.4rem;
+  padding: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.8rem;
+  color: #1d1b1e;
+}
+.filterHint,
+.timezone {
+  font-size: 0.7rem;
+  color: #514348;
+}
+.filterError {
+  color: #b3261e;
+  font-size: 0.8rem;
 }
 .search {
   display: flex;
@@ -66,20 +103,25 @@
   align-items: center;
   gap: 0.3rem;
   font-size: 0.8rem;
+  background: #f9f2f6;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  justify-self: start;
 }
 .filterButtons button,
 .activeFilter {
   padding: 0.5rem 0.7rem;
 }
 .filterButtons button {
-  color: #837378;
-  cursor: not-allowed;
+  color: #514348;
+  cursor: pointer;
 }
-.activeFilter {
-  background: #f3ecf0;
+.filterButtons .activeFilter {
+  background: white;
   border-radius: 0.4rem;
   color: #531d37;
   font-weight: 600;
+  box-shadow: 0 1px 3px #00000010;
 }
 .layout {
   display: grid;
@@ -330,6 +372,10 @@
   outline-offset: 2px;
 }
 .discardDecision {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  max-height: 55dvh;
+  overflow-y: auto;
   flex-basis: 100%;
   display: grid;
   gap: 0.75rem;
@@ -622,4 +668,90 @@
   .twoColumns {
     grid-template-columns: 1fr;
   }
+}
+
+.activityList {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+.activityRow {
+  padding: 0.85rem;
+  background: #f9f2f6;
+  border: 1px solid #ede6ea;
+  border-radius: 0.65rem;
+  min-width: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+.activityRow legend {
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6e334e;
+}
+.activityFlagged {
+  border-color: #b89350;
+}
+.activityReadHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: #531d37;
+  font-size: 0.8rem;
+}
+.activityReadHeading h4 {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #1d1b1e;
+  font-weight: 600;
+}
+
+.activityForm {
+  min-width: 0;
+}
+.activityActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.activityActions button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.savedActivity {
+  justify-self: start;
+  color: #385b43;
+  background: #edf5ee;
+  border-radius: 1rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+}
+
+.dangerButton {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  background: #ba1a1a;
+  color: white;
+  border: 1px solid #ba1a1a;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: normal;
+}
+.dangerButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.deletePreview a {
+  text-decoration: underline;
+  color: #6e334e;
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,14 +12,16 @@ import {
   AlertTriangle,
   ExternalLink,
   LockKeyhole,
+  Trash2,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { useSession } from '@/features/auth/session-provider';
-import { FutureButton, ComingSoon } from '@/features/dashboard/workspace-ui';
+import { ComingSoon } from '@/features/dashboard/workspace-ui';
 import {
   eventTypes,
   eventStatuses,
-  eventFormSchema,
+  eventFormValidation,
+  eventStatusTiming,
   initialEvent,
   eventInput,
   nextDate,
@@ -26,6 +29,14 @@ import {
   eventDate,
   eventRange,
 } from './form-data';
+import { ActivityForm, ActivityList } from './ceremony-activities';
+import {
+  newActivity,
+  activityLimit,
+  activityFormSchema,
+  activityEditValues,
+  activityDraftWarnings,
+} from './activity-data';
 import styles from './events.module.css';
 
 function Input({ label, id, error, as: Tag = 'input', children, ...props }) {
@@ -57,7 +68,14 @@ export function EventEditor({
   onSaved,
   onReturnFocus,
 }) {
-  const { connectionError, retrySession } = useSession();
+  const { connectionError, retrySession, membership } = useSession();
+  const canRemove = membership.role === 'ADMIN';
+  const [removeConfirm, setRemoveConfirm] = useState(false);
+  const removalAttempt = useRef(null);
+  const keepEvent = useRef(null);
+  useEffect(() => {
+    if (removeConfirm) keepEvent.current?.focus();
+  }, [removeConfirm]);
   const [record, setRecord] = useState(event);
   const [editing, setEditing] = useState(!event);
   const [notice, setNotice] = useState('');
@@ -66,6 +84,41 @@ export function EventEditor({
   const [discard, setDiscard] = useState(false);
   const [warnings, setWarnings] = useState(initialWarnings);
   const [pending, setPending] = useState(false);
+  const [activityEditor, setActivityEditor] = useState(null);
+  const activityAttempt = useRef(null);
+  const activitySection = useRef(null);
+  const activitySummary = useRef(null);
+  const activityWasOpen = useRef(false);
+  const discardTarget = useRef('close');
+  const activityForm = useForm({
+    resolver: zodResolver(activityFormSchema),
+    defaultValues: newActivity(initialEvent(wedding, event)),
+  });
+  const activityDirty = activityForm.formState.isDirty;
+  const focusActivity = activityForm.setFocus;
+  useEffect(() => {
+    if (!activityEditor) {
+      if (activityWasOpen.current) {
+        activitySummary.current?.focus({ preventScroll: true });
+        activitySummary.current?.scrollIntoView({ block: 'nearest' });
+        activityWasOpen.current = false;
+      }
+      return;
+    }
+    activityWasOpen.current = true;
+    activitySection.current?.scrollIntoView({ block: 'nearest' });
+    if (activityEditor.operation !== 'REMOVE') focusActivity('name');
+  }, [activityEditor, focusActivity]);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const update = () => setClock(Date.now());
+    const timer = window.setInterval(update, 30000);
+    window.addEventListener('focus', update);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', update);
+    };
+  }, []);
   const lock = useRef(false),
     attempt = useRef(null);
   const keepEditingButton = useRef(null);
@@ -96,13 +149,128 @@ export function EventEditor({
     handleSubmit,
     formState: { errors, isDirty },
   } = useForm({
-    resolver: zodResolver(eventFormSchema),
+    resolver: (values, context, options) =>
+      zodResolver(
+        eventFormValidation({
+          canRetry: (parsed) =>
+            attempt.current?.identity ===
+            `${record?.id || 'new'}/${record?.version}/${JSON.stringify(eventInput(parsed))}`,
+        }),
+      )(values, context, options),
     defaultValues: initialEvent(wedding, event),
   });
-  const [startDate, endDate] = useWatch({
+  function startActivity(row = null, operation = row ? 'EDIT' : 'ADD') {
+    if (
+      lock.current ||
+      connectionError ||
+      discard ||
+      conflict ||
+      !canEdit ||
+      editing ||
+      activityEditor ||
+      !record
+    )
+      return;
+    if (
+      operation === 'ADD' &&
+      (record.activities || []).length >= activityLimit
+    )
+      return;
+    activityForm.reset(activityEditValues(row, initialEvent(wedding, record)));
+    activityAttempt.current = null;
+    setActivityEditor({ operation, id: row?.id || null, name: row?.name });
+    setNotice('');
+    setError('');
+  }
+  function cancelActivity() {
+    if (lock.current) return;
+    if (activityDirty) {
+      discardTarget.current = 'activity';
+      discardFocus.current = document.activeElement;
+      setDiscard(true);
+    } else {
+      setActivityEditor(null);
+      activityAttempt.current = null;
+      setError('');
+    }
+  }
+  async function saveActivity(input, another = false) {
+    if (
+      lock.current ||
+      connectionError ||
+      !canEdit ||
+      conflict ||
+      discard ||
+      !activityEditor ||
+      !record
+    )
+      return;
+    lock.current = true;
+    discardFocus.current = null;
+    setDiscard(false);
+    setPending(true);
+    setError('');
+    setNotice('');
+    const operation = activityEditor.operation;
+    const body = JSON.stringify(operation === 'REMOVE' ? {} : input);
+    const identity = `${record.id}/${record.version}/${operation}/${activityEditor.id}/${body}`;
+    if (activityAttempt.current?.identity !== identity)
+      activityAttempt.current = { identity, key: crypto.randomUUID() };
+    try {
+      const response = await apiRequest(
+        `/weddings/${wedding.id}/events/${record.id}/activities${activityEditor.id ? '/' + activityEditor.id : ''}`,
+        {
+          method: { ADD: 'POST', EDIT: 'PATCH', REMOVE: 'DELETE' }[operation],
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': activityAttempt.current.key,
+            'If-Match': `"${record.version}"`,
+          },
+          body,
+          timeoutMs: 20000,
+        },
+      );
+      const current = response.data.event;
+      setRecord(current);
+      setWarnings(response.data.warnings);
+      reset(initialEvent(wedding, current));
+      activityAttempt.current = null;
+      setConflict(false);
+      activityForm.reset(newActivity(initialEvent(wedding, current)));
+      setActivityEditor(
+        another && current.activities.length < activityLimit
+          ? { operation: 'ADD', id: null }
+          : null,
+      );
+      setNotice(
+        response.data.replayed
+          ? 'Your earlier activity save was confirmed. Showing the latest details.'
+          : operation === 'REMOVE'
+            ? 'Activity removed.'
+            : another
+              ? 'Activity saved. Add the next activity below.'
+              : 'Activity saved. You can edit it again at any time.',
+      );
+      onSaved({ ...response.data, created: false });
+    } catch (failure) {
+      setError(failure.message);
+      setConflict(
+        failure.code === 'VERSION_CONFLICT' ||
+          failure.code === 'IDEMPOTENCY_CONFLICT',
+      );
+    } finally {
+      lock.current = false;
+      setPending(false);
+    }
+  }
+  const [startDate, endDate, startTime, endTime, status] = useWatch({
     control,
-    name: ['startDate', 'endDate'],
+    name: ['startDate', 'endDate', 'startTime', 'endTime', 'status'],
   });
+  const timing = eventStatusTiming(
+    { startDate, endDate, startTime, endTime, status },
+    new Date(clock),
+  );
   const startField = register('startDate');
   function changeStartDate(event) {
     const previousStart = getValues('startDate');
@@ -115,7 +283,8 @@ export function EventEditor({
   }
   function close() {
     if (lock.current) return;
-    if (editing && isDirty) {
+    if ((editing && isDirty) || (activityEditor && activityDirty)) {
+      discardTarget.current = 'close';
       if (!discard) discardFocus.current = document.activeElement;
       setDiscard(true);
       return;
@@ -125,7 +294,73 @@ export function EventEditor({
   function discardChanges() {
     if (lock.current) return;
     discardFocus.current = null;
-    onClose();
+    if (discardTarget.current === 'activity') {
+      setActivityEditor(null);
+      activityAttempt.current = null;
+      setDiscard(false);
+      setError('');
+      activityForm.reset(newActivity(initialEvent(wedding, record)));
+    } else onClose();
+  }
+  async function removeEvent() {
+    if (
+      lock.current ||
+      connectionError ||
+      !canRemove ||
+      !record ||
+      editing ||
+      activityEditor ||
+      !removeConfirm ||
+      conflict
+    )
+      return;
+    lock.current = true;
+    setPending(true);
+    setError('');
+    setNotice('');
+    const identity = `${record.id}/${record.version}`;
+    if (removalAttempt.current?.identity !== identity)
+      removalAttempt.current = { identity, key: crypto.randomUUID() };
+    try {
+      const response = await apiRequest(
+        `/weddings/${wedding.id}/events/${record.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': removalAttempt.current.key,
+            'If-Match': `"${record.version}"`,
+          },
+          body: '{}',
+          timeoutMs: 20000,
+        },
+      );
+      removalAttempt.current = null;
+      setRemoveConfirm(false);
+      if (response.data.event.deletedAt) {
+        onSaved({ ...response.data, created: false, removed: true });
+      } else {
+        setRecord(response.data.event);
+        setWarnings(response.data.warnings);
+        reset(initialEvent(wedding, response.data.event));
+        setNotice(
+          'Your earlier removal was confirmed, but this ceremony has since been restored. Showing its current details.',
+        );
+        onSaved({ ...response.data, created: false });
+      }
+    } catch (failure) {
+      setError(failure.message);
+      setConflict(
+        [
+          'VERSION_CONFLICT',
+          'IDEMPOTENCY_CONFLICT',
+          'EVENT_STATE_CHANGED',
+        ].includes(failure.code),
+      );
+    } finally {
+      lock.current = false;
+      setPending(false);
+    }
   }
   async function latest() {
     if (lock.current) return;
@@ -136,13 +371,24 @@ export function EventEditor({
     setError('');
     try {
       const response = await apiRequest(
-        `/weddings/${wedding.id}/events/${record.id}`,
+        `/weddings/${wedding.id}/events/${record.id}${canRemove && (removeConfirm || removalAttempt.current) ? '/recovery' : ''}`,
       );
+      if (response.data.event.deletedAt) {
+        onSaved({ ...response.data, created: false, removed: true });
+        return;
+      }
+      setRemoveConfirm(false);
+      removalAttempt.current = null;
       setRecord(response.data.event);
       setWarnings(response.data.warnings);
       reset(initialEvent(wedding, response.data.event));
       attempt.current = null;
       setConflict(false);
+      setActivityEditor(null);
+      activityAttempt.current = null;
+      activityForm.reset(
+        newActivity(initialEvent(wedding, response.data.event)),
+      );
       setNotice('Latest details loaded. Review them before editing again.');
       setEditing(false);
     } catch (failure) {
@@ -312,12 +558,30 @@ export function EventEditor({
                 </button>
               </div>
             )}
-            {warnings.map((warning) => (
-              <p key={warning.code} className={styles.warning}>
+            {warnings
+              .filter(
+                (warning) =>
+                  (!editing && !activityEditor) ||
+                  !warning.code.startsWith('ACTIVITY_'),
+              )
+              .map((warning) => (
+                <p key={warning.code} className={styles.warning}>
+                  <AlertTriangle size={17} />
+                  {warning.message}
+                </p>
+              ))}
+            {editing &&
+              activityDraftWarnings(getValues()).map((warning) => (
+                <p key={warning.code} className={styles.warning} role="status">
+                  <AlertTriangle size={17} /> {warning.message}
+                </p>
+              ))}
+            {timing.reviewStatus && (
+              <p className={styles.warning} role="status">
                 <AlertTriangle size={17} />
-                {warning.message}
+                This ceremony&apos;s date has passed. Please review its status.
               </p>
-            ))}
+            )}
             {editing ? (
               <form
                 id="event-form"
@@ -367,12 +631,25 @@ export function EventEditor({
                       error={errors.status?.message}
                     >
                       {eventStatuses.map(([key, label]) => (
-                        <option key={key} value={key}>
+                        <option
+                          key={key}
+                          value={key}
+                          disabled={key === 'COMPLETED' && timing.future}
+                        >
                           {label}
+                          {key === 'COMPLETED' && timing.future
+                            ? ' · Not started yet'
+                            : ''}
                         </option>
                       ))}
                     </Input>
                   </div>
+                  {timing.future && (
+                    <p className={styles.hint}>
+                      Completed is available once the ceremony has started.
+                      Dates and times use IST.
+                    </p>
+                  )}
                   <Input
                     as="textarea"
                     label="Description (optional)"
@@ -499,6 +776,17 @@ export function EventEditor({
                       />
                     </div>
                   </section>
+                  <section
+                    className={styles.formSection}
+                    aria-label="Activity saving guidance"
+                  >
+                    <h3>Ceremony Activities</h3>
+                    <p className={styles.hint}>
+                      {record
+                        ? 'Save your ceremony changes first. Then use Add Activity or Edit beside a saved activity to save each activity separately.'
+                        : 'Create this ceremony first, then open it to add and save activities individually.'}
+                    </p>
+                  </section>
                 </fieldset>
               </form>
             ) : (
@@ -545,7 +833,12 @@ export function EventEditor({
                   <button
                     type="button"
                     className={styles.secondary}
-                    disabled={pending || !!connectionError}
+                    disabled={
+                      pending ||
+                      !!connectionError ||
+                      !!activityEditor ||
+                      removeConfirm
+                    }
                     onClick={latest}
                   >
                     Refresh event details
@@ -558,15 +851,79 @@ export function EventEditor({
                 </section>
               )
             )}
-            <section className={styles.formSection}>
-              <div className={styles.sectionTitle}>
-                <h3>Ceremony Activities</h3>
-                <FutureButton>Add Activity</FutureButton>
-              </div>
-              <p className={styles.hint}>
-                The smaller moments within this ceremony · Coming soon
-              </p>
-            </section>
+            {!editing && (
+              <ActivityList
+                sectionRef={activitySummary}
+                activities={record?.activities}
+                warnings={warnings}
+                onAdd={canEdit ? () => startActivity() : undefined}
+                onEdit={canEdit ? (row) => startActivity(row) : undefined}
+                onRemove={
+                  canEdit ? (row) => startActivity(row, 'REMOVE') : undefined
+                }
+                disabled={
+                  pending ||
+                  !!connectionError ||
+                  !!activityEditor ||
+                  removeConfirm ||
+                  discard ||
+                  conflict
+                }
+              />
+            )}
+            {activityEditor && (
+              <section
+                ref={activitySection}
+                className={styles.formSection}
+                aria-label="Activity editor"
+              >
+                {activityEditor.operation === 'REMOVE' ? (
+                  <div className={styles.activityRow}>
+                    <h3>Remove {activityEditor.name}?</h3>
+                    <p className={styles.hint}>
+                      Only this activity will be removed. The ceremony stays in
+                      your schedule.
+                    </p>
+                    <div className={styles.activityActions}>
+                      <button
+                        type="button"
+                        className={styles.primary}
+                        disabled={
+                          pending || !!connectionError || discard || conflict
+                        }
+                        onClick={() => saveActivity({})}
+                      >
+                        {pending ? 'Removing activity…' : 'Confirm Remove'}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.secondary}
+                        disabled={pending}
+                        onClick={cancelActivity}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <ActivityForm
+                    form={activityForm}
+                    record={record}
+                    activityId={activityEditor.id}
+                    pending={pending}
+                    disabled={
+                      pending || !!connectionError || discard || conflict
+                    }
+                    onSave={saveActivity}
+                    onCancel={cancelActivity}
+                    canAddAnother={
+                      (record.activities || []).length <
+                      activityLimit - (activityEditor.id ? 0 : 1)
+                    }
+                  />
+                )}
+              </section>
+            )}
             <section className={styles.formSection}>
               <div className={styles.sectionTitle}>
                 <h3>Linked Tasks</h3>
@@ -576,15 +933,74 @@ export function EventEditor({
                 Task assignments and readiness will appear when Tasks is built.
               </p>
             </section>
-            <div className={styles.deletePreview}>
-              <FutureButton>Remove Event</FutureButton>
-              <p>
-                Safe deletion and restoration follow in their agreed Events
-                increment.
-              </p>
-            </div>
+            {record && !editing && !activityEditor && (
+              <div className={styles.deletePreview}>
+                {canRemove ? (
+                  <button
+                    type="button"
+                    className={styles.dangerButton}
+                    disabled={
+                      pending ||
+                      !!connectionError ||
+                      discard ||
+                      conflict ||
+                      removeConfirm
+                    }
+                    onClick={() => {
+                      setRemoveConfirm(true);
+                      setError('');
+                      setNotice('');
+                    }}
+                  >
+                    <Trash2 size={16} /> Remove Event
+                  </button>
+                ) : (
+                  <p>Only an Admin can remove or restore whole events.</p>
+                )}
+                <p>
+                  Removed ceremonies can be restored from{' '}
+                  <Link href="/recovery">Deleted Items Recovery</Link>.
+                  Activities and history are retained.
+                </p>
+              </div>
+            )}
           </div>
           <footer className={styles.drawerFooter}>
+            {removeConfirm && (
+              <section
+                className={styles.discardDecision}
+                role="group"
+                aria-label="Confirm event removal"
+              >
+                <h3>Remove “{record.name}”?</h3>
+                <p>
+                  This ceremony will leave the schedule. Its{' '}
+                  {record.activityCount}{' '}
+                  {record.activityCount === 1 ? 'activity' : 'activities'} and
+                  history are kept for restoration. Related records are not
+                  deleted.
+                </p>
+                <div className={styles.actions}>
+                  <button
+                    ref={keepEvent}
+                    type="button"
+                    className={styles.secondary}
+                    disabled={pending}
+                    onClick={() => setRemoveConfirm(false)}
+                  >
+                    Keep Event
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.dangerButton}
+                    disabled={pending || !!connectionError || conflict}
+                    onClick={removeEvent}
+                  >
+                    {pending ? 'Removing event…' : 'Confirm Remove Event'}
+                  </button>
+                </div>
+              </section>
+            )}
             {discard && (
               <section
                 className={styles.discardDecision}
@@ -592,7 +1008,9 @@ export function EventEditor({
                 aria-labelledby="event-discard-question"
               >
                 <p id="event-discard-question">
-                  Discard your unsaved event changes?
+                  {activityEditor
+                    ? 'Discard your unsaved activity changes?'
+                    : 'Discard your unsaved event changes?'}
                 </p>
                 <div className={styles.actions}>
                   <button
@@ -622,7 +1040,7 @@ export function EventEditor({
               type="button"
               className={styles.secondary}
               onClick={close}
-              disabled={pending || discard}
+              disabled={pending || discard || removeConfirm}
             >
               Close
             </button>
@@ -647,7 +1065,9 @@ export function EventEditor({
                     : 'Create Event'}
               </button>
             ) : (
-              canEdit && (
+              canEdit &&
+              !activityEditor &&
+              !removeConfirm && (
                 <button
                   key="edit"
                   type="button"

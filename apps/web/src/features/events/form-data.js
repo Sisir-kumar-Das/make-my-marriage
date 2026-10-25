@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  activityFormSchema,
+  activityInput,
+  activityLimit,
+} from './activity-data.js';
 
 export const eventTypes = [
   ['ENGAGEMENT', 'Engagement'],
@@ -41,6 +46,7 @@ export const eventFormSchema = z
     address: z.string().trim().max(500),
     city: z.string().trim().max(100),
     state: z.string().trim().max(100),
+    activities: z.array(activityFormSchema).max(activityLimit).default([]),
   })
   .refine(
     (value) =>
@@ -52,6 +58,52 @@ export const eventFormSchema = z
         'End must be after start. Choose the next date for an overnight ceremony.',
     },
   );
+export const futureCompletionMessage =
+  'A future ceremony cannot be marked Completed. Choose another status or correct its start time.';
+
+export function eventStatusTiming(values, now = new Date()) {
+  const today = indiaParts(now).date;
+  const validStart = calendar.safeParse(values.startDate).success;
+  const validEnd = calendar.safeParse(values.endDate).success;
+  const future =
+    validStart &&
+    (values.startDate > today ||
+      (values.startDate === today &&
+        time.safeParse(values.startTime).success &&
+        Date.parse(`${values.startDate}T${values.startTime}:00+05:30`) >
+          Number(now)));
+  const ended =
+    validStart &&
+    validEnd &&
+    values.endDate >= values.startDate &&
+    (values.endDate < today ||
+      (values.endDate === today &&
+        time.safeParse(values.endTime).success &&
+        Date.parse(`${values.endDate}T${values.endTime}:00+05:30`) <=
+          Number(now)));
+  return {
+    future: !!future,
+    reviewStatus: !!ended && ['PLANNED', 'CONFIRMED'].includes(values.status),
+  };
+}
+
+// Temporal validation is separate from serialization so unchanged attempted saves keep their retry identity.
+export function eventFormValidation({
+  now = () => new Date(),
+  canRetry = () => false,
+} = {}) {
+  return eventFormSchema.refine(
+    (values) =>
+      values.status !== 'COMPLETED' ||
+      !eventStatusTiming(values, now()).future ||
+      canRetry(values),
+    {
+      path: ['status'],
+      message: futureCompletionMessage,
+      when: ({ value }) => eventFormSchema.safeParse(value).success,
+    },
+  );
+}
 export function nextDate(value) {
   if (!calendar.safeParse(value).success) return '';
   return new Date(Date.parse(value + 'T12:00:00Z') + 86400000)
@@ -97,6 +149,16 @@ export function initialEvent(wedding, event) {
     address: event?.venue?.formattedAddress || '',
     city: event?.venue?.city || '',
     state: event?.venue?.state || '',
+    activities: (event?.activities || []).map((row) => ({
+      activityId: row.id,
+      name: row.name,
+      startDate: indiaParts(row.startAt).date,
+      startTime: indiaParts(row.startAt).time,
+      hasEnd: !!row.endAt,
+      endDate: indiaParts(row.endAt || row.startAt).date,
+      endTime: row.endAt ? indiaParts(row.endAt).time : '',
+      description: row.description || '',
+    })),
   };
 }
 export function eventInput(values) {
@@ -118,6 +180,7 @@ export function eventInput(values) {
         }
       : null,
     status: v.status,
+    activities: v.activities.map(activityInput),
   };
 }
 export function mapsLink(venue) {
