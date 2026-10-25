@@ -30,7 +30,13 @@ import {
   hasEventFilters,
   filtersForCreatedEvent,
 } from './filters';
-import { eventDate, eventRange, eventStatuses, indiaParts } from './form-data';
+import {
+  eventDate,
+  eventRange,
+  eventStatuses,
+  indiaParts,
+  venueLabel,
+} from './form-data';
 import styles from './events.module.css';
 
 export function EventsPage({ openCreate = false }) {
@@ -434,9 +440,7 @@ export function EventsPage({ openCreate = false }) {
                           </span>
                           <span>
                             <MapPin size={15} />
-                            {[event.venue?.name, event.venue?.city]
-                              .filter(Boolean)
-                              .join(', ') || 'Venue to be decided'}
+                            {venueLabel(event.venue)}
                           </span>
                         </div>
                       </div>
@@ -500,16 +504,16 @@ export function EventsPage({ openCreate = false }) {
               <h2>Venues &amp; Locations</h2>
             </div>
             <p>
-              Open a ceremony to see its saved venue, address and Open in Maps
-              link.
+              Open a ceremony to see its venue, your entered directions and an
+              Open in Maps link.
             </p>
             <div className={styles.soft}>
               <h3>Venue search</h3>
               <p>
-                Manual venue details work now. Google Places search and venue
-                summaries follow within Events.
+                Search Google Maps when adding or editing a ceremony, or enter a
+                venue manually. Linked Google details load when you open the
+                ceremony.
               </p>
-              <ComingSoon />
             </div>
           </section>
           <section className={styles.sideCard}>

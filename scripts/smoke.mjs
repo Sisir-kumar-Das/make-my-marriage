@@ -111,6 +111,14 @@ try {
   assert.ok(homeHtml.includes('id="wedding-website"'));
   assert.ok(homeHtml.includes('Planned'));
   assert.ok(homeHtml.includes('href="/register"'));
+  for (const route of ['privacy', 'terms']) {
+    assert.ok(homeHtml.includes(`href="/${route}"`));
+    const response = await request(`${webUrl}/${route}`);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes('https://policies.google.com/privacy'));
+    assert.ok(html.includes('Google Maps'));
+  }
   // Forged/stale hints may request recovery, but must never authorize a redirect.
   for (const cookie of [
     'mmm_access=invalid',

@@ -1703,6 +1703,172 @@ test(
           assert.notEqual(a.event.id, b.event.id);
         },
       );
+      await t.test(
+        'Google-linked venues persist only references/user input through edits, retries and recovery; tenant and role checks still apply',
+        async () => {
+          const admin = await account(),
+            collaborator = await account(),
+            reader = await account();
+          const wedding = (
+            await weddings.create(admin, weddingInput, randomUUID())
+          ).wedding.id;
+          for (const [userId, role] of [
+            [collaborator, 'FAMILY_MEMBER'],
+            [reader, 'VIEWER'],
+          ]) {
+            await WeddingMember.create({
+              weddingId: wedding,
+              userId,
+              role,
+              status: 'ACTIVE',
+              joinedAt: new Date(),
+              createdBy: admin,
+            });
+          }
+          const venue = {
+            source: 'GOOGLE',
+            googlePlaceId: 'ChIJ_synthetic-atlas-test',
+            name: 'Our private hall label',
+            formattedAddress: 'Use gate 2',
+            city: 'Cuttack',
+            state: 'Odisha',
+          };
+          const key = randomUUID();
+          const created = await events.create(
+            collaborator,
+            wedding,
+            { ...input, name: 'Linked venue ceremony', venue },
+            key,
+          );
+          assert.deepEqual(created.event.venue, venue);
+          assert.equal(
+            (
+              await events.create(
+                collaborator,
+                wedding,
+                { ...input, name: 'Linked venue ceremony', venue },
+                key,
+              )
+            ).event.id,
+            created.event.id,
+          );
+          assert.deepEqual(
+            (await events.read(reader, wedding, created.event.id)).event.venue,
+            venue,
+          );
+          const stored = await Event.findById(created.event.id).lean();
+          assert.deepEqual(stored.venue, venue);
+          const history = await Activity.findOne({
+            entityId: created.event.id,
+          }).lean();
+          assert.equal(
+            JSON.stringify(history).includes(venue.googlePlaceId),
+            false,
+          );
+          assert.equal(
+            (await events.list(reader, wedding, { q: 'private hall label' }))
+              .meta.total,
+            1,
+          );
+          assert.equal(
+            (await events.list(reader, wedding, { q: 'Provider live address' }))
+              .meta.total,
+            0,
+          );
+          for (const extra of [
+            { latitude: 20 },
+            { displayName: 'Provider live name' },
+            { googleMapsURI: 'https://attacker.example' },
+          ]) {
+            await assert.rejects(
+              events.update(
+                admin,
+                wedding,
+                created.event.id,
+                { venue: { ...venue, ...extra } },
+                randomUUID(),
+                '"0"',
+              ),
+              { code: 'VALIDATION_ERROR' },
+            );
+          }
+          await assert.rejects(
+            events.update(
+              reader,
+              wedding,
+              created.event.id,
+              { venue },
+              randomUUID(),
+              '"0"',
+            ),
+            { code: 'FORBIDDEN' },
+          );
+          await assert.rejects(
+            events.read(outsider, wedding, created.event.id),
+            { code: 'WEDDING_NOT_FOUND' },
+          );
+          const edited = await events.update(
+            collaborator,
+            wedding,
+            created.event.id,
+            { description: 'Entered family notes' },
+            randomUUID(),
+            '"0"',
+          );
+          assert.deepEqual(edited.event.venue, venue);
+          const removed = await events.changeLifecycle(
+            'DELETE_EVENT',
+            admin,
+            wedding,
+            created.event.id,
+            {},
+            randomUUID(),
+            `"${edited.event.version}"`,
+          );
+          const restored = await events.changeLifecycle(
+            'RESTORE_EVENT',
+            admin,
+            wedding,
+            created.event.id,
+            {},
+            randomUUID(),
+            `"${removed.event.version}"`,
+          );
+          assert.deepEqual(restored.event.venue, venue);
+          const manual = {
+            source: 'MANUAL',
+            name: venue.name,
+            formattedAddress: venue.formattedAddress,
+            city: venue.city,
+            state: venue.state,
+          };
+          const unlinked = await events.update(
+            collaborator,
+            wedding,
+            created.event.id,
+            { venue: manual },
+            randomUUID(),
+            `"${restored.event.version}"`,
+          );
+          assert.deepEqual(unlinked.event.venue, manual);
+          const idOnly = await events.update(
+            admin,
+            wedding,
+            created.event.id,
+            { venue: { source: 'GOOGLE', googlePlaceId: venue.googlePlaceId } },
+            randomUUID(),
+            `"${unlinked.event.version}"`,
+          );
+          assert.deepEqual(idOnly.event.venue, {
+            source: 'GOOGLE',
+            googlePlaceId: venue.googlePlaceId,
+            name: '',
+            formattedAddress: '',
+            city: '',
+            state: '',
+          });
+        },
+      );
     } finally {
       await connection.dropDatabase();
       await database.close();

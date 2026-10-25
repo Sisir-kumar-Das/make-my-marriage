@@ -1,0 +1,165 @@
+.picker {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.picker > label {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0 0.8rem;
+  background: white;
+  border: 1px solid #e9dce3;
+  border-radius: 0.5rem;
+}
+.search input {
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0.8rem 0;
+  font: inherit;
+  font-size: 0.8rem;
+  outline: none;
+}
+.search:focus-within {
+  outline: 2px solid #6e334e;
+  outline-offset: 2px;
+}
+.search:has(input:disabled) {
+  opacity: 0.6;
+}
+.results {
+  border: 1px solid #e9dce3;
+  background: white;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.results ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: min(10rem, 22dvh);
+  overflow-y: auto;
+}
+.results button:not(.textButton) {
+  width: 100%;
+  text-align: left;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.results li[aria-selected='true'],
+.results li:hover {
+  background: #f9f2f6;
+}
+.results button span {
+  font-size: 0.75rem;
+  color: #514348;
+}
+.results > p,
+.results > div[role='status'] {
+  padding: 0.8rem;
+  font-size: 0.8rem;
+}
+.help,
+.legal {
+  font-size: 0.75rem;
+  line-height: 1.65;
+  color: #514348;
+}
+.legal a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.googleCard {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  min-width: 0;
+  background: white;
+  border: 1px solid #e9dce3;
+  border-radius: 0.5rem;
+  overflow-wrap: anywhere;
+}
+.googleCard h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.googleCard p {
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.googleCard > p[role='status'] {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.caption {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #514348;
+}
+.attribution {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: normal;
+  color: #5e5e5e;
+  background: white;
+}
+.attribution > span:first-child {
+  white-space: nowrap;
+}
+.attribution a {
+  text-decoration: underline;
+}
+.googleCard .attribution {
+  padding: 0.2rem 0;
+}
+.textButton {
+  justify-self: start;
+  padding: 0.4rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6e334e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.textButton:disabled {
+  opacity: 0.5;
+}
+.mapLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #6e334e;
+  text-decoration: underline;
+}
+.spinner {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

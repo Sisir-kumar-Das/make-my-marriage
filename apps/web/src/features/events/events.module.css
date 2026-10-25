@@ -478,8 +478,7 @@
 }
 .field input,
 .field select,
-.field textarea,
-.places input {
+.field textarea {
   width: 100%;
   min-width: 0;
   min-height: 2.75rem;
@@ -553,16 +552,40 @@
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
-.places {
+.venueGuidance {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 1rem;
+  border: 1px solid #d5c1c7;
+  border-left: 3px solid #6e334e;
+  border-radius: 0.5rem;
+  background: #f9f2f6;
+  color: #531d37;
+  overflow-wrap: anywhere;
 }
-.places input {
-  flex: 1;
-  min-width: 10rem;
-  background: #f3ecf0;
+.venueGuidance > svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+.venueGuidance h4 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.venueGuidance h4 span {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0 0.4rem;
+  border-radius: 0.3rem;
+  background: #eadce4;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.venueGuidance p {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1.7;
 }
 .details {
   display: grid;

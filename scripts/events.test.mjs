@@ -69,7 +69,7 @@ test('events accept past and overnight timings and normalize equivalent instants
     {
       activities: [{ name: 'Injected', startAt: input.startAt, role: 'ADMIN' }],
     },
-    { venue: { source: 'GOOGLE', googlePlaceId: 'unverified' } },
+    { venue: { source: 'GOOGLE', googlePlaceId: 'invalid URL!' } },
     { status: 'DELETED' },
   ])
     assert.equal(

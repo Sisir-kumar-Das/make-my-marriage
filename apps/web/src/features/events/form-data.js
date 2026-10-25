@@ -46,6 +46,11 @@ export const eventFormSchema = z
     address: z.string().trim().max(500),
     city: z.string().trim().max(100),
     state: z.string().trim().max(100),
+    googlePlaceId: z
+      .string()
+      .max(512)
+      .regex(/^[A-Za-z0-9_-]*$/, 'Choose a valid Google Maps venue.')
+      .default(''),
     activities: z.array(activityFormSchema).max(activityLimit).default([]),
   })
   .refine(
@@ -149,6 +154,8 @@ export function initialEvent(wedding, event) {
     address: event?.venue?.formattedAddress || '',
     city: event?.venue?.city || '',
     state: event?.venue?.state || '',
+    googlePlaceId:
+      event?.venue?.source === 'GOOGLE' ? event.venue.googlePlaceId || '' : '',
     activities: (event?.activities || []).map((row) => ({
       activityId: row.id,
       name: row.name,
@@ -170,15 +177,17 @@ export function eventInput(values) {
     description: v.description,
     startAt: new Date(`${v.startDate}T${v.startTime}:00+05:30`).toISOString(),
     endAt: new Date(`${v.endDate}T${v.endTime}:00+05:30`).toISOString(),
-    venue: hasVenue
-      ? {
-          source: 'MANUAL',
-          name: v.venueName,
-          formattedAddress: v.address,
-          city: v.city,
-          state: v.state,
-        }
-      : null,
+    venue:
+      hasVenue || v.googlePlaceId
+        ? {
+            source: v.googlePlaceId ? 'GOOGLE' : 'MANUAL',
+            ...(v.googlePlaceId ? { googlePlaceId: v.googlePlaceId } : {}),
+            name: v.venueName,
+            formattedAddress: v.address,
+            city: v.city,
+            state: v.state,
+          }
+        : null,
     status: v.status,
     activities: v.activities.map(activityInput),
   };
@@ -192,9 +201,25 @@ export function mapsLink(venue) {
   ]
     .filter(Boolean)
     .join(', ');
+  if (
+    venue?.source === 'GOOGLE' &&
+    /^[A-Za-z0-9_-]{1,512}$/.test(venue.googlePlaceId || '')
+  ) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query || 'Wedding venue')}&query_place_id=${encodeURIComponent(venue.googlePlaceId)}`;
+  }
   return query
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
     : null;
+}
+export function venueLabel(venue) {
+  return (
+    [
+      venue?.name || (venue?.source === 'GOOGLE' ? 'Google Maps venue' : ''),
+      venue?.city,
+    ]
+      .filter(Boolean)
+      .join(', ') || 'Venue to be decided'
+  );
 }
 export function eventTime(instant) {
   return new Intl.DateTimeFormat('en-IN', {

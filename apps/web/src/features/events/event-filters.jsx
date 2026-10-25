@@ -99,7 +99,8 @@ export function EventFilters({ filters, filterKey, counts, onApply }) {
       )}
       <p className={styles.filterHint}>
         Counts follow your applied search and dates. Date ranges include
-        overnight ceremonies · India time.
+        overnight ceremonies · India time. Search uses ceremony names and your
+        entered venue details.
       </p>
     </section>
   );

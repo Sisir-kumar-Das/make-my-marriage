@@ -37,6 +37,7 @@ const eventSchema = new Schema(
       type: new Schema(
         {
           source: { type: String, enum: ['MANUAL', 'GOOGLE'] },
+          googlePlaceId: { type: String, maxlength: 512 },
           name: String,
           formattedAddress: String,
           city: String,

@@ -1,0 +1,35 @@
+# ADR-028: Google Places references and live venue details
+
+Date: 25 October 2026
+
+Status: Accepted by the owner; implementation, independent review/manual results, corrections and owner-authorized Git handoff (25 October 2026) are recorded in PROJECT_STATUS.md. A separate independent re-review of the corrections is not claimed.
+
+## Approved adjustment to the baseline
+
+The owner approved implementing browser Google Places search after discussing the difference from permanent venue snapshots. This decision narrowly supersedes the Google-derived snapshot provisions in the architecture §14.2, database event venue definition and API venue examples. Preserve the approved baseline files unchanged.
+
+Save a Google **place ID** and independently **user-entered** venue name/label, address/hall directions, city and state. Fetch Google names, formatted addresses and required attributions live into temporary React state when selecting or opening a linked venue. Do not copy these responses into saved form fields, application records, history, logs, browser storage or a persistent cache. No coordinates, reviews, photos or provider URLs are saved or requested. The product cannot promise historical stability for live Google content. Manually entered details remain independent and stable until edited.
+
+Google's current [JavaScript policies](https://developers.google.com/maps/documentation/javascript/policies) exempt place IDs from caching restrictions and prohibit capturing place names outside the user session; the [Places policies](https://developers.google.com/maps/documentation/places/web-service/policies) and [service terms](https://cloud.google.com/maps-platform/terms/maps-service-terms) govern provider content. The narrow end-user address exception does not establish general permission to retain POI snapshots. This decision follows those constraints instead of assuming that exception applies.
+
+## Runtime and API contract
+
+- Lazy-load the official Maps JavaScript SDK and Places API (New) with `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. This is intentionally a browser-visible key, restricted to these two APIs and exact approved websites. No backend key, dependency, credentials transfer to Express or hosting change is introduced. Development and production use the same integration; production needs its actual authorized origin before release.
+- India-only optional autocomplete uses a three-character minimum, 300 ms debounce, at most five predictions and an autocomplete session token. A selected prediction's `toPlace().fetchFields()` completes its session; use a new token for another search. Request only ID, display name, formatted address and attributions. Details are fetched for the opened/selected venue, not for every schedule card, dashboard or recovery row. Quotas/billing alerts remain owner-controlled in Google Cloud; no zero-cost promise is made.
+- Selecting a prediction synchronously changes only the place ID. A late/stale details response cannot overwrite entered details or change a pending save payload. Ignore superseded searches and unmounted results; bound provider waits and show retry/manual fallback. Unlinking removes the reference while preserving all entered fields. Keyboard selection/Escape must coexist with the parent ceremony drawer and existing pending/conflict/session locks.
+- Express accepts strict MANUAL venues with the existing shape, or GOOGLE venues with `googlePlaceId` plus the same user-entered fields. ID-only GOOGLE venues are valid. Bound IDs to 512 URL-safe identifier characters as an application input limit; this is not a claim about Google's maximum. Express checks tenant/role/version/idempotency as before and does not call an arbitrary client-supplied URL or trust Google content as authorization. It does not assert that every syntactically valid ID resolves.
+- Legacy manual normalization and write-receipt hashes stay unchanged. No migration of old manual venues or existing 24-hour retry receipts is necessary. Event activities, deletion/restoration and collaborative edits preserve linked references and entered details.
+- Server search/counts cover event names and saved **user-entered** venue fields. They cannot search a transient Google name/address that was never saved. Schedule cards use the entered label/city, or “Google Maps venue” for an ID-only link; opening the event shows live Google details. This is the explicitly discussed consequence of the approved storage adjustment.
+- Open in Maps uses a fixed Google Maps HTTPS origin with encoded query and `query_place_id`; manual venues retain text search. No provider-returned URL is persisted. Google unavailability does not prevent manual entry, saving an ID already selected, or accessing existing user-entered information.
+
+## Presentation and supporting notices
+
+Keep the refined Stitch drawer's venue search/manual-address location, colors, typography and responsive layout. The selected-live-details panel and separate saved-input guidance express the owner-approved storage distinction. Show nearby, unmodified Google Maps attribution (compact text in the constrained drawer) and any returned provider attributions with safe links. Do not label Google results “verified” or imply bookings.
+
+Public `/privacy` and `/terms` notices are linked from the search and homepage footer. They describe the current personal project, optional transmission to Google and incorporate/link Google's privacy and Maps terms. These are supporting notices for this integration, not a claim that public deployment or a full legal/operational review is complete. Hosting and public-release readiness remain deferred.
+
+## Verification and follow-up
+
+Cover strict input/provenance, manual hash compatibility, ID round-trips/unlinking, safe Maps links, lazy loader reuse/retry/timeouts, attribution and live data boundaries. Check isolated Atlas persistence/roles/retries/recovery and real browser SDK/search/details/save/reload, keyboard and mobile behaviour. Record actual results and omissions in PROJECT_STATUS.md. No unrelated Gmail/R2 tests or deployment are required for this change. Independent Places code review/manual testing completed with three findings, subsequently corrected and locally verified; the owner accepted the checkpoint for Git handoff. See PROJECT_STATUS.md for the original review evidence and correction-check limitations. Continue to Tasks discussion in the agreed feature sequence.
+
+Review follow-up, 25 October: detail retries and results are scoped to the exact selected prediction as well as its place ID, and changing venue IDs resets detail state. Completing/unlinking a selection clears predictions and rotates the token; displayed predictions must belong to the active token, including when the next query text repeats. Never reuse a completed prediction to finish a new session. Initial Arrow Up selects the final option; arrows then wrap. Native regression checks and deterministic browser evidence are recorded in milestone 14. These corrections preserve the approved storage/API contract.

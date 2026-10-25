@@ -1693,24 +1693,18 @@ function HomepageFooter() {
               <span className="text-xs font-semibold uppercase tracking-wider text-[#242124]">
                 Legal
               </span>
-              <button
+              <Link
                 className="text-xs text-[#5C5457] hover:text-[#6E334E] transition-colors"
-                type="button"
-                disabled
-                aria-describedby="footer-pages-note"
-                title="Privacy is not available yet."
+                href="/privacy"
               >
                 Privacy
-              </button>
-              <button
+              </Link>
+              <Link
                 className="text-xs text-[#5C5457] hover:text-[#6E334E] transition-colors"
-                type="button"
-                disabled
-                aria-describedby="footer-pages-note"
-                title="Terms is not available yet."
+                href="/terms"
               >
                 Terms
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -1721,7 +1715,7 @@ function HomepageFooter() {
           </span>
         </div>
         <p className="preview-note" id="footer-pages-note">
-          About, contact, privacy and terms pages are planned.
+          About and contact pages are planned.
         </p>
       </div>
     </footer>

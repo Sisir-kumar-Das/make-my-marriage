@@ -51,15 +51,29 @@ const activityRows = z
     const ids = rows.flatMap((row) => (row.id ? [row.id] : []));
     return new Set(ids).size === ids.length;
   }, 'An activity cannot appear twice.');
+const venueFields = {
+  name: text(200).default(''),
+  formattedAddress: text(500).default(''),
+  city: text(100).default(''),
+  state: text(100).default(''),
+};
 const venue = z
-  .object({
-    source: z.literal('MANUAL').default('MANUAL'),
-    name: text(200).default(''),
-    formattedAddress: text(500).default(''),
-    city: text(100).default(''),
-    state: text(100).default(''),
-  })
-  .strict()
+  .union([
+    z
+      .object({ source: z.literal('MANUAL').default('MANUAL'), ...venueFields })
+      .strict(),
+    z
+      .object({
+        source: z.literal('GOOGLE'),
+        googlePlaceId: z
+          .string()
+          .min(1)
+          .max(512)
+          .regex(/^[A-Za-z0-9_-]+$/),
+        ...venueFields,
+      })
+      .strict(),
+  ])
   .nullable()
   .transform((value) =>
     value &&

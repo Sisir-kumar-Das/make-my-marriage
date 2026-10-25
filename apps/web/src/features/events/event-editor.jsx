@@ -13,6 +13,7 @@ import {
   ExternalLink,
   LockKeyhole,
   Trash2,
+  Info,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { useSession } from '@/features/auth/session-provider';
@@ -30,6 +31,7 @@ import {
   eventRange,
 } from './form-data';
 import { ActivityForm, ActivityList } from './ceremony-activities';
+import { VenuePicker, GoogleVenueDetails } from './venue-picker';
 import {
   newActivity,
   activityLimit,
@@ -267,6 +269,7 @@ export function EventEditor({
     control,
     name: ['startDate', 'endDate', 'startTime', 'endTime', 'status'],
   });
+  const googlePlaceId = useWatch({ control, name: 'googlePlaceId' });
   const timing = eventStatusTiming(
     { startDate, endDate, startTime, endTime, status },
     new Date(clock),
@@ -471,6 +474,11 @@ export function EventEditor({
           }}
           onEscapeKeyDown={(event) => {
             event.preventDefault();
+            if (
+              event.target?.getAttribute('role') === 'combobox' &&
+              event.target.getAttribute('aria-expanded') === 'true'
+            )
+              return;
             if (discard && !lock.current) setDiscard(false);
             else close();
           }}
@@ -730,20 +738,52 @@ export function EventEditor({
                         Venue &amp; Location <small>(Optional)</small>
                       </h3>
                     </div>
-                    <div className={styles.places}>
-                      <input
-                        disabled
-                        aria-label="Google Places venue search coming soon"
-                        placeholder="Venue search · Coming soon"
-                      />
-                      <ComingSoon />
-                    </div>
-                    <p className={styles.hint}>
-                      Enter a venue or address manually. Google Places search
-                      follows in a later Events increment.
-                    </p>
+                    <VenuePicker
+                      control={control}
+                      setValue={setValue}
+                      disabled={
+                        pending ||
+                        discard ||
+                        !!connectionError ||
+                        conflict ||
+                        !canEdit
+                      }
+                    />
+                    {googlePlaceId ? (
+                      <div
+                        role="note"
+                        aria-label="Optional venue directions"
+                        className={styles.venueGuidance}
+                      >
+                        <Info size={18} aria-hidden="true" />
+                        <div>
+                          <h4>
+                            Want to add more specific directions?{' '}
+                            <span>Optional</span>
+                          </h4>
+                          <p>
+                            Your selected venue is ready to save. Add a hall
+                            name, floor, entrance or nearby landmark below if
+                            helpful.{' '}
+                            <strong>
+                              No need to repeat the Google Maps address.
+                            </strong>
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className={styles.hint}>
+                        Enter your own venue label and directions here. These
+                        are saved with your ceremony and can be searched from
+                        the schedule.
+                      </p>
+                    )}
                     <Input
-                      label="Venue name"
+                      label={
+                        googlePlaceId
+                          ? 'Your venue label (optional)'
+                          : 'Your venue label'
+                      }
                       id="event-venue"
                       maxLength={200}
                       placeholder="Venue, hall or family home"
@@ -752,7 +792,11 @@ export function EventEditor({
                     />
                     <Input
                       as="textarea"
-                      label="Full address / hall details"
+                      label={
+                        googlePlaceId
+                          ? 'Extra directions (optional)'
+                          : 'Your address / hall details'
+                      }
                       id="event-address"
                       rows={2}
                       maxLength={500}
@@ -810,7 +854,18 @@ export function EventEditor({
                     <p className={styles.description}>{record.description}</p>
                   )}
                   <h3>Venue &amp; Location</h3>
-                  <p>{record.venue?.name || 'Venue not specified'}</p>
+                  {record.venue?.source === 'GOOGLE' &&
+                    record.venue.googlePlaceId && (
+                      <GoogleVenueDetails
+                        placeId={record.venue.googlePlaceId}
+                      />
+                    )}
+                  <p>
+                    {record.venue?.name ||
+                      (record.venue?.source === 'GOOGLE'
+                        ? 'No custom venue label entered'
+                        : 'Venue not specified')}
+                  </p>
                   <p>
                     {[
                       record.venue?.formattedAddress,
@@ -820,7 +875,7 @@ export function EventEditor({
                       .filter(Boolean)
                       .join(', ')}
                   </p>
-                  {map && (
+                  {map && record.venue?.source !== 'GOOGLE' && (
                     <a
                       className={styles.mapLink}
                       href={map}
