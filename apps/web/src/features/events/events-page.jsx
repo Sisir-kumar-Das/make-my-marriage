@@ -43,6 +43,12 @@ export function EventsPage({ openCreate = false }) {
   const { wedding, membership } = useSession();
   const canEdit = ['ADMIN', 'FAMILY_MEMBER'].includes(membership.role);
   const params = useSearchParams();
+  const hasReturnEvent = params.has('event');
+  const returnEventId = params.get('event');
+  const returnEventValid =
+    !hasReturnEvent ||
+    (params.getAll('event').length === 1 &&
+      /^[a-f\d]{24}$/.test(returnEventId));
   const {
     filters,
     error: filterError,
@@ -52,6 +58,14 @@ export function EventsPage({ openCreate = false }) {
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState(null);
   const [detailError, setDetailError] = useState('');
+  const [returnResult, setReturnResult] = useState(null);
+  const [returnAttempt, setReturnAttempt] = useState(0);
+  const returnError = !returnEventValid
+    ? 'This ceremony link is invalid. Open a ceremony from the schedule.'
+    : returnResult?.id === returnEventId &&
+        returnResult?.attempt === returnAttempt
+      ? returnResult.error
+      : '';
   const [locate, setLocate] = useState(null);
   const requestKey = `${filterKey}:${retry}:${locate || ''}`;
   const loading = !filterError && result?.key !== requestKey;
@@ -62,6 +76,7 @@ export function EventsPage({ openCreate = false }) {
   const error =
     filterError ||
     detailError ||
+    returnError ||
     (result?.key === requestKey ? result.error : '');
   const page = list?.meta.page || Number(filters.page) || 1;
   const [editor, setEditor] = useState(
@@ -142,6 +157,46 @@ export function EventsPage({ openCreate = false }) {
   }, [query, filterKey, requestKey, filterError, locate, wedding.id]);
   useEffect(() => () => detailRequest.current?.abort(), []);
   useEffect(() => {
+    if (!returnEventId || !returnEventValid) return;
+    const controller = new AbortController();
+    const current = () =>
+      !controller.signal.aborted &&
+      new URLSearchParams(window.location.search).get('event') ===
+        returnEventId;
+    void apiRequest(`/weddings/${wedding.id}/events/${returnEventId}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!current()) return;
+        setEditor({
+          event: response.data.event,
+          warnings: response.data.warnings,
+        });
+        setReturnResult({ id: returnEventId, attempt: returnAttempt });
+      })
+      .catch((failure) => {
+        if (current())
+          setReturnResult({
+            id: returnEventId,
+            attempt: returnAttempt,
+            error: failure.message,
+          });
+      });
+    return () => controller.abort();
+  }, [returnEventId, returnEventValid, wedding.id, returnAttempt]);
+  function closeEditor() {
+    setEditor(null);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('event')) {
+      url.searchParams.delete('event');
+      window.history.replaceState(
+        null,
+        '',
+        url.pathname + url.search + url.hash,
+      );
+    }
+  }
+  useEffect(() => {
     if (!focusCreated.current || loading || editor) return;
     const target = createdCard.current || successNotice.current;
     if (!target) return;
@@ -157,7 +212,7 @@ export function EventsPage({ openCreate = false }) {
   function saved(result) {
     listRequest.current++;
     if (result.removed) {
-      setEditor(null);
+      closeEditor();
       setCreated(null);
       setRemoved(result.event.name);
       setDetailError('');
@@ -239,6 +294,30 @@ export function EventsPage({ openCreate = false }) {
   );
   return (
     <div className={styles.page}>
+      {returnEventId &&
+        returnEventValid &&
+        (returnResult?.id !== returnEventId ||
+          returnResult?.attempt !== returnAttempt) && (
+          <p role="status">Opening ceremony…</p>
+        )}
+      {returnError && returnEventValid && (
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={() => setReturnAttempt((value) => value + 1)}
+        >
+          Retry ceremony
+        </button>
+      )}
+      {returnError && (
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={closeEditor}
+        >
+          Dismiss ceremony link
+        </button>
+      )}
       <PageHeader
         eyebrow="Master Itinerary"
         title="Ceremony Schedule & Events"
@@ -451,7 +530,8 @@ export function EventsPage({ openCreate = false }) {
                         {(event.activityCount || 0) === 1
                           ? 'activity'
                           : 'activities'}{' '}
-                        · Tasks coming soon
+                        · {event.taskCount ?? 0}{' '}
+                        {(event.taskCount ?? 0) === 1 ? 'task' : 'tasks'}
                       </span>
                       {detail === event.id ? (
                         <span>Opening…</span>
@@ -520,29 +600,32 @@ export function EventsPage({ openCreate = false }) {
             <h2>Timeline Readiness</h2>
             <p>
               Ceremony activities and timing warnings are available inside each
-              event. Task-based readiness follows when Tasks is built.
+              event. Task-based readiness summaries are coming in a later
+              increment.
             </p>
             <ComingSoon />
           </section>
         </aside>
       </div>
-      {editor && (
-        <EventEditor
-          key={editor.event?.id || 'create'}
-          wedding={wedding}
-          event={editor.event}
-          initialWarnings={editor.warnings}
-          canEdit={canEdit}
-          onClose={() => setEditor(null)}
-          onSaved={saved}
-          onReturnFocus={() => {
-            const target = returnFocus.current?.isConnected
-              ? returnFocus.current
-              : addTrigger.current;
-            target?.focus();
-          }}
-        />
-      )}
+      {editor &&
+        (!hasReturnEvent ||
+          (returnEventValid && editor.event?.id === returnEventId)) && (
+          <EventEditor
+            key={editor.event?.id || 'create'}
+            wedding={wedding}
+            event={editor.event}
+            initialWarnings={editor.warnings}
+            canEdit={canEdit}
+            onClose={closeEditor}
+            onSaved={saved}
+            onReturnFocus={() => {
+              const target = returnFocus.current?.isConnected
+                ? returnFocus.current
+                : addTrigger.current;
+              target?.focus();
+            }}
+          />
+        )}
     </div>
   );
 }

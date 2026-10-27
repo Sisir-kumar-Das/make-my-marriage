@@ -92,15 +92,19 @@ export function Dashboard({ wedding, membership }) {
             <div>
               <h2>Coordinator Actions</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Create a ceremony now. Tasks and invitations are coming soon.
+                Add a task or ceremony to your wedding plans. Invitations are
+                coming soon.
               </p>
             </div>
           </div>
           <div className={styles.actions}>
-            <FutureButton primary>
+            <Link
+              href="/tasks?create=1"
+              className={`${styles.action} ${styles.primary}`}
+            >
               <ListChecks size={16} />
               Add Task
-            </FutureButton>
+            </Link>
             <Link
               href="/events?create=1"
               className={`${styles.action} ${styles.primary}`}

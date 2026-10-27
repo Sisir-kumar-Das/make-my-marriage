@@ -778,3 +778,66 @@
   text-decoration: underline;
   color: #6e334e;
 }
+.linkedTaskHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.linkedTaskHeading h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.linkButton {
+  border: 0;
+  background: transparent;
+  color: #6e334e;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  min-height: 44px;
+}
+.linkedTaskPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.linkedTaskPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid #eadddf;
+  border-radius: 1rem;
+  background: #f7f0f4;
+  color: #4e3844;
+  font-size: 0.75rem;
+  text-align: left;
+}
+.linkedTaskPill span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.linkedTaskPill svg {
+  flex-shrink: 0;
+}
+.linkedTaskPill small {
+  color: #69565f;
+  flex-shrink: 0;
+}
+.linkButton:disabled,
+.linkedTaskPill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.inlineError {
+  color: #90433e;
+  font-size: 0.8125rem;
+}
+.inlineError button {
+  margin-top: 0.5rem;
+}

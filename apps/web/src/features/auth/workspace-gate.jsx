@@ -41,7 +41,11 @@ export async function WorkspaceGate({ children }) {
   const session = await getPlanningSession();
   if (!session) return <SessionRestore />;
   return (
-    <SessionProvider initialSession={session} preserveEventState>
+    <SessionProvider
+      initialSession={session}
+      preserveEventState
+      preserveTaskState
+    >
       <AppShell>{children}</AppShell>
     </SessionProvider>
   );

@@ -14,6 +14,7 @@ import {
 import { eventDate, eventRange } from '@/features/events/form-data';
 import layout from '@/features/dashboard/workspace-ui.module.css';
 import styles from './recovery.module.css';
+import { TaskRecovery } from './task-recovery';
 
 const removedAt = (value) =>
   new Intl.DateTimeFormat('en-IN', {
@@ -124,7 +125,7 @@ export function EventRecovery() {
       <PageHeader
         eyebrow="Settings › Workspace & Account"
         title="Data Recovery Tray"
-        description="Restore removed ceremonies with their activities and history preserved."
+        description="Restore removed ceremonies and tasks with their saved details and history preserved."
       />
       <SettingsTabs active="/recovery" />
       <section className={`${layout.card} ${styles.reassurance}`}>
@@ -132,21 +133,22 @@ export function EventRecovery() {
         <div>
           <div className={layout.row}>
             <h2>Data Recovery Tray</h2>
-            <span className={styles.admin}>Admin Exclusive</span>
+            <span className={styles.admin}>Role-based recovery</span>
           </div>
           <p>
             Restored events return to the ceremony schedule with their saved
-            details and activities.
+            details and activities. Restored tasks retain their notes, deadlines
+            and saved assignees.
           </p>
           <p className={styles.subtle}>
-            Events remain recoverable while the wedding exists. The separate
-            seven-day wedding recovery feature is coming soon.
+            Events and tasks remain recoverable while the wedding exists. The
+            separate seven-day wedding recovery feature is coming soon.
           </p>
         </div>
       </section>
       {!admin ? (
         <section className={layout.card}>
-          <h2>Admin access required</h2>
+          <h2>Event recovery · Admin only</h2>
           <p>
             Only a wedding Admin can view removed events or restore them. Your
             normal planning access is unchanged.
@@ -321,14 +323,7 @@ export function EventRecovery() {
           </section>
         </>
       )}
-      <section className={layout.card}>
-        <div className={layout.row}>
-          <h2>Task Recovery</h2>
-          <ComingSoon />
-        </div>
-        <p>Removed-task restoration will be connected when Tasks is built.</p>
-        <FutureButton>Restore Task</FutureButton>
-      </section>
+      <TaskRecovery />
       <section className={layout.card}>
         <div className={layout.row}>
           <h2>Wedding Workspace Lifecycle</h2>

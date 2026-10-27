@@ -124,3 +124,15 @@
 .pagination span {
   margin-right: auto;
 }
+
+.notes {
+  white-space: pre-wrap;
+}
+.details details {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+.details summary {
+  color: #6e334e;
+  cursor: pointer;
+}

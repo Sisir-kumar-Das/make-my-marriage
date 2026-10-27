@@ -14,11 +14,14 @@ import { createMediaService } from './media/service.js';
 import { createMediaRouter } from './media/router.js';
 import { createEventService } from './events/service.js';
 import { createEventRouter } from './events/router.js';
+import { createTaskService } from './tasks/service.js';
+import { createTaskRouter } from './tasks/router.js';
 
 const database = createAuthDatabase(config);
 export const weddingService = createWeddingService({ database });
 export const mediaService = createMediaService({ database, settings: config });
 export const eventService = createEventService({ database });
+export const taskService = createTaskService({ database });
 export const authService = createProductionAuthService(config, {
   database,
   getWeddingContext: weddingService.current,
@@ -29,6 +32,7 @@ export function createApp({
   weddings = weddingService,
   media = mediaService,
   events = eventService,
+  tasks = taskService,
   settings = config,
 } = {}) {
   const app = express();
@@ -61,6 +65,10 @@ export function createApp({
   app.use(
     '/api/v1/weddings/:weddingId/events',
     createEventRouter({ service, events, settings }),
+  );
+  app.use(
+    '/api/v1/weddings/:weddingId/tasks',
+    createTaskRouter({ service, tasks, settings }),
   );
   app.use(
     '/api/v1/weddings',

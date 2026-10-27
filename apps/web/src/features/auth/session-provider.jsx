@@ -78,6 +78,7 @@ export function SessionProvider({
   children,
   preserveSetupState = false,
   preserveEventState = false,
+  preserveTaskState = false,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -175,7 +176,8 @@ export function SessionProvider({
   }
   const preserveDraft =
     (preserveSetupState && pathname === '/wedding-setup') ||
-    (preserveEventState && pathname === '/events');
+    (preserveEventState && pathname === '/events') ||
+    (preserveTaskState && ['/tasks', '/recovery'].includes(pathname));
   if (
     !session ||
     (error && !preserveDraft) ||

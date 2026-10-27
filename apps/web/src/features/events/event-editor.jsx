@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,7 +18,6 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { useSession } from '@/features/auth/session-provider';
-import { ComingSoon } from '@/features/dashboard/workspace-ui';
 import {
   eventTypes,
   eventStatuses,
@@ -31,6 +31,7 @@ import {
   eventRange,
 } from './form-data';
 import { ActivityForm, ActivityList } from './ceremony-activities';
+import { CeremonyTasks } from './ceremony-tasks';
 import { VenuePicker, GoogleVenueDetails } from './venue-picker';
 import {
   newActivity,
@@ -70,6 +71,7 @@ export function EventEditor({
   onSaved,
   onReturnFocus,
 }) {
+  const router = useRouter();
   const { connectionError, retrySession, membership } = useSession();
   const canRemove = membership.role === 'ADMIN';
   const [removeConfirm, setRemoveConfirm] = useState(false);
@@ -92,6 +94,7 @@ export function EventEditor({
   const activitySummary = useRef(null);
   const activityWasOpen = useRef(false);
   const discardTarget = useRef('close');
+  const [taskDestination, setTaskDestination] = useState(null);
   const activityForm = useForm({
     resolver: zodResolver(activityFormSchema),
     defaultValues: newActivity(initialEvent(wedding, event)),
@@ -127,6 +130,12 @@ export function EventEditor({
   const closeButton = useRef(null);
   const discardFocus = useRef(null);
   const failureNotice = useRef(null);
+  const connectionNotice = useRef(null);
+  useEffect(() => {
+    if (!connectionError) return;
+    connectionNotice.current?.focus({ preventScroll: true });
+    connectionNotice.current?.scrollIntoView({ block: 'start' });
+  }, [connectionError]);
   useEffect(() => {
     if (!error) return;
     failureNotice.current?.focus({ preventScroll: true });
@@ -187,6 +196,7 @@ export function EventEditor({
   function cancelActivity() {
     if (lock.current) return;
     if (activityDirty) {
+      setTaskDestination(null);
       discardTarget.current = 'activity';
       discardFocus.current = document.activeElement;
       setDiscard(true);
@@ -287,12 +297,23 @@ export function EventEditor({
   function close() {
     if (lock.current) return;
     if ((editing && isDirty) || (activityEditor && activityDirty)) {
+      setTaskDestination(null);
       discardTarget.current = 'close';
       if (!discard) discardFocus.current = document.activeElement;
       setDiscard(true);
       return;
     }
     onClose();
+  }
+  function navigateTasks(href) {
+    if (lock.current || connectionError || discard || removeConfirm) return;
+    if (!record) return;
+    if ((editing && isDirty) || (activityEditor && activityDirty)) {
+      setTaskDestination(href);
+      discardTarget.current = 'tasks';
+      discardFocus.current = document.activeElement;
+      setDiscard(true);
+    } else router.push(href);
   }
   function discardChanges() {
     if (lock.current) return;
@@ -303,6 +324,8 @@ export function EventEditor({
       setDiscard(false);
       setError('');
       activityForm.reset(newActivity(initialEvent(wedding, record)));
+    } else if (discardTarget.current === 'tasks' && taskDestination) {
+      router.push(taskDestination);
     } else onClose();
   }
   async function removeEvent() {
@@ -514,7 +537,12 @@ export function EventEditor({
           </header>
           <div className={styles.drawerBody}>
             {connectionError && (
-              <div className={styles.error} role="alert">
+              <div
+                ref={connectionNotice}
+                tabIndex={-1}
+                className={styles.error}
+                role="alert"
+              >
                 <p>
                   Your unsaved event details are kept in this tab. Reconnect
                   before continuing.
@@ -979,15 +1007,19 @@ export function EventEditor({
                 )}
               </section>
             )}
-            <section className={styles.formSection}>
-              <div className={styles.sectionTitle}>
-                <h3>Linked Tasks</h3>
-                <ComingSoon />
-              </div>
-              <p className={styles.hint}>
-                Task assignments and readiness will appear when Tasks is built.
-              </p>
-            </section>
+            <CeremonyTasks
+              weddingId={wedding.id}
+              event={record}
+              canEdit={canEdit}
+              disabled={
+                pending ||
+                !!connectionError ||
+                discard ||
+                removeConfirm ||
+                conflict
+              }
+              onNavigate={navigateTasks}
+            />
             {record && !editing && !activityEditor && (
               <div className={styles.deletePreview}>
                 {canRemove ? (
@@ -1067,6 +1099,12 @@ export function EventEditor({
                     ? 'Discard your unsaved activity changes?'
                     : 'Discard your unsaved event changes?'}
                 </p>
+                {taskDestination && (
+                  <p>
+                    Save your changes first, or discard them to open Tasks.
+                    Choose Keep editing to save.
+                  </p>
+                )}
                 <div className={styles.actions}>
                   <button
                     ref={keepEditingButton}

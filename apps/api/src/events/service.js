@@ -3,6 +3,7 @@ import { ApiError } from '../lib/api-error.js';
 import { authModels } from '../auth/models.js';
 import { weddingModels } from '../weddings/models.js';
 import { eventModels } from './models.js';
+import { taskModels } from '../tasks/models.js';
 import { eventListFilter } from './list-filter.js';
 import {
   activityDto,
@@ -272,8 +273,29 @@ export function createEventService({ database, now = () => new Date() }) {
           .limit(limit)
           .session(transaction)
           .lean();
+        const linked = events.length
+          ? await taskModels(connection)
+              .Task.aggregate([
+                {
+                  $match: {
+                    weddingId: new Types.ObjectId(weddingId),
+                    eventId: { $in: events.map((event) => event._id) },
+                    deletedAt: null,
+                    recurrenceExcluded: { $ne: true },
+                  },
+                },
+                { $group: { _id: '$eventId', total: { $sum: 1 } } },
+              ])
+              .session(transaction)
+          : [];
+        const taskCounts = new Map(
+          linked.map((row) => [String(row._id), row.total]),
+        );
         result = {
-          events: events.map((event) => dto(event, false)),
+          events: events.map((event) => ({
+            ...dto(event, false),
+            taskCount: taskCounts.get(String(event._id)) || 0,
+          })),
           meta: {
             page: selectedPage,
             limit,

@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import {
-  BookOpen,
   Camera,
-  ListChecks,
   MapPin,
   Plus,
   ShieldCheck,
@@ -17,10 +15,8 @@ import {
   ComingSoon,
   EmptyPanel,
   FutureButton,
-  MetricPanels,
   PageHeader,
   ReadOnlyField,
-  SearchFilters,
   SettingsTabs,
 } from './workspace-ui';
 import {
@@ -31,66 +27,6 @@ import {
 import styles from './workspace-ui.module.css';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
 
-export function TasksPreview() {
-  return (
-    <div className={styles.stack}>
-      <PageHeader
-        eyebrow="Master wedding plan · Task orchestration"
-        title="Tasks & Checklist Templates"
-        description="Coordinate ritual obligations, wedding preparations and recurring planning checkpoints."
-      >
-        <Link className={styles.action} href="/checklist">
-          <BookOpen size={16} />
-          Browse Templates
-        </Link>
-        <FutureButton primary>
-          <Plus size={16} />
-          Create Task
-        </FutureButton>
-      </PageHeader>
-      <MetricPanels />
-      <nav className={styles.tabs} aria-label="Task views">
-        <span className="border-b-2 border-primary px-4 py-3 text-sm font-semibold text-primary">
-          All Tasks
-        </span>
-        <button disabled>My Tasks · Coming soon</button>
-        <Link href="/checklist">Checklist Templates</Link>
-        <ComingSoon />
-      </nav>
-      <SearchFilters />
-      <div className={styles.tableWrap}>
-        <div className={styles.tableScroll}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                {[
-                  'Status',
-                  'Task Title & Rhythm',
-                  'Linked Event',
-                  'Assignee',
-                  'Due Date',
-                  'Priority',
-                ].map((x) => (
-                  <th scope="col" key={x}>
-                    {x}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          </table>
-        </div>
-        <EmptyPanel icon={ListChecks}>
-          <h2>Your planning tasks</h2>
-          <p>
-            Task creation, assignments, recurrence and progress tracking are
-            coming soon.
-          </p>
-        </EmptyPanel>
-        <p className={styles.tableFooter}>Task management · Coming soon</p>
-      </div>
-    </div>
-  );
-}
 export function ChecklistPreview() {
   return (
     <div className={styles.stack}>

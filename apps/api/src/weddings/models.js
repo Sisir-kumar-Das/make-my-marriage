@@ -4,6 +4,7 @@ const { Schema } = mongoose;
 const weddingSchema = new Schema(
   {
     eventRevision: { type: Number, default: 0 },
+    taskRevision: { type: Number, default: 0 },
     name: { type: String, required: true, maxlength: 160 },
     slug: { type: String, required: true, unique: true },
     brideName: { type: String, required: true, maxlength: 100 },
