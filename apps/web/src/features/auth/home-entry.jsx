@@ -1,43 +1,59 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
 import { SessionNotice } from './session-provider';
+import { createHomeEntryFlow } from './home-entry-state';
 
 // A cookie is only a recovery hint. Express alone decides whether this is a session.
 export function HomeEntry({ children }) {
-  const router = useRouter();
-  const [guest, setGuest] = useState(false);
-  const [error, setError] = useState('');
-  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState({ phase: 'checking' });
+  const flow = useRef(null);
   useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-    apiRequest('/auth/session', { signal: controller.signal, timeoutMs: 8000 })
-      .then((result) => {
-        if (!active) return;
-        router.replace(result.data.wedding ? '/dashboard' : '/wedding-setup');
-        router.refresh();
-      })
-      .catch((failure) => {
-        if (!active) return;
-        if (failure.code === 'SESSION_EXPIRED') setGuest(true);
-        else setError(failure.message);
-      });
+    const attempt = createHomeEntryFlow({
+      checkSession: (signal) =>
+        apiRequest('/auth/session', { signal, timeoutMs: 8000 }),
+      navigate: (destination) => window.location.replace(destination),
+      stopNavigation: () => window.stop(),
+      onState: setState,
+    });
+    flow.current = attempt;
+    attempt.start();
     return () => {
-      active = false;
-      controller.abort();
+      attempt.dispose();
+      if (flow.current === attempt) flow.current = null;
     };
-  }, [router, attempt]);
-  if (guest) return children;
+  }, []);
+  if (state.phase === 'guest') return children;
+  const opening = state.phase === 'opening';
+  const stalled = state.phase === 'stalled';
   return (
     <SessionNotice
-      error={error}
-      onRetry={() => {
-        setError('');
-        setAttempt((value) => value + 1);
-      }}
+      error={state.phase === 'failed' ? state.message : ''}
+      title={
+        opening
+          ? 'Opening your workspace…'
+          : stalled
+            ? 'Your workspace is taking longer to open.'
+            : undefined
+      }
+      description={
+        opening
+          ? 'Your sign-in is restored. We’re opening your workspace.'
+          : stalled
+            ? state.message ||
+              'Your sign-in was restored, but the workspace has not opened yet. Retry or continue below.'
+            : undefined
+      }
+      showRetry={state.phase === 'failed' || stalled}
+      retryLabel="Retry"
+      onRetry={() => flow.current?.start()}
+      continueHref={stalled ? state.destination : undefined}
+      continueLabel={
+        state.destination === '/wedding-setup'
+          ? 'Continue to Wedding Setup'
+          : 'Continue to Dashboard'
+      }
     />
   );
 }

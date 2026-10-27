@@ -16,6 +16,8 @@ import { createEventService } from './events/service.js';
 import { createEventRouter } from './events/router.js';
 import { createTaskService } from './tasks/service.js';
 import { createTaskRouter } from './tasks/router.js';
+import { createChecklistRouter } from './checklist/router.js';
+import { createChecklistGenerationRouter } from './checklist/generation-router.js';
 
 const database = createAuthDatabase(config);
 export const weddingService = createWeddingService({ database });
@@ -61,6 +63,10 @@ export function createApp({
   });
 
   app.use('/api/v1/auth', createAuthRouter({ service, settings }));
+  app.use(
+    '/api/v1/checklist-templates',
+    createChecklistRouter({ service, settings }),
+  );
   app.use('/api/v1', createMediaRouter({ service, weddings, media, settings }));
   app.use(
     '/api/v1/weddings/:weddingId/events',
@@ -69,6 +75,10 @@ export function createApp({
   app.use(
     '/api/v1/weddings/:weddingId/tasks',
     createTaskRouter({ service, tasks, settings }),
+  );
+  app.use(
+    '/api/v1/weddings/:weddingId/checklists',
+    createChecklistGenerationRouter({ service, tasks, settings }),
   );
   app.use(
     '/api/v1/weddings',

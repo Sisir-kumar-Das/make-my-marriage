@@ -8,6 +8,8 @@ import { taskModels } from './models.js';
 import { taskQueryFilter } from './query.js';
 import { createRecurrenceService } from './recurrence-service.js';
 import { createTaskLifecycle } from './lifecycle-service.js';
+import { createChecklistGeneration } from '../checklist/generation-service.js';
+import { createChecklistHistory } from '../checklist/history-service.js';
 import {
   createTaskSchema,
   patchTaskSchema,
@@ -714,7 +716,10 @@ export function createTaskService({ database, now = () => new Date() }) {
     assigneeMembers,
   });
   const lifecycle = createTaskLifecycle({ database, now, authorize, dtos });
+  const checklist = createChecklistGeneration({ database, now, authorize });
   return {
+    ...checklist,
+    ...createChecklistHistory({ database, authorize }),
     ...lifecycle,
     readSeries: recurrence.read,
     updateSeries: recurrence.update,

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { useSession } from '@/features/auth/session-provider';
+import { DiscardChangesDialog } from '@/features/tasks/discard-changes-dialog';
 import {
   eventTypes,
   eventStatuses,
@@ -126,9 +127,6 @@ export function EventEditor({
   }, []);
   const lock = useRef(false),
     attempt = useRef(null);
-  const keepEditingButton = useRef(null);
-  const closeButton = useRef(null);
-  const discardFocus = useRef(null);
   const failureNotice = useRef(null);
   const connectionNotice = useRef(null);
   useEffect(() => {
@@ -141,16 +139,6 @@ export function EventEditor({
     failureNotice.current?.focus({ preventScroll: true });
     failureNotice.current?.scrollIntoView({ block: 'nearest' });
   }, [error]);
-  useEffect(() => {
-    if (discard) keepEditingButton.current?.focus();
-    else if (discardFocus.current) {
-      const target = discardFocus.current.isConnected
-        ? discardFocus.current
-        : closeButton.current;
-      discardFocus.current = null;
-      target?.focus();
-    }
-  }, [discard]);
   const {
     register,
     control,
@@ -194,11 +182,10 @@ export function EventEditor({
     setError('');
   }
   function cancelActivity() {
-    if (lock.current) return;
+    if (lock.current || discard) return;
     if (activityDirty) {
       setTaskDestination(null);
       discardTarget.current = 'activity';
-      discardFocus.current = document.activeElement;
       setDiscard(true);
     } else {
       setActivityEditor(null);
@@ -218,7 +205,6 @@ export function EventEditor({
     )
       return;
     lock.current = true;
-    discardFocus.current = null;
     setDiscard(false);
     setPending(true);
     setError('');
@@ -295,11 +281,10 @@ export function EventEditor({
       setValue('endDate', nextDate(event.target.value), { shouldDirty: true });
   }
   function close() {
-    if (lock.current) return;
+    if (lock.current || discard) return;
     if ((editing && isDirty) || (activityEditor && activityDirty)) {
       setTaskDestination(null);
       discardTarget.current = 'close';
-      if (!discard) discardFocus.current = document.activeElement;
       setDiscard(true);
       return;
     }
@@ -311,13 +296,11 @@ export function EventEditor({
     if ((editing && isDirty) || (activityEditor && activityDirty)) {
       setTaskDestination(href);
       discardTarget.current = 'tasks';
-      discardFocus.current = document.activeElement;
       setDiscard(true);
     } else router.push(href);
   }
   function discardChanges() {
     if (lock.current) return;
-    discardFocus.current = null;
     if (discardTarget.current === 'activity') {
       setActivityEditor(null);
       activityAttempt.current = null;
@@ -391,7 +374,6 @@ export function EventEditor({
   async function latest() {
     if (lock.current) return;
     lock.current = true;
-    discardFocus.current = null;
     setDiscard(false);
     setPending(true);
     setError('');
@@ -425,9 +407,8 @@ export function EventEditor({
     }
   }
   async function save(values) {
-    if (lock.current || connectionError || !canEdit) return;
+    if (lock.current || connectionError || discard || !canEdit) return;
     lock.current = true;
-    discardFocus.current = null;
     setDiscard(false);
     setPending(true);
     setError('');
@@ -1088,48 +1069,7 @@ export function EventEditor({
                 </div>
               </section>
             )}
-            {discard && (
-              <section
-                className={styles.discardDecision}
-                role="group"
-                aria-labelledby="event-discard-question"
-              >
-                <p id="event-discard-question">
-                  {activityEditor
-                    ? 'Discard your unsaved activity changes?'
-                    : 'Discard your unsaved event changes?'}
-                </p>
-                {taskDestination && (
-                  <p>
-                    Save your changes first, or discard them to open Tasks.
-                    Choose Keep editing to save.
-                  </p>
-                )}
-                <div className={styles.actions}>
-                  <button
-                    ref={keepEditingButton}
-                    type="button"
-                    className={styles.secondary}
-                    disabled={pending}
-                    onClick={() => {
-                      if (!lock.current) setDiscard(false);
-                    }}
-                  >
-                    Keep editing
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.primary}
-                    disabled={pending}
-                    onClick={discardChanges}
-                  >
-                    Discard changes
-                  </button>
-                </div>
-              </section>
-            )}
             <button
-              ref={closeButton}
               type="button"
               className={styles.secondary}
               onClick={close}
@@ -1178,6 +1118,26 @@ export function EventEditor({
               )
             )}
           </footer>
+          <DiscardChangesDialog
+            open={discard}
+            pending={pending}
+            title={
+              activityEditor
+                ? 'Discard unsaved activity changes?'
+                : 'Discard unsaved event changes?'
+            }
+            description={
+              taskDestination
+                ? 'Your changes have not been saved. Keep editing to save them, or discard these changes to open Tasks.'
+                : activityEditor
+                  ? 'Your activity changes have not been saved. Keep editing to finish this activity, or discard these changes to continue.'
+                  : 'Your event changes have not been saved. Keep editing to finish this ceremony, or discard these changes to continue.'
+            }
+            onKeepEditing={() => {
+              if (!lock.current) setDiscard(false);
+            }}
+            onDiscard={discardChanges}
+          />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

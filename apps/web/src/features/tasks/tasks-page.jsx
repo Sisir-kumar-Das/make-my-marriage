@@ -353,6 +353,11 @@ export function TasksPage() {
                     >
                       {task.title}
                     </button>
+                    {task.source?.type === 'CHECKLIST' && (
+                      <small className={styles.repeatLabel}>
+                        Checklist task
+                      </small>
+                    )}
                     {task.repeat && (
                       <small className={styles.repeatLabel}>
                         {task.repeat.generationIssue

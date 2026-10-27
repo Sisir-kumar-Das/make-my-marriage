@@ -4,6 +4,8 @@ Date: 24 October 2026
 
 Status: Owner-approved for local implementation before ceremony activities.
 
+Follow-up, 27 October 2026: [ADR-038](ADR-038-bounded-homepage-session-recovery.md) supersedes the browser success-navigation/wait mechanism below with bounded checking/opening states, one document replacement and Retry/Continue after a stalled destination. The root authorization, cookie and public-page rules remain unchanged.
+
 ## Context
 
 The public product homepage at `/` was introduced by ADR-012. Login already chooses Dashboard for a verified member with an active wedding and Wedding Setup for a verified account without one. The owner requested the same entry behavior when returning to `/`, rather than showing marketing content to an already signed-in user, and approved this small correction before the next Events increment.

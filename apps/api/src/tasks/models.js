@@ -26,8 +26,29 @@ const taskSchema = new Schema(
         {
           type: {
             type: String,
-            enum: ['MANUAL', 'RECURRENCE'],
+            enum: ['MANUAL', 'RECURRENCE', 'CHECKLIST'],
             required: true,
+          },
+          templateId: {
+            type: String,
+            maxlength: 80,
+            required() {
+              return this.type === 'CHECKLIST';
+            },
+          },
+          templateVersion: {
+            type: String,
+            maxlength: 20,
+            required() {
+              return this.type === 'CHECKLIST';
+            },
+          },
+          itemKey: {
+            type: String,
+            maxlength: 100,
+            required() {
+              return this.type === 'CHECKLIST';
+            },
           },
         },
         { _id: false },
@@ -48,6 +69,10 @@ const taskSchema = new Schema(
   { collection: 'tasks', timestamps: true, optimisticConcurrency: true },
 );
 taskSchema.index({ weddingId: 1, deletedAt: 1, createdAt: -1, _id: -1 });
+taskSchema.index(
+  { weddingId: 1, 'source.templateId': 1, 'source.itemKey': 1 },
+  { unique: true, partialFilterExpression: { 'source.type': 'CHECKLIST' } },
+);
 taskSchema.index({ weddingId: 1, deletedAt: 1, status: 1, dueAt: 1 });
 taskSchema.index({ weddingId: 1, createdBy: 1, deletedAt: -1, _id: -1 });
 taskSchema.index({ weddingId: 1, deletedAt: -1, _id: -1 });

@@ -1,14 +1,10 @@
 import Link from 'next/link';
 import {
   Camera,
-  MapPin,
   Plus,
   ShieldCheck,
   Trash2,
-  Users,
   Mail,
-  Info,
-  Sparkles,
   LockKeyhole,
 } from 'lucide-react';
 import {
@@ -27,68 +23,6 @@ import {
 import styles from './workspace-ui.module.css';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
 
-export function ChecklistPreview() {
-  return (
-    <div className={styles.stack}>
-      <PageHeader
-        eyebrow="Master wedding plan · Template catalog"
-        title="Checklist Templates"
-        description="Thoughtful starting points for your wedding traditions, with explicit generation when this feature arrives."
-      >
-        <ComingSoon />
-      </PageHeader>
-      <nav className={styles.tabs} aria-label="Checklist navigation">
-        <Link href="/tasks">All Tasks</Link>
-        <span className="border-b-2 border-primary px-4 py-3 text-sm font-semibold text-primary">
-          Checklist Templates
-        </span>
-      </nav>
-      <div className={styles.note}>
-        <Info size={18} />
-        <p>
-          Templates are previews. Nothing is generated or added to your wedding
-          yet.
-        </p>
-      </div>
-      <div className={styles.columns}>
-        {[
-          [
-            Sparkles,
-            'Essential Odia Wedding Rituals',
-            'A considered guide to traditional ceremonies and preparations.',
-          ],
-          [
-            MapPin,
-            'Venue & Logistics Setup',
-            'Organize spaces, travel details and ceremony arrangements.',
-          ],
-          [
-            Camera,
-            'Photography & Video Coverage',
-            'Keep the moments you want to remember in one place.',
-          ],
-          [
-            Users,
-            'Attire & Jewelry Fitment',
-            'Coordinate outfits, fittings and finishing touches.',
-          ],
-        ].map(([Icon, title, copy]) => (
-          <section className={styles.card} key={title}>
-            <div className={styles.row}>
-              <span className={styles.iconTile}>
-                <Icon size={20} />
-              </span>
-              <ComingSoon />
-            </div>
-            <h2 className="mt-5">{title}</h2>
-            <p className={`${styles.description} mb-5`}>{copy}</p>
-            <FutureButton>Generate Tasks</FutureButton>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
 export function MembersPreview({ session }) {
   return (
     <div className={styles.stack}>

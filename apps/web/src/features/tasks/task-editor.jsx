@@ -749,6 +749,12 @@ export function TaskEditor({
                     )}
                   </div>
                   <dl>
+                    {record.source?.type === 'CHECKLIST' && (
+                      <div>
+                        <dt>Source</dt>
+                        <dd>Checklist template</dd>
+                      </div>
+                    )}
                     <div>
                       <dt>Linked ceremony</dt>
                       <dd>

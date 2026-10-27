@@ -40,7 +40,17 @@ export function SessionRestore({ embedded = false }) {
   );
 }
 
-export function SessionNotice({ error, onRetry, embedded = false }) {
+export function SessionNotice({
+  error,
+  onRetry,
+  embedded = false,
+  title,
+  description,
+  showRetry = !!error,
+  retryLabel = 'Retry session check',
+  continueHref,
+  continueLabel,
+}) {
   const Container = embedded ? 'section' : 'main';
   return (
     <Container
@@ -49,24 +59,37 @@ export function SessionNotice({ error, onRetry, embedded = false }) {
     >
       <section className="w-full max-w-md rounded-lg border bg-card p-8 text-center shadow-sm">
         <h1 className="font-serif text-2xl text-primary">
-          {error
-            ? 'We could not check your session.'
-            : 'Checking your session…'}
+          {title ||
+            (error
+              ? 'We could not check your session.'
+              : 'Checking your session…')}
         </h1>
         <p
-          role={error ? 'alert' : 'status'}
+          role={error || showRetry ? 'alert' : 'status'}
           className="mt-4 text-sm text-muted-foreground"
         >
-          {error || 'Please wait while we securely restore your sign-in.'}
+          {error ||
+            description ||
+            'Please wait while we securely restore your sign-in.'}
         </p>
-        {error && (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-6 rounded bg-primary px-6 py-3 text-sm font-semibold text-white"
-          >
-            Retry session check
-          </button>
+        {showRetry && (
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="min-h-11 rounded bg-primary px-6 py-3 text-sm font-semibold text-white"
+            >
+              {retryLabel}
+            </button>
+            {continueHref && (
+              <a
+                href={continueHref}
+                className="inline-flex min-h-11 items-center justify-center rounded border border-primary px-5 py-3 text-sm font-semibold text-primary"
+              >
+                {continueLabel}
+              </a>
+            )}
+          </div>
         )}
       </section>
     </Container>
@@ -177,7 +200,8 @@ export function SessionProvider({
   const preserveDraft =
     (preserveSetupState && pathname === '/wedding-setup') ||
     (preserveEventState && pathname === '/events') ||
-    (preserveTaskState && ['/tasks', '/recovery'].includes(pathname));
+    (preserveTaskState &&
+      ['/tasks', '/recovery', '/checklist'].includes(pathname));
   if (
     !session ||
     (error && !preserveDraft) ||

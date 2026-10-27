@@ -9,6 +9,7 @@ export function DiscardChangesDialog({
   open,
   pending,
   title,
+  description = 'Your changes have not been saved. Keep editing to finish your task, or discard these changes to continue.',
   onKeepEditing,
   onDiscard,
 }) {
@@ -44,10 +45,7 @@ export function DiscardChangesDialog({
             <AlertTriangle size={22} />
           </span>
           <AlertDialog.Title>{title}</AlertDialog.Title>
-          <AlertDialog.Description>
-            Your changes have not been saved. Keep editing to finish your task,
-            or discard these changes to continue.
-          </AlertDialog.Description>
+          <AlertDialog.Description>{description}</AlertDialog.Description>
           <div className={styles.confirmationActions}>
             <AlertDialog.Cancel asChild>
               <button

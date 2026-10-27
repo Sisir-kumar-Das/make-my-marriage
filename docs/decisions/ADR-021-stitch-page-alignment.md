@@ -14,19 +14,19 @@ The private reference root is `stitch_make_my_marriage_landing_page_v1_final/`. 
 
 Each reference below is the folder containing `code.html` under the private export root.
 
-| Page                                                                | Visual reference                                                                                                          |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                                                 | `make_my_marriage_luxury_wedding_planning_platform_2`                                                                     |
-| `/login`                                                            | `make_my_marriage_sign_in_verification_desktop`, with `make_my_marriage_authentication_states_gallery` for state guidance |
-| `/register`, `/verify-email`, `/forgot-password`, `/reset-password` | `make_my_marriage_v1_authentication_verification_states`                                                                  |
-| `/wedding-setup` steps 1–2                                          | `make_my_marriage_3_step_wedding_setup_flow`                                                                              |
-| Setup review/completion                                             | `make_my_marriage_3_step_wedding_setup_review_desktop`                                                                    |
-| Workspace chrome and `/dashboard`                                   | `make_my_marriage_master_wedding_dashboard_refined`                                                                       |
-| `/events`                                                           | `make_my_marriage_events_ceremony_schedule_refined`                                                                       |
-| `/tasks`, `/checklist`                                              | `make_my_marriage_tasks_checklist_templates_refined`; checklist catalog section                                           |
-| `/members`                                                          | `make_my_marriage_members_collaborator_invitations_refined`                                                               |
-| `/profile`                                                          | `make_my_marriage_my_profile_account_settings`, within the shared refined workspace shell                                 |
-| `/settings`, `/recovery`                                            | `make_my_marriage_settings_profile_7_day_recovery_refined`; recovery section                                              |
+| Page                                                                | Visual reference                                                                                                                                                                             |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                                 | `make_my_marriage_luxury_wedding_planning_platform_2`                                                                                                                                        |
+| `/login`                                                            | `make_my_marriage_sign_in_verification_desktop`, with `make_my_marriage_authentication_states_gallery` for state guidance                                                                    |
+| `/register`, `/verify-email`, `/forgot-password`, `/reset-password` | `make_my_marriage_v1_authentication_verification_states`                                                                                                                                     |
+| `/wedding-setup` steps 1–2                                          | `make_my_marriage_3_step_wedding_setup_flow`                                                                                                                                                 |
+| Setup review/completion                                             | `make_my_marriage_3_step_wedding_setup_review_desktop`                                                                                                                                       |
+| Workspace chrome and `/dashboard`                                   | `make_my_marriage_master_wedding_dashboard_refined`                                                                                                                                          |
+| `/events`                                                           | `make_my_marriage_events_ceremony_schedule_refined`                                                                                                                                          |
+| `/tasks`, `/checklist`                                              | `make_my_marriage_tasks_checklist_templates_refined`; checklist detail inspection and read-only history also use `make_my_marriage_checklist_templates_generation_history` under ADR-035/037 |
+| `/members`                                                          | `make_my_marriage_members_collaborator_invitations_refined`                                                                                                                                  |
+| `/profile`                                                          | `make_my_marriage_my_profile_account_settings`, within the shared refined workspace shell                                                                                                    |
+| `/settings`, `/recovery`                                            | `make_my_marriage_settings_profile_7_day_recovery_refined`; recovery section                                                                                                                 |
 
 ## Presentation and truthful state
 

@@ -31,6 +31,8 @@ The owner approved the recommendation to add an optional end date/time and calcu
 
 ## Follow-up and boundaries
 
+Owner-approved consistency follow-up, 27 October 2026: unsaved activity cancellation and ceremony-close/Tasks-navigation protection now use the same centered discard popup as Tasks (ADR-023 follow-up). Keep editing/Escape retain the in-memory activity; explicit Cancel-discard leaves the ceremony open, while whole-drawer Close and Tasks navigation preserve their respective confirmed targets. Pending writes still block dismissal. Activity removal keeps its separate confirmation.
+
 Activity add/read/edit/remove, chronological display/counts and timing warnings are delivered. Tests cover start-only compatibility, optional-end clearing, invalid/reversed intervals, overnight times, overlapping/adjacent intervals and parent schedule changes, while preserving existing event retries and permissions. Independent review/manual testing follows the owner's batched cadence.
 
 Next is safe event deletion/restore, followed by Google Places before closing Events/V1. Tasks, assignees, activity statuses and drag ordering remain outside this increment. No commit, push or deployment is authorized. The separately approved signed-in homepage entry correction remains recorded in ADR-026.

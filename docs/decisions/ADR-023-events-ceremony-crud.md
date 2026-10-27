@@ -29,6 +29,10 @@ Owner-approved on 24 October 2026:
 - Consume the Dashboard `create=1` shortcut with the supported native history replacement after mounting. Remove only that parameter, preserving other query values and the fragment, without navigating or resetting the in-memory form. Refresh after completion or cancellation must not reopen creation.
 - Dirty-close confirmation lives in the fixed footer, with focus on Keep editing and draft retention on cancellation. Saving/loading clears the decision; every discard/dismissal path checks the synchronous request lock, with disabled controls during pending work. While deciding whether to discard, the form and ordinary Save/Close controls are disabled. This prevents the stale Discard action from dismissing an in-flight write and losing its retry key.
 
+## Owner-approved discard popup follow-up
+
+Accepted on 27 October 2026: replace the earlier fixed-footer dirty-close decision with the same centered `DiscardChangesDialog` used by Tasks. This supersedes its location only; unsaved event/activity state, explicit destination choice, retry identity and pending-save protections remain intact. Reuse the existing plum/Inter styling with event/activity wording. Keep editing gets initial focus; Tab remains inside the popup, Escape keeps the draft and backdrop clicks never discard. Cancellation restores focus to the initiating control. Clean forms close without a prompt. Activity Cancel discards only its draft; whole-drawer Close discards the ceremony/activity draft and closes; confirmed Tasks navigation retains its original validated destination. Event removal remains its separate confirmation and Admin-only action. No backend, permission, persistence or dependency change.
+
 ## Owner-approved status timing follow-up
 
 Accepted on 24 October 2026 after reviewing Step 2:

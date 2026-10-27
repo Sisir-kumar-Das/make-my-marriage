@@ -4,7 +4,7 @@ A wedding planning workspace for Indian weddings, with an initial emphasis on Od
 
 **Plan every moment. Enjoy every memory.**
 
-The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, forgot/reset password, protected three-step wedding setup, initial Admin membership, private custom wedding covers, ceremony create/list/details/edit with manual/Google Places venues, search/status/date filters, activities with optional end times and timing warnings, Admin-only event removal/restoration and an event recovery tray, task list/create/details/edit with status/priority, optional IST deadlines/ceremony links, multiple assignees/My Tasks, search/filters, daily/weekly/monthly recurrence, task deletion/scoped recovery and Dashboard/ceremony entry points, a dashboard with real wedding details, explicit planning placeholders and an Express health endpoint. Other planning business features remain subsequent increments. Real email delivery uses the configured private Gmail or Resend settings.
+The approved V1 covers authentication, wedding setup, events, tasks/recurrence, checklist templates, members/invitations, dashboard/activity, profile/settings and recovery. The current implementation includes a public homepage, registration/email verification, login, persistent sessions, logout, forgot/reset password, protected three-step wedding setup, initial Admin membership, private custom wedding covers, ceremony create/list/details/edit with manual/Google Places venues, search/status/date filters, activities with optional end times and timing warnings, Admin-only event removal/restoration and an event recovery tray, task list/create/details/edit with status/priority, optional IST deadlines/ceremony links, multiple assignees/My Tasks, search/filters, daily/weekly/monthly recurrence, task deletion/scoped recovery and Dashboard/ceremony entry points, a catalog/preview of four generic checklist packs with explicit Admin/Family generation, duplicate protection and preserved edited/deleted items and read-only generation history with saved outcomes, a dashboard with real wedding details, explicit planning placeholders and an Express health endpoint. Other planning business features remain subsequent increments. Real email delivery uses the configured private Gmail or Resend settings.
 
 ## Quick start
 
@@ -35,6 +35,7 @@ npm run test:events:db # Events/roles/retries/concurrent edits; temporary databa
 npm run test:tasks:db # Tasks/assignees/filters/links; temporary database
 npm run test:recurrence:db # Repeat generation/future edits; temporary database
 npm run test:tasks:lifecycle:db # Task deletion/scoped restoration; temporary database
+npm run test:checklist:db # Checklist generation/history/permissions/retries; temporary database
 ```
 
 After a successful build, `npm run start:web` starts the production web server locally. `npm run start:api` starts Express without watch mode. Stop development servers before using the same ports.

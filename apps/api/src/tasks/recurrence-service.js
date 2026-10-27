@@ -74,7 +74,7 @@ export function createRecurrenceService({
         { fields: { eventId: 'Choose an available ceremony.' } },
       );
   }
-  function fields(series, date, actor) {
+  function fields(series, date, actor, source) {
     return {
       ...series.template,
       assigneeIds: series.template.assigneeIds.map(String),
@@ -86,7 +86,7 @@ export function createRecurrenceService({
       occurrenceDate: date,
       occurrenceEdited: false,
       recurrenceExcluded: false,
-      source: { type: 'RECURRENCE' },
+      source: source?.type === 'CHECKLIST' ? source : { type: 'RECURRENCE' },
       weddingId: series.weddingId,
       createdBy: actor,
       updatedBy: actor,
@@ -170,7 +170,7 @@ export function createRecurrenceService({
         task.dueAt &&
         new Date(task.dueAt) >= instant,
     )) {
-      const data = fields(series, old.occurrenceDate, actor);
+      const data = fields(series, old.occurrenceDate, actor, old.source);
       delete data.createdBy;
       await Task.updateOne(
         { _id: old._id, __v: old.__v },
@@ -325,7 +325,7 @@ export function createRecurrenceService({
     const series = document.toObject();
     if (current) {
       const data = {
-        ...fields(series, first, userId),
+        ...fields(series, first, userId, current.source),
         completedAt: null,
         completedBy: null,
       };
@@ -534,7 +534,12 @@ export function createRecurrenceService({
             const matches =
               nextOccurrence(rule, task.occurrenceDate) === task.occurrenceDate;
             if (matches) {
-              const data = fields(updated, task.occurrenceDate, userId);
+              const data = fields(
+                updated,
+                task.occurrenceDate,
+                userId,
+                task.source,
+              );
               delete data.createdBy;
               delete data.status;
               await Task.updateOne(
