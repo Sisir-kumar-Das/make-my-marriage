@@ -6,6 +6,7 @@ import { mediaModel } from '../media/models.js';
 import { eventModels } from '../events/models.js';
 import { taskModels } from '../tasks/models.js';
 import { checklistModels } from '../checklist/models.js';
+import { invitationModels } from '../invitations/models.js';
 
 export function createAuthDatabase(settings) {
   let connection;
@@ -42,6 +43,8 @@ export function createAuthDatabase(settings) {
           for (const model of Object.values(taskModels(candidate)))
             await model.init();
           for (const model of Object.values(checklistModels(candidate)))
+            await model.init();
+          for (const model of Object.values(invitationModels(candidate)))
             await model.init();
           await Promise.all(
             Object.values(weddingModels(candidate)).map((model) =>

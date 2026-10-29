@@ -10,6 +10,7 @@ export function ResendVerification({
   onEdit,
   initialError,
   compact = false,
+  invitation = '',
 }) {
   const [email, setEmail] = useState(initialEmail);
   const [seconds, setSeconds] = useState(initialCooldown);
@@ -35,7 +36,7 @@ export function ResendVerification({
       const result = await apiRequest('/auth/resend-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, ...(invitation ? { invitation } : {}) }),
         timeoutMs: 20000,
       });
       setSeconds(result.data.retryAfterSeconds);
@@ -54,8 +55,10 @@ export function ResendVerification({
     <form onSubmit={resend} className="mt-6 space-y-5">
       {compact && initialEmail ? (
         <p className="break-words text-sm text-[var(--auth-muted)]">
-          Your account is waiting for email verification. Request a new link for{' '}
-          <strong>{initialEmail}</strong>, then verify it before signing in.
+          An account has already been created for{' '}
+          <strong>{initialEmail}</strong>, but its email address is not verified
+          yet. Request a verification link below, then verify it before signing
+          in.
         </p>
       ) : (
         <Field

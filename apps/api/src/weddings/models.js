@@ -5,6 +5,7 @@ const weddingSchema = new Schema(
   {
     eventRevision: { type: Number, default: 0 },
     taskRevision: { type: Number, default: 0 },
+    memberRevision: { type: Number, default: 0 },
     name: { type: String, required: true, maxlength: 160 },
     slug: { type: String, required: true, unique: true },
     brideName: { type: String, required: true, maxlength: 100 },
@@ -53,6 +54,8 @@ const memberSchema = new Schema(
       required: true,
     },
     financeAccess: { type: Boolean, default: false },
+    // Legacy rows stay readable. Future invitation acceptance requires this for non-creators.
+    relationship: { type: String, trim: true, maxlength: 80, default: null },
     status: { type: String, enum: ['ACTIVE', 'REMOVED'], default: 'ACTIVE' },
     joinedAt: { type: Date, required: true },
     createdBy: { type: Schema.Types.ObjectId, required: true },

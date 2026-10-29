@@ -19,12 +19,7 @@ import {
 } from '@/features/weddings/form-data';
 import { ApiStatus } from './api-status';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
-import {
-  ComingSoon,
-  EmptyPanel,
-  FutureButton,
-  MetricPanels,
-} from './workspace-ui';
+import { ComingSoon, EmptyPanel, MetricPanels } from './workspace-ui';
 import styles from './workspace-ui.module.css';
 
 export function Dashboard({ wedding, membership }) {
@@ -92,8 +87,8 @@ export function Dashboard({ wedding, membership }) {
             <div>
               <h2>Coordinator Actions</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Add a task or ceremony to your wedding plans. Invitations are
-                coming soon.
+                Add a task or ceremony to your wedding plans. Admins can invite
+                collaborators from Members.
               </p>
             </div>
           </div>
@@ -113,10 +108,13 @@ export function Dashboard({ wedding, membership }) {
               Add Event
             </Link>
             {membership.role === 'ADMIN' && (
-              <FutureButton>
+              <Link
+                href="/members?invite=1"
+                className={`${styles.action} ${styles.primary}`}
+              >
                 <Users size={16} />
                 Invite Member
-              </FutureButton>
+              </Link>
             )}
           </div>
         </section>

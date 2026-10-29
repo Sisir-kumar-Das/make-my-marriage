@@ -87,6 +87,7 @@ let csrfToken;
 let csrfRequest;
 let refreshRequest;
 const publicPaths = new Set([
+  '/member-invitations/preview',
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/register',
@@ -96,6 +97,7 @@ const publicPaths = new Set([
   '/auth/csrf',
 ]);
 const publicMutations = new Set([
+  '/member-invitations/preview',
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/register',

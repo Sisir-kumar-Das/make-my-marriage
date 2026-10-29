@@ -154,6 +154,7 @@ try {
     ['login', 'Welcome back.'],
     ['forgot-password', 'Reset your password.'],
     ['reset-password', 'Set a new password.'],
+    ['invite', 'Open your invitation link.'],
   ]) {
     const response = await request(`${webUrl}/${route}`);
     assert.equal(response.status, 200);
@@ -198,6 +199,17 @@ try {
     (await malformedVerification.json()).error.code,
     'VALIDATION_ERROR',
   );
+
+  const invalidInvitation = await request(
+    `${apiUrl}/member-invitations/preview`,
+    {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: 'invalid' }),
+    },
+  );
+  assert.equal(invalidInvitation.status, 400);
+  assert.equal((await invalidInvitation.json()).error.code, 'VALIDATION_ERROR');
 
   const malformedReset = await request(`${apiUrl}/auth/reset-password`, {
     method: 'POST',

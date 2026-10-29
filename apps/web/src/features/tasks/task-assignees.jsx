@@ -142,8 +142,8 @@ export function TaskAssignees({
       {open && (
         <div id="task-member-options" className={styles.memberOptions}>
           <p className={styles.hint}>
-            Only current members appear here. Invitations will be added in the
-            Members feature.
+            Only active wedding members appear here. Admins can invite people
+            from Members; they appear after accepting the invitation.
           </p>
           {loading ? (
             <p role="status">Loading wedding members…</p>

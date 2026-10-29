@@ -22,15 +22,27 @@ export const registerSchema = z
     name: z.string().trim().min(2).max(100),
     email: emailSchema,
     password: passwordSchema,
+    invitation: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43}$/)
+      .optional(),
   })
   .strict();
 
-export const resendSchema = z.object({ email: emailSchema }).strict();
+export const resendSchema = z
+  .object({
+    email: emailSchema,
+    invitation: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43}$/)
+      .optional(),
+  })
+  .strict();
 export const verifySchema = z
   .object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
   .strict();
 
-export const forgotPasswordSchema = resendSchema;
+export const forgotPasswordSchema = z.object({ email: emailSchema }).strict();
 export const resetPasswordSchema = z
   .object({
     token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),

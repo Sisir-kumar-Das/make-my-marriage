@@ -22,4 +22,6 @@ This deliberately discloses account existence through the login response and red
 
 ## Verification
 
+Owner-observation follow-up, 28 October 2026: changing either login credential clears the previous credential/verification feedback. The resend panel describes an already-created but unverified account and appears only after the existing correct-password check returns `EMAIL_NOT_VERIFIED`. Missing-account and incorrect-password behavior is unchanged; no email is sent by login. A wrong-password backend mismatch was not reproduced in the targeted native/in-memory browser checks, so the historical screenshot is not treated as proof of a changed backend rule.
+
 Native service/HTTP checks cover the missing-account distinction, normalized input, unchanged wrong/disabled/unverified behavior and absence of authentication cookies or mutations. The isolated Atlas session suite and browser checks cover actual authentication and navigation. Record results and limitations in PROJECT_STATUS.md.

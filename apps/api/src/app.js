@@ -18,15 +18,30 @@ import { createTaskService } from './tasks/service.js';
 import { createTaskRouter } from './tasks/router.js';
 import { createChecklistRouter } from './checklist/router.js';
 import { createChecklistGenerationRouter } from './checklist/generation-router.js';
+import { createMemberService } from './members/service.js';
+import { createMemberRouter } from './members/router.js';
+import { createInvitationService } from './invitations/service.js';
+import {
+  createInvitationRouter,
+  createInvitationAcceptanceRouter,
+} from './invitations/router.js';
+import { createInvitationSender } from './auth/email.js';
 
 const database = createAuthDatabase(config);
 export const weddingService = createWeddingService({ database });
 export const mediaService = createMediaService({ database, settings: config });
 export const eventService = createEventService({ database });
 export const taskService = createTaskService({ database });
+export const memberService = createMemberService({ database });
+export const invitationService = createInvitationService({
+  database,
+  settings: config,
+  sendInvitation: createInvitationSender(config),
+});
 export const authService = createProductionAuthService(config, {
   database,
   getWeddingContext: weddingService.current,
+  verificationContinuation: invitationService.verificationContinuation,
 });
 
 export function createApp({
@@ -35,6 +50,8 @@ export function createApp({
   media = mediaService,
   events = eventService,
   tasks = taskService,
+  members = memberService,
+  invitations = invitationService,
   settings = config,
 } = {}) {
   const app = express();
@@ -64,6 +81,14 @@ export function createApp({
 
   app.use('/api/v1/auth', createAuthRouter({ service, settings }));
   app.use(
+    '/api/v1/member-invitations',
+    createInvitationAcceptanceRouter({ service, invitations, settings }),
+  );
+  app.use(
+    '/api/v1/weddings/:weddingId/invitations',
+    createInvitationRouter({ service, invitations, settings }),
+  );
+  app.use(
     '/api/v1/checklist-templates',
     createChecklistRouter({ service, settings }),
   );
@@ -79,6 +104,10 @@ export function createApp({
   app.use(
     '/api/v1/weddings/:weddingId/checklists',
     createChecklistGenerationRouter({ service, tasks, settings }),
+  );
+  app.use(
+    '/api/v1/weddings/:weddingId/members',
+    createMemberRouter({ service, members, settings }),
   );
   app.use(
     '/api/v1/weddings',

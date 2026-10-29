@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,6 +9,8 @@ import { apiRequest } from '@/lib/api-client';
 import { Field, FormError, SubmitButton } from './form-controls';
 import { ResendVerification } from './resend-verification';
 import { passwordSchema, PasswordRequirements } from './password-fields';
+import { useInvitationContext } from '@/features/invitations/use-invitation-context';
+import { invitationAuthHref } from '@/features/invitations/invitation-data';
 
 const schema = z
   .object({
@@ -25,7 +25,7 @@ const schema = z
   });
 
 export function RegisterForm({ accountMissing = false }) {
-  const router = useRouter();
+  const invitation = useInvitationContext();
   const [submitted, setSubmitted] = useState(null);
   const {
     register,
@@ -50,6 +50,7 @@ export function RegisterForm({ accountMissing = false }) {
           name: values.name,
           email: values.email,
           password: values.password,
+          ...(invitation ? { invitation } : {}),
         }),
         timeoutMs: 20000,
       });
@@ -62,7 +63,9 @@ export function RegisterForm({ accountMissing = false }) {
     } catch (error) {
       if (error.code === 'EMAIL_ALREADY_REGISTERED') {
         reset({ ...values, password: '', confirmPassword: '' });
-        router.replace('/login?from=registration');
+        window.location.replace(
+          invitationAuthHref('/login?from=registration', invitation),
+        );
       } else if (error.code === 'EMAIL_UNAVAILABLE') {
         setSubmitted({
           email: values.email,
@@ -102,6 +105,7 @@ export function RegisterForm({ accountMissing = false }) {
             : '.'}
         </p>
         <ResendVerification
+          invitation={invitation}
           initialEmail={submitted.email}
           initialCooldown={submitted.cooldown}
           initialError={submitted.error}
@@ -114,7 +118,9 @@ export function RegisterForm({ accountMissing = false }) {
     <>
       <h1 id="auth-title">Create your wedding account.</h1>
       <p className="mb-7 mt-3 text-sm leading-relaxed text-[var(--auth-muted)]">
-        Begin planning every moment with your family.
+        {invitation
+          ? 'Create your account using the invited email. After verification, return to review and accept your invitation.'
+          : 'Begin planning every moment with your family.'}
       </p>
       {accountMissing && (
         <p
@@ -175,12 +181,12 @@ export function RegisterForm({ accountMissing = false }) {
       </form>
       <p className="mt-6 text-center text-sm text-[var(--auth-muted)]">
         Already have an account?{' '}
-        <Link
-          href="/login"
+        <a
+          href={invitationAuthHref('/login', invitation)}
           className="font-semibold text-[var(--auth-primary)] underline underline-offset-4"
         >
           Sign in
-        </Link>
+        </a>
       </p>
     </>
   );

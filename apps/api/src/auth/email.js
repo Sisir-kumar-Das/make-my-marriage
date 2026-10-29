@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { ApiError } from '../lib/api-error.js';
+import { invitationUrl } from '../invitations/tokens.js';
 
 export function emailConfigured(settings) {
   if ((settings.emailProvider ?? 'resend') === 'resend')
@@ -19,10 +20,19 @@ function senderAddress(settings) {
     : settings.emailFrom;
 }
 
-export function verificationEmail({ to, token, webOrigin, ttlHours, from }) {
+export function verificationEmail({
+  to,
+  token,
+  webOrigin,
+  ttlHours,
+  from,
+  invitation,
+}) {
   const url = new URL('/verify-email', webOrigin);
   // Fragments are not sent to web servers or in HTTP referrers.
   url.hash = new URLSearchParams({ token }).toString();
+  if (invitation)
+    url.hash = new URLSearchParams({ token, invite: invitation }).toString();
   return {
     from,
     to: [to],
@@ -106,16 +116,58 @@ function createSender(
 export function createVerificationSender(settings, dependencies) {
   return createSender(
     settings,
-    ({ email, token }) =>
+    ({ email, token, invitation }) =>
       verificationEmail({
         to: email,
         token,
         webOrigin: settings.webOrigin,
         ttlHours: settings.verificationTtlHours,
         from: senderAddress(settings),
+        invitation,
       }),
     'email-verify',
     'We could not send the verification email. Please try sending another link.',
+    dependencies,
+  );
+}
+
+export function invitationEmail({
+  to,
+  token,
+  webOrigin,
+  weddingName,
+  role,
+  relationship,
+  from,
+}) {
+  const label = {
+    ADMIN: 'Admin',
+    FAMILY_MEMBER: 'Family Member',
+    VIEWER: 'Viewer',
+  }[role];
+  return {
+    from,
+    to: [to],
+    subject: 'You’re invited to a wedding workspace — Make My Marriage',
+    text: `You have been invited to ${weddingName} on Make My Marriage.\n\nRole: ${label}\nRelationship: ${relationship}\n\nOpen your invitation:\n${invitationUrl(webOrigin, token)}\n\nSign in or register using this exact email address, verify your email, then explicitly choose Accept invitation. You will join this wedding; you do not need to create another wedding. This link expires in seven days. A newer invitation link replaces the previous link. If you were not expecting this invitation, you can ignore this email.`,
+  };
+}
+
+export function createInvitationSender(settings, dependencies) {
+  return createSender(
+    settings,
+    ({ email, token, weddingName, role, relationship }) =>
+      invitationEmail({
+        to: email,
+        token,
+        webOrigin: settings.webOrigin,
+        weddingName,
+        role,
+        relationship,
+        from: senderAddress(settings),
+      }),
+    'member-invitation',
+    'We could not submit this invitation email. Use Copy Link or resend later.',
     dependencies,
   );
 }

@@ -201,7 +201,7 @@ export function SessionProvider({
     (preserveSetupState && pathname === '/wedding-setup') ||
     (preserveEventState && pathname === '/events') ||
     (preserveTaskState &&
-      ['/tasks', '/recovery', '/checklist'].includes(pathname));
+      ['/tasks', '/recovery', '/checklist', '/members'].includes(pathname));
   if (
     !session ||
     (error && !preserveDraft) ||

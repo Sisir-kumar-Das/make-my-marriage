@@ -1,15 +1,7 @@
 import Link from 'next/link';
-import {
-  Camera,
-  Plus,
-  ShieldCheck,
-  Trash2,
-  Mail,
-  LockKeyhole,
-} from 'lucide-react';
+import { Camera, ShieldCheck, Trash2, LockKeyhole } from 'lucide-react';
 import {
   ComingSoon,
-  EmptyPanel,
   FutureButton,
   PageHeader,
   ReadOnlyField,
@@ -23,78 +15,6 @@ import {
 import styles from './workspace-ui.module.css';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
 
-export function MembersPreview({ session }) {
-  return (
-    <div className={styles.stack}>
-      <PageHeader
-        eyebrow="Shared wedding workspace"
-        title="Wedding Members & Collaborators"
-        description="Plan together with explicit Admin, Family Member and Viewer permissions."
-      >
-        <FutureButton primary>
-          <Plus size={16} />
-          Invite Member
-        </FutureButton>
-      </PageHeader>
-      <div className={styles.note}>
-        <ShieldCheck size={18} />
-        <p>
-          Invitations and role changes are coming soon. Every invitation will
-          require explicit acceptance.
-        </p>
-      </div>
-      <section className={styles.card}>
-        <div className={styles.row}>
-          <h2>Active Planning Team</h2>
-          <ComingSoon />
-        </div>
-        <p className={`${styles.description} mb-5`}>
-          Your current membership is shown below. The full team directory is
-          coming soon.
-        </p>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                {['Member', 'Workspace Role', 'Permissions & Actions'].map(
-                  (x) => (
-                    <th key={x}>{x}</th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>{session.user.displayName} · You</strong>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {session.user.email}
-                  </p>
-                </td>
-                <td>{roleLabel(session.membership.role)}</td>
-                <td>
-                  <FutureButton>Manage permissions</FutureButton>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section className={styles.card}>
-        <div className={styles.row}>
-          <h2>Pending Invitations</h2>
-          <ComingSoon />
-        </div>
-        <EmptyPanel icon={Mail}>
-          <p>
-            Send, resend and revoke invitations when member management is
-            available.
-          </p>
-        </EmptyPanel>
-      </section>
-    </div>
-  );
-}
 function roleLabel(role) {
   return role === 'ADMIN'
     ? 'Admin'

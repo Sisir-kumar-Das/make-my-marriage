@@ -22,6 +22,7 @@ export function createAuthService({
   settings,
   now = () => new Date(),
   getWeddingContext,
+  verificationContinuation = async () => undefined,
 }) {
   const recovery = createPasswordRecovery({
     database,
@@ -78,12 +79,15 @@ export function createAuthService({
     };
   }
 
-  async function deliver(connection, email, issued) {
+  async function deliver(connection, email, issued, invitation) {
     try {
       await sendVerification({
         email,
         token: issued.token,
         tokenHash: issued.document.tokenHash,
+        invitation: invitation
+          ? await verificationContinuation(email, invitation)
+          : undefined,
       });
     } catch {
       // Releasing this claim permits an immediate retry after delivery failure.
@@ -97,7 +101,7 @@ export function createAuthService({
     }
   }
 
-  async function register({ name, email, password }) {
+  async function register({ name, email, password, invitation }) {
     requireEmailConfiguration();
     const connection = await database.connect();
     const { User, AuthToken } = authModels(connection);
@@ -138,10 +142,10 @@ export function createAuthService({
         throw accountExists();
       throw error;
     }
-    await deliver(connection, email, issued);
+    await deliver(connection, email, issued, invitation);
   }
 
-  async function resend({ email }) {
+  async function resend({ email, invitation }) {
     requireEmailConfiguration();
     const connection = await database.connect();
     const { User, AuthToken } = authModels(connection);
@@ -171,7 +175,7 @@ export function createAuthService({
         throw error;
       }
     }
-    if (claimed) await deliver(connection, user.email, issued);
+    if (claimed) await deliver(connection, user.email, issued, invitation);
   }
 
   async function verify({ token }) {
@@ -240,12 +244,17 @@ export function createAuthService({
 
 export function createProductionAuthService(
   settings,
-  { database = createAuthDatabase(settings), getWeddingContext } = {},
+  {
+    database = createAuthDatabase(settings),
+    getWeddingContext,
+    verificationContinuation,
+  } = {},
 ) {
   return createAuthService({
     settings,
     database,
     getWeddingContext,
+    verificationContinuation,
     sendVerification: createVerificationSender(settings),
     sendReset: createResetSender(settings),
     sendPasswordChanged: createPasswordChangedSender(settings),

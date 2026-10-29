@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
 import { BadgeCheck, MailCheck } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { FormError, SubmitButton } from './form-controls';
 import { ResendVerification } from './resend-verification';
+import {
+  readInvitation,
+  invitationAuthHref,
+} from '@/features/invitations/invitation-data';
 import {
   cancelVerificationAttempt,
   runVerificationAttempt,
@@ -25,6 +28,7 @@ export function VerifyEmailForm() {
   );
   const [attempt, setAttempt] = useState(null);
   const request = useRef(null);
+  const [verifiedInvitation, setVerifiedInvitation] = useState('');
   const { token, validToken, state, error } = verificationState(hash, attempt);
 
   useEffect(
@@ -58,8 +62,10 @@ export function VerifyEmailForm() {
           timeoutMs: 15000,
           signal: operation.controller.signal,
         }),
-      onVerified: () =>
-        window.history.replaceState(null, '', window.location.pathname),
+      onVerified: () => {
+        setVerifiedInvitation(readInvitation(hash));
+        window.history.replaceState(null, '', window.location.pathname);
+      },
     });
   }
 
@@ -79,12 +85,12 @@ export function VerifyEmailForm() {
           Your email address is confirmed. Your account is ready for the next
           step.
         </p>
-        <Link
-          href="/login"
+        <a
+          href={invitationAuthHref('/login', verifiedInvitation)}
           className="mt-7 inline-flex min-h-12 items-center rounded bg-[var(--auth-primary)] px-6 py-3 text-sm font-semibold text-white"
         >
           Continue to sign in
-        </Link>
+        </a>
       </>
     );
 
@@ -96,9 +102,11 @@ export function VerifyEmailForm() {
         aria-hidden="true"
       />
       <h1 id="auth-title">
-        {validToken && state !== 'invalid'
-          ? 'Verify your email.'
-          : 'Check your inbox.'}
+        {state === 'invalid'
+          ? 'This verification link can’t be used.'
+          : validToken
+            ? 'Verify your email.'
+            : 'Check your inbox.'}
       </h1>
       <p className="mt-4 text-sm leading-relaxed text-[var(--auth-muted)]">
         {validToken && state !== 'invalid'
@@ -115,6 +123,16 @@ export function VerifyEmailForm() {
           }
         />
       </div>
+      <p className="mt-5 text-sm leading-relaxed text-[var(--auth-muted)]">
+        Already verified?{' '}
+        <a
+          href={invitationAuthHref('/login', readInvitation(hash))}
+          className="inline-flex min-h-11 items-center font-semibold text-[var(--auth-primary)] underline underline-offset-4"
+        >
+          Sign in to continue
+        </a>
+        .{readInvitation(hash) && ' Your wedding invitation will be kept.'}
+      </p>
       {validToken && state !== 'invalid' ? (
         <form onSubmit={verify} className="mt-6">
           <SubmitButton busy={state === 'pending'} busyLabel="Verifying email…">
@@ -122,7 +140,7 @@ export function VerifyEmailForm() {
           </SubmitButton>
         </form>
       ) : (
-        <ResendVerification />
+        <ResendVerification invitation={readInvitation(hash)} />
       )}
     </>
   );

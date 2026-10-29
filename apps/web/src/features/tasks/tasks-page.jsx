@@ -20,6 +20,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { refreshState } from '@/lib/refresh-state';
 import { useSession } from '@/features/auth/session-provider';
 import { PageHeader } from '@/features/dashboard/workspace-ui';
 import { TaskEditor } from './task-editor';
@@ -56,12 +57,18 @@ export function TasksPage() {
   const createButton = useRef(null),
     trigger = useRef(null),
     detailController = useRef(null);
-  const requestKey = `${wedding.id}:${filterKey}:${revision}`;
-  const response =
-    !filterError && result?.key === requestKey ? result.response : null;
-  const listError =
-    filterError || (result?.key === requestKey ? result.error : '');
+  const scope = JSON.stringify([
+    wedding.id,
+    user.id,
+    membership.role,
+    filterKey,
+  ]);
+  const requestKey = `${scope}:${revision}`;
+  const snapshot = refreshState(result, scope, requestKey);
+  const response = !filterError ? snapshot.data : null;
+  const listError = filterError || snapshot.error;
   const loading = !response && !listError;
+  const refreshing = !filterError && snapshot.refreshing;
   function applyFilters(next, replace = false) {
     const url = taskFilterUrl(next, fromEvent);
     if (url !== window.location.pathname + window.location.search)
@@ -108,13 +115,23 @@ export function TasksPage() {
           );
           return;
         }
-        setResult({ key: requestKey, response });
+        setResult({ scope, key: requestKey, data: response });
       })
       .catch((error) => {
-        if (current()) setResult({ key: requestKey, error: error.message });
+        if (current())
+          setResult({ scope, key: requestKey, error: error.message });
       });
     return () => controller.abort();
-  }, [wedding.id, view, query, filterKey, requestKey, filterError, fromEvent]);
+  }, [
+    wedding.id,
+    view,
+    query,
+    filterKey,
+    scope,
+    requestKey,
+    filterError,
+    fromEvent,
+  ]);
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState !== 'hidden')
@@ -305,14 +322,20 @@ export function TasksPage() {
         <button
           type="button"
           className={styles.textButton}
-          disabled={loading || !!connectionError}
+          disabled={loading || refreshing || !!connectionError}
           onClick={() => setRevision((value) => value + 1)}
         >
           <RefreshCw size={14} />
-          Refresh tasks
+          <span role={refreshing ? 'status' : undefined}>
+            {refreshing ? 'Refreshing tasks…' : 'Refresh tasks'}
+          </span>
         </button>
       </div>
-      <section className={styles.tableCard} aria-label="Wedding task list">
+      <section
+        className={styles.tableCard}
+        aria-label="Wedding task list"
+        aria-busy={loading || refreshing}
+      >
         <div className={styles.tableScroll}>
           <table>
             <thead>
