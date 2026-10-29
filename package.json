@@ -21,7 +21,7 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs scripts/sessions.test.mjs scripts/password-recovery.test.mjs scripts/weddings.test.mjs scripts/email.test.mjs scripts/media.test.mjs scripts/events.test.mjs scripts/places.test.mjs scripts/tasks.test.mjs scripts/recurrence.test.mjs scripts/checklist.test.mjs scripts/home-entry.test.mjs scripts/members.test.mjs scripts/invitations.test.mjs",
+    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs scripts/sessions.test.mjs scripts/password-recovery.test.mjs scripts/weddings.test.mjs scripts/email.test.mjs scripts/media.test.mjs scripts/events.test.mjs scripts/places.test.mjs scripts/tasks.test.mjs scripts/recurrence.test.mjs scripts/checklist.test.mjs scripts/home-entry.test.mjs scripts/members.test.mjs scripts/invitations.test.mjs scripts/member-changes.test.mjs scripts/member-removal.test.mjs scripts/member-editor.test.mjs",
     "test:auth:db": "node --env-file-if-exists=apps/api/.env --test scripts/auth-db.test.mjs",
     "test:sessions:db": "node --env-file-if-exists=apps/api/.env --test scripts/sessions-db.test.mjs",
     "smoke": "node scripts/smoke.mjs",
@@ -36,7 +36,9 @@
     "test:checklist:db": "node --env-file-if-exists=apps/api/.env --test scripts/checklist-db.test.mjs",
     "test:members:db": "node --env-file-if-exists=apps/api/.env --test scripts/members-db.test.mjs",
     "test:tasks:db": "node --env-file-if-exists=apps/api/.env --test scripts/tasks-db.test.mjs",
-    "test:invitations:db": "node --env-file-if-exists=apps/api/.env --test scripts/invitations-db.test.mjs"
+    "test:invitations:db": "node --env-file-if-exists=apps/api/.env --test scripts/invitations-db.test.mjs",
+    "test:members:removal:db": "node --env-file-if-exists=apps/api/.env --test scripts/member-removal-db.test.mjs",
+    "test:members:changes:db": "node --env-file-if-exists=apps/api/.env --test scripts/member-changes-db.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

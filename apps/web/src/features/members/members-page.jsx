@@ -14,6 +14,8 @@ import { refreshState } from '@/lib/refresh-state';
 import { useSession } from '@/features/auth/session-provider';
 import styles from './members.module.css';
 import { MemberInvitations } from '@/features/invitations/member-invitations';
+import { MemberEditor } from './member-editor';
+import { MemberRemoval } from './member-removal';
 
 const roles = [
   ['ALL', 'All'],
@@ -61,6 +63,11 @@ function initials(name) {
 
 export function MembersPage({ inviteShortcut = false }) {
   const inviteTrigger = useRef(null);
+  const memberTrigger = useRef(null),
+    teamHeading = useRef(null);
+  const [editing, setEditing] = useState(null),
+    [notice, setNotice] = useState('');
+  const [removing, setRemoving] = useState(null);
   const [inviteOpen, setInviteOpen] = useState(inviteShortcut);
   const { user, wedding, membership, connectionError, retrySession } =
     useSession();
@@ -159,11 +166,11 @@ export function MembersPage({ inviteShortcut = false }) {
         <div>
           <h2>A wedding must keep at least one Admin</h2>
           <p>
-            Role changes and member removal are coming soon, with protection for
-            the last remaining Admin.
+            Role changes and member removal must keep at least one active Admin.
+            Removal requires an explicit choice for affected unfinished work.
           </p>
         </div>
-        <span className={styles.soon}>Coming soon</span>
+        <span className={styles.soon}>Last Admin protected</span>
       </section>
       <section
         className={styles.team}
@@ -172,7 +179,9 @@ export function MembersPage({ inviteShortcut = false }) {
       >
         <div className={styles.teamHeader}>
           <div>
-            <h2 id="planning-team-title">Active Planning Team</h2>
+            <h2 id="planning-team-title" tabIndex={-1} ref={teamHeading}>
+              Active Planning Team
+            </h2>
             <p>
               Family and collaborators who have confirmed access to your wedding
               workspace.
@@ -194,6 +203,11 @@ export function MembersPage({ inviteShortcut = false }) {
             </span>
           </button>
         </div>
+        {notice && (
+          <p role="status" className={styles.explanation}>
+            {notice}
+          </p>
+        )}
         <div
           className={styles.filters}
           role="group"
@@ -269,12 +283,7 @@ export function MembersPage({ inviteShortcut = false }) {
                         <th scope="col">Assigned Role</th>
                         <th scope="col">Open Tasks</th>
                         <th scope="col">Status</th>
-                        <th scope="col">
-                          Permissions &amp; Actions
-                          {canManage && (
-                            <span className={styles.soon}>Coming soon</span>
-                          )}
-                        </th>
+                        <th scope="col">Permissions &amp; Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -341,8 +350,30 @@ export function MembersPage({ inviteShortcut = false }) {
                             )}
                             {canManage && (
                               <div className={styles.rowActions}>
-                                <Soon compact>Change Role</Soon>
-                                <Soon compact>Remove Member</Soon>
+                                <button
+                                  type="button"
+                                  className={styles.secondary}
+                                  disabled={!!connectionError}
+                                  onClick={(event) => {
+                                    memberTrigger.current = event.currentTarget;
+                                    setEditing(member.id);
+                                    setNotice('');
+                                  }}
+                                >
+                                  Change Role
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.secondary}
+                                  disabled={!!connectionError}
+                                  onClick={(event) => {
+                                    memberTrigger.current = event.currentTarget;
+                                    setRemoving(member.id);
+                                    setNotice('');
+                                  }}
+                                >
+                                  Remove Member
+                                </button>
                               </div>
                             )}
                           </td>
@@ -392,6 +423,65 @@ export function MembersPage({ inviteShortcut = false }) {
           </p>
         </div>
       </section>
+      {canManage && removing && (
+        <MemberRemoval
+          key={removing}
+          memberId={removing}
+          onClose={() => setRemoving(null)}
+          onReturnFocus={() => {
+            const target = memberTrigger.current?.isConnected
+              ? memberTrigger.current
+              : teamHeading.current;
+            target?.focus({ preventScroll: true });
+          }}
+          onSaved={(outcome) => {
+            memberTrigger.current = teamHeading.current;
+            setRemoving(null);
+            setNotice(
+              outcome.replayed
+                ? 'Your earlier removal was already saved. The directory shows current members.'
+                : 'Member access removed. The confirmed assignment changes are saved.',
+            );
+            setRevision((n) => n + 1);
+            retrySession();
+            if (typeof BroadcastChannel !== 'undefined') {
+              const channel = new BroadcastChannel('mmm-session');
+              channel.postMessage('membership-changed');
+              channel.close();
+            }
+          }}
+        />
+      )}
+      {canManage && editing && (
+        <MemberEditor
+          key={editing}
+          memberId={editing}
+          onClose={() => setEditing(null)}
+          onReturnFocus={() => {
+            const target = memberTrigger.current?.isConnected
+              ? memberTrigger.current
+              : teamHeading.current;
+            target?.focus({ preventScroll: true });
+          }}
+          onSaved={(result) => {
+            // The edited row may leave its role filter or lose its Admin controls.
+            memberTrigger.current = teamHeading.current;
+            setEditing(null);
+            setNotice(
+              result.replayed
+                ? 'Your earlier member change was already saved. The directory shows the current access.'
+                : 'Member changes saved. The directory shows the current access.',
+            );
+            setRevision((value) => value + 1);
+            retrySession();
+            if (typeof BroadcastChannel !== 'undefined') {
+              const channel = new BroadcastChannel('mmm-session');
+              channel.postMessage('membership-changed');
+              channel.close();
+            }
+          }}
+        />
+      )}
       {canManage && (
         <MemberInvitations
           triggerRef={inviteTrigger}

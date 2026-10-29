@@ -93,6 +93,45 @@ const activitySchema = new Schema(
     displaySnapshot: {
       label: { type: String, maxlength: 160, immutable: true },
     },
+    memberChange: {
+      type: new Schema(
+        {
+          fromRole: {
+            type: String,
+            enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'],
+          },
+          toRole: { type: String, enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'] },
+          fromRelationship: { type: String, maxlength: 80, default: null },
+          toRelationship: { type: String, maxlength: 80, default: null },
+          repeatManagerId: { type: Schema.Types.ObjectId, default: null },
+          transferredRepeats: { type: Number, min: 0, default: 0 },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+      immutable: true,
+    },
+    memberRemoval: {
+      type: new Schema(
+        {
+          role: { type: String, enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'] },
+          relationship: { type: String, maxlength: 80, default: null },
+          policy: {
+            type: String,
+            enum: ['REASSIGN', 'UNASSIGN'],
+            default: null,
+          },
+          replacementUserId: { type: Schema.Types.ObjectId, default: null },
+          repeatManagerId: { type: Schema.Types.ObjectId, default: null },
+          changedTasks: { type: Number, min: 0 },
+          assignmentRules: { type: Number, min: 0 },
+          managedRules: { type: Number, min: 0 },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+      immutable: true,
+    },
     createdAt: { type: Date, required: true, immutable: true },
   },
   { collection: 'activities', versionKey: false },

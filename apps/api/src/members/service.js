@@ -4,6 +4,8 @@ import { ApiError } from '../lib/api-error.js';
 import { authModels } from '../auth/models.js';
 import { weddingModels } from '../weddings/models.js';
 import { taskModels } from '../tasks/models.js';
+import { config } from '../config.js';
+import { createMemberManagement } from './management-service.js';
 
 export const memberRoles = ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'];
 const positive = (max) =>
@@ -44,7 +46,11 @@ export function memberDirectoryRow(
   };
 }
 
-export function createMemberService({ database }) {
+export function createMemberService({
+  database,
+  settings = config,
+  now = () => new Date(),
+}) {
   async function list(userId, weddingId, raw = {}) {
     if (!validId(weddingId)) throw unavailable();
     const parsed = memberListQuery.safeParse(raw);
@@ -199,5 +205,5 @@ export function createMemberService({ database }) {
     );
     return result;
   }
-  return { list };
+  return { list, ...createMemberManagement({ database, settings, now }) };
 }

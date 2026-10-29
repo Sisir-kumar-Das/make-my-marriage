@@ -1,0 +1,203 @@
+.modal {
+  width: min(36rem, calc(100% - 1rem));
+  max-height: calc(100dvh - 1rem);
+  border-radius: 0.5rem;
+}
+.header {
+  gap: 1rem;
+}
+.header > div {
+  flex: 1;
+  min-width: 0;
+}
+.header h2 {
+  font-family: var(--font-landing-serif), Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.header .eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  height: 3rem;
+  background: #ffd9e0;
+  color: #5c3f46;
+  border-radius: 0.5rem;
+}
+.member,
+.info,
+.handover {
+  padding: 1rem;
+  background: #f9f2f6;
+  border-radius: 0.5rem;
+  overflow-wrap: anywhere;
+}
+.member {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.member > div {
+  flex: 1;
+  min-width: 0;
+}
+.member p,
+.copy,
+.info p,
+.handover p,
+.option span span {
+  color: #514348;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.avatar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  background: #f9dfb0;
+  color: #261a00;
+  border-radius: 50%;
+  font-weight: 600;
+}
+.badge {
+  padding: 0.35rem 0.5rem;
+  background: #ffd9e0;
+  color: #2c151b;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: #f3ecf0;
+}
+.info svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+.sectionHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.sectionHeading h3,
+.handover h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.tasks {
+  background: #f9f2f6;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.tasks li {
+  background: white;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.tasks li > span:first-child {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.tasks small {
+  display: block;
+  font-size: 0.75rem;
+  color: #514348;
+  margin-top: 0.2rem;
+}
+.options,
+.recipient,
+.handover {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+label.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #f9f2f6;
+  cursor: pointer;
+}
+.option:has(input:checked) {
+  box-shadow: inset 0 0 0 2px #6e334e;
+}
+.option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.option strong {
+  font-weight: 600;
+}
+.option span span {
+  font-weight: 400;
+}
+.recipient {
+  padding: 0.25rem 1rem 1rem;
+}
+.handover ul {
+  padding-left: 1rem;
+  list-style: disc;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+label.confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  padding: 0.75rem 0;
+}
+label.confirm input[type='checkbox'],
+label.option input[type='radio'] {
+  width: 1.1rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  min-height: 1.1rem;
+  padding: 0;
+  margin-top: 0.2rem;
+  accent-color: #531d37;
+}
+@media (max-width: 420px) {
+  .header {
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+  .icon {
+    min-width: 2rem;
+    height: 2rem;
+  }
+  .member {
+    flex-wrap: wrap;
+  }
+}

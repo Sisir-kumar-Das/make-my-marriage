@@ -156,6 +156,7 @@ export function SessionProvider({
     if (channel)
       channel.onmessage = (event) => {
         if (event.data === 'logout') leave();
+        else if (event.data === 'membership-changed') void check();
       };
     const timer = setInterval(check, 60000);
     void check();

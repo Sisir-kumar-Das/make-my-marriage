@@ -153,6 +153,13 @@ const seriesSchema = new Schema(
 );
 seriesSchema.index({ active: 1, nextGenerationDate: 1, retryAt: 1 });
 seriesSchema.index({ weddingId: 1, active: 1 });
+seriesSchema.index({ weddingId: 1, updatedBy: 1, active: 1, endDate: 1 });
+seriesSchema.index({
+  weddingId: 1,
+  active: 1,
+  'template.assigneeIds': 1,
+  endDate: 1,
+});
 export function taskModels(connection) {
   return {
     TaskSeries:

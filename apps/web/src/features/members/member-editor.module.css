@@ -1,0 +1,56 @@
+.title {
+  font-family: var(--font-landing-serif), Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+.member,
+.handover,
+.summary {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f9f2f6;
+  color: #531d37;
+  overflow-wrap: anywhere;
+}
+.member {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.member span,
+.handover p,
+.summary p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #514348;
+}
+.handover {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  border: 1px solid #e5d9e1;
+}
+.handover ul {
+  list-style: disc;
+  padding-left: 1.2rem;
+  font-size: 0.875rem;
+}
+.confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+label.confirm input[type='checkbox'] {
+  min-height: 1.1rem;
+  padding: 0;
+  width: 1.1rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.15rem;
+  accent-color: #531d37;
+}
