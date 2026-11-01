@@ -17,6 +17,7 @@ import {
   Info,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import { DiscardChangesDialog } from '@/features/tasks/discard-changes-dialog';
 import {
@@ -213,7 +214,7 @@ export function EventEditor({
     const body = JSON.stringify(operation === 'REMOVE' ? {} : input);
     const identity = `${record.id}/${record.version}/${operation}/${activityEditor.id}/${body}`;
     if (activityAttempt.current?.identity !== identity)
-      activityAttempt.current = { identity, key: crypto.randomUUID() };
+      activityAttempt.current = { identity, key: newIdempotencyKey() };
     try {
       const response = await apiRequest(
         `/weddings/${wedding.id}/events/${record.id}/activities${activityEditor.id ? '/' + activityEditor.id : ''}`,
@@ -329,7 +330,7 @@ export function EventEditor({
     setNotice('');
     const identity = `${record.id}/${record.version}`;
     if (removalAttempt.current?.identity !== identity)
-      removalAttempt.current = { identity, key: crypto.randomUUID() };
+      removalAttempt.current = { identity, key: newIdempotencyKey() };
     try {
       const response = await apiRequest(
         `/weddings/${wedding.id}/events/${record.id}`,
@@ -417,7 +418,7 @@ export function EventEditor({
     const version = record?.version;
     const identity = `${record?.id || 'new'}/${version}/${body}`;
     if (attempt.current?.identity !== identity)
-      attempt.current = { identity, key: crypto.randomUUID() };
+      attempt.current = { identity, key: newIdempotencyKey() };
     try {
       const response = await apiRequest(
         `/weddings/${wedding.id}/events${record ? '/' + record.id : ''}`,

@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog } from 'radix-ui';
 import { X, AlertTriangle, Info, Trash2 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import { RepeatControls } from './repeat-controls';
 import { indiaToday } from './recurrence-data';
@@ -191,7 +192,7 @@ export function TaskEditor({
     const body = JSON.stringify(taskInput(raw));
     const identity = `${record?.id || 'new'}/${record?.version}/${body}`;
     if (attempt.current?.identity !== identity)
-      attempt.current = { identity, key: crypto.randomUUID() };
+      attempt.current = { identity, key: newIdempotencyKey() };
     lock.current = true;
     setPending(true);
     setDiscard(false);
@@ -258,7 +259,7 @@ export function TaskEditor({
     if (deleteAttempt.current?.version !== record.version)
       deleteAttempt.current = {
         version: record.version,
-        key: crypto.randomUUID(),
+        key: newIdempotencyKey(),
       };
     lock.current = true;
     setPending(true);

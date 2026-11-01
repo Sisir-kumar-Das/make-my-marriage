@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ClipboardList, RotateCcw, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import { AssigneeNames } from '@/features/tasks/task-assignees';
 import {
@@ -70,7 +71,7 @@ export function TaskRecovery() {
     lock.current = true;
     const identity = `${scope}/${task.id}/${task.version}`;
     if (!attempts.current.has(identity))
-      attempts.current.set(identity, crypto.randomUUID());
+      attempts.current.set(identity, newIdempotencyKey());
     setAction({ id: task.id, pending: true });
     setNotice(null);
     try {

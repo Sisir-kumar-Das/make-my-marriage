@@ -101,7 +101,8 @@
 .primary:disabled,
 .secondary:disabled,
 .danger:disabled,
-.close:disabled {
+.close:disabled,
+.secondary[aria-disabled='true'] {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -379,6 +380,21 @@
   color: #6e334e;
   font-size: 0.75rem;
   font-weight: 600;
+}
+.inboxCards {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.rowAction {
+  margin-top: 1rem;
+}
+.inboxTitle {
+  font-family: var(--font-landing-serif), Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #531d37;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 767px) {
   .cards {

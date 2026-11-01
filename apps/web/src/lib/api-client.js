@@ -52,6 +52,7 @@ async function request(path, options = {}) {
           payload?.requestId || requestId,
         ),
         {
+          status: response.status,
           details: payload?.error?.details,
           retryAfterSeconds:
             Number(response.headers.get('Retry-After')) || undefined,

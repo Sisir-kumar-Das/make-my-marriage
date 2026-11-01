@@ -145,7 +145,8 @@
   max-width: 18rem;
   font-size: 0.75rem;
 }
-.invitePreview button {
+.invitePreview button,
+.invitePreview a {
   color: var(--setup-plum);
   text-align: left;
   text-decoration: underline;

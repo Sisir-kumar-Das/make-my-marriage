@@ -7,6 +7,8 @@ import {
   invitationTokenInput,
   invitationChange,
   invitationPage,
+  invitationDeclineInput,
+  recipientDeclineInput,
 } from '../apps/api/src/invitations/validation.js';
 import {
   hashInvitation,
@@ -205,15 +207,26 @@ test('invitation routes enforce origin, JSON, authenticated CSRF and no-store wi
     },
   };
   const invitations = Object.fromEntries(
-    ['preview', 'accept', 'list', 'create', 'copyLink', 'resend', 'revoke'].map(
-      (name) => [
-        name,
-        async (...args) => {
-          calls.push([name, ...args]);
-          return { state: 'PENDING' };
-        },
-      ],
-    ),
+    [
+      'preview',
+      'accept',
+      'decline',
+      'inbox',
+      'recipientPreview',
+      'acceptFromInbox',
+      'declineFromInbox',
+      'list',
+      'create',
+      'copyLink',
+      'resend',
+      'revoke',
+    ].map((name) => [
+      name,
+      async (...args) => {
+        calls.push([name, ...args]);
+        return { state: 'PENDING' };
+      },
+    ]),
   );
   const server = createApp({ settings, service, invitations }).listen(
     0,
@@ -283,10 +296,61 @@ test('invitation routes enforce origin, JSON, authenticated CSRF and no-store wi
     });
     assert.equal(list.status, 200);
     await list.arrayBuffer();
+    for (const path of [
+      '/member-invitations/inbox',
+      `/member-invitations/inbox/${'b'.repeat(24)}`,
+    ]) {
+      const anonymous = await fetch(base + path);
+      assert.equal(anonymous.status, 401);
+      const own = await fetch(base + path, {
+        headers: { Cookie: 'mmm_access=signed' },
+      });
+      assert.equal(own.status, 200);
+      assert.match(own.headers.get('cache-control'), /no-store/);
+    }
+    for (const [path, body] of [
+      [
+        '/member-invitations/decline',
+        { token: 'T'.repeat(43), confirmDecline: true },
+      ],
+      [`/member-invitations/inbox/${'b'.repeat(24)}/accept`, { version: 3 }],
+      [
+        `/member-invitations/inbox/${'b'.repeat(24)}/decline`,
+        { version: 3, confirmDecline: true },
+      ],
+    ]) {
+      const denied = await fetch(base + path, {
+        method: 'POST',
+        headers: { ...mutationHeaders, 'X-CSRF-Token': '' },
+        body: JSON.stringify(body),
+      });
+      assert.equal(denied.status, 403);
+      const response = await fetch(base + path, {
+        method: 'POST',
+        headers: mutationHeaders,
+        body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 200);
+    }
     assert.deepEqual(
       calls.map(([name]) => name),
-      ['preview', 'accept', 'list'],
+      [
+        'preview',
+        'accept',
+        'list',
+        'inbox',
+        'recipientPreview',
+        'decline',
+        'acceptFromInbox',
+        'declineFromInbox',
+      ],
     );
+    assert.deepEqual(calls.at(-1).slice(1), [
+      'actor',
+      'b'.repeat(24),
+      { version: 3, confirmDecline: true },
+      mutationHeaders['Idempotency-Key'],
+    ]);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -443,4 +507,50 @@ test('unmount cancels a pending login and rejects late failure feedback', async 
   reject(new Error('Late network failure'));
   await pending;
   assert.equal(request.current, null);
+});
+
+test('rejection requires explicit confirmation and email buttons only navigate using escaped fragment links', async () => {
+  assert.equal(
+    invitationDeclineInput.safeParse({ token: 'T'.repeat(43) }).success,
+    false,
+  );
+  assert.equal(
+    recipientDeclineInput.safeParse({ version: 0, confirmDecline: false })
+      .success,
+    false,
+  );
+  assert.equal(
+    recipientDeclineInput.safeParse({
+      version: 0,
+      confirmDecline: true,
+      email: 'other@example.com',
+    }).success,
+    false,
+  );
+  const { invitationEmail } = await import('../apps/api/src/auth/email.js');
+  const message = invitationEmail({
+    to: 'recipient@example.com',
+    token: 'T'.repeat(43),
+    webOrigin: settings.webOrigin,
+    weddingName: '<script>Wedding</script>',
+    role: 'FAMILY_MEMBER',
+    relationship: '<b>Friend</b>',
+    from: 'fixture@example.com',
+  });
+  assert.match(message.html, /&lt;script&gt;Wedding&lt;\/script&gt;/);
+  assert.equal(message.html.includes('<script>'), false);
+  assert.match(message.html, /My Invitations/);
+  const links = [...message.html.matchAll(/href="([^"]+)"/g)].map(
+    (match) => new URL(match[1].replaceAll('&amp;', '&')),
+  );
+  assert.deepEqual(
+    links.map((url) => new URLSearchParams(url.hash.slice(1)).get('action')),
+    ['accept', 'decline'],
+  );
+  for (const url of links) {
+    assert.equal(url.pathname, '/invite');
+    assert.equal(url.search, '');
+    assert.equal(readInvitation(url.hash, 'token'), 'T'.repeat(43));
+  }
+  assert.match(message.text, /Opening a link alone makes no decision/);
 });

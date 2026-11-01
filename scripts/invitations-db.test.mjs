@@ -524,10 +524,15 @@ test(
             ),
             { code: 'ADMIN_REQUIRED' },
           );
-          assert.equal(
-            (await invitations.preview({ token: invite.token })).state,
-            'UNAVAILABLE',
-          );
+          // ADR-043, 1 November: unavailable stays rejectable but exposes no wedding/issuer details.
+          const unavailable = await invitations.preview({
+            token: invite.token,
+          });
+          assert.equal(unavailable.state, 'UNAVAILABLE');
+          assert.equal(unavailable.canReject, true);
+          assert.equal(unavailable.wedding, undefined);
+          assert.equal(unavailable.inviterName, undefined);
+          assert.equal(unavailable.role, undefined);
           await assert.rejects(
             invitations.accept(
               person.id,
@@ -540,6 +545,71 @@ test(
             { weddingId: wid, userId: creator.id },
             { $set: { role: 'ADMIN' } },
           );
+        },
+      );
+      await t.test(
+        'ADR-043 owner decision: an unavailable invitation can be rejected from the app or email, never accepted',
+        async () => {
+          for (const via of ['email', 'app']) {
+            const person = await user('RejectUnavailable' + via),
+              invite = await issue(person),
+              key = randomUUID();
+            await WeddingMember.updateOne(
+              { weddingId: wid, userId: creator.id },
+              { $set: { role: 'FAMILY_MEMBER' } },
+            );
+            try {
+              const details = await invitations.recipientPreview(
+                person.id,
+                invite.id,
+              );
+              assert.equal(details.state, 'UNAVAILABLE');
+              assert.equal(details.canReject, true);
+              await assert.rejects(
+                invitations.accept(
+                  person.id,
+                  { token: invite.token },
+                  randomUUID(),
+                ),
+                { code: 'INVITATION_UNAVAILABLE' },
+              );
+              const body =
+                via === 'email'
+                  ? { token: invite.token, confirmDecline: true }
+                  : { version: details.version, confirmDecline: true };
+              const run = () =>
+                via === 'email'
+                  ? invitations.decline(person.id, body, key)
+                  : invitations.declineFromInbox(
+                      person.id,
+                      invite.id,
+                      body,
+                      key,
+                    );
+              assert.equal((await run()).declined, true);
+              assert.equal((await run()).replayed, true);
+              assert.equal(
+                (await MemberInvitation.findById(invite.id).lean()).status,
+                'DECLINED',
+              );
+              assert.equal(
+                await WeddingMember.countDocuments({ userId: person.id }),
+                0,
+              );
+              assert.equal(
+                await Activity.countDocuments({
+                  entityId: invite.id,
+                  action: 'INVITATION_DECLINE',
+                }),
+                1,
+              );
+            } finally {
+              await WeddingMember.updateOne(
+                { weddingId: wid, userId: creator.id },
+                { $set: { role: 'ADMIN' } },
+              );
+            }
+          }
         },
       );
       await t.test(
@@ -703,6 +773,317 @@ test(
           assert.ok(audits.length);
           for (const mail of emails)
             assert.equal(JSON.stringify(audits).includes(mail.token), false);
+        },
+      );
+      await t.test(
+        'recipient inbox is verified-account-owned, bounded and excludes terminal/expired records and private material',
+        async () => {
+          const person = await user('InboxOwner'),
+            outsider = await user('InboxOutsider');
+          const first = await issue(person);
+          const list = await invitations.inbox(person.id);
+          assert.equal(list.accountId, person.id);
+          assert.equal(list.pagination.total, 1);
+          assert.equal(list.invitations[0].id, first.id);
+          assert.equal(
+            (await invitations.inbox(outsider.id)).pagination.total,
+            0,
+          );
+          await assert.rejects(
+            invitations.recipientPreview(outsider.id, first.id),
+            { code: 'INVITATION_NOT_FOUND' },
+          );
+          await assert.rejects(
+            invitations.acceptFromInbox(
+              outsider.id,
+              first.id,
+              { version: 0 },
+              randomUUID(),
+            ),
+            { code: 'INVITATION_NOT_FOUND' },
+          );
+          for (const field of [
+            'token',
+            'tokenHash',
+            'nonce',
+            'invitedBy',
+            'acceptedBy',
+            'declinedBy',
+          ])
+            assert.equal(
+              JSON.stringify(list).includes('"' + field + '"'),
+              false,
+            );
+          await User.updateOne(
+            { _id: person.id },
+            { $set: { emailVerifiedAt: null } },
+          );
+          await assert.rejects(invitations.inbox(person.id), {
+            code: 'SESSION_EXPIRED',
+          });
+          await User.updateOne(
+            { _id: person.id },
+            { $set: { emailVerifiedAt: instant } },
+          );
+          await MemberInvitation.updateOne(
+            { _id: first.id },
+            { $set: { expiresAt: new Date(instant.getTime() - 1) } },
+          );
+          assert.equal(
+            (await invitations.inbox(person.id)).pagination.total,
+            0,
+          );
+        },
+      );
+      await t.test(
+        'in-app acceptance consumes the email link, is exact-retry safe and never joins twice',
+        async () => {
+          const person = await user('InboxAccept'),
+            invite = await issue(person);
+          const details = await invitations.recipientPreview(
+              person.id,
+              invite.id,
+            ),
+            key = randomUUID(),
+            body = { version: details.version };
+          const result = await invitations.acceptFromInbox(
+            person.id,
+            invite.id,
+            body,
+            key,
+          );
+          assert.equal(result.accepted, true);
+          assert.equal(
+            (await invitations.acceptFromInbox(person.id, invite.id, body, key))
+              .accepted,
+            true,
+          );
+          assert.equal(
+            (await invitations.preview({ token: invite.token })).state,
+            'ACCEPTED',
+          );
+          assert.equal(
+            (await invitations.inbox(person.id)).pagination.total,
+            0,
+          );
+          await assert.rejects(
+            invitations.accept(
+              person.id,
+              { token: invite.token },
+              randomUUID(),
+            ),
+            { code: 'INVITATION_ACCEPTED' },
+          );
+          await assert.rejects(
+            invitations.decline(
+              person.id,
+              { token: invite.token, confirmDecline: true },
+              randomUUID(),
+            ),
+            { code: 'INVITATION_ACCEPTED' },
+          );
+          assert.equal(
+            await WeddingMember.countDocuments({
+              userId: person.id,
+              status: 'ACTIVE',
+            }),
+            1,
+          );
+          assert.equal(
+            await Activity.countDocuments({
+              entityId: invite.id,
+              action: 'INVITATION_ACCEPT',
+            }),
+            1,
+          );
+        },
+      );
+      await t.test(
+        'email and app rejection close both routes without membership; a fresh invitation never reopens the old link or receipt',
+        async () => {
+          for (const via of ['email', 'app']) {
+            const person = await user('Decline' + via),
+              invite = await issue(person),
+              key = randomUUID();
+            const details = await invitations.recipientPreview(
+              person.id,
+              invite.id,
+            );
+            const body =
+              via === 'email'
+                ? { token: invite.token, confirmDecline: true }
+                : { version: details.version, confirmDecline: true };
+            const run = () =>
+              via === 'email'
+                ? invitations.decline(person.id, body, key)
+                : invitations.declineFromInbox(person.id, invite.id, body, key);
+            assert.equal((await run()).declined, true);
+            assert.equal(
+              (await invitations.preview({ token: invite.token })).state,
+              'DECLINED',
+            );
+            assert.equal(
+              (await invitations.inbox(person.id)).pagination.total,
+              0,
+            );
+            assert.equal(
+              await WeddingMember.countDocuments({ userId: person.id }),
+              0,
+            );
+            await assert.rejects(
+              invitations.acceptFromInbox(
+                person.id,
+                invite.id,
+                { version: details.version },
+                randomUUID(),
+              ),
+              { code: 'INVITATION_DECLINED' },
+            );
+            await assert.rejects(
+              invitations.accept(
+                person.id,
+                { token: invite.token },
+                randomUUID(),
+              ),
+              { code: 'INVITATION_DECLINED' },
+            );
+            await assert.rejects(
+              invitations.resend(
+                creator.id,
+                wid,
+                invite.id,
+                { version: 1 },
+                randomUUID(),
+              ),
+              { code: 'INVITATION_CHANGED' },
+            );
+            const fresh = await issue(person);
+            assert.notEqual(fresh.id, invite.id);
+            assert.notEqual(fresh.token, invite.token);
+            assert.equal((await run()).declined, true);
+            assert.equal(
+              (await invitations.preview({ token: fresh.token })).state,
+              'PENDING',
+            );
+            assert.equal(
+              await Activity.countDocuments({
+                entityId: invite.id,
+                action: 'INVITATION_DECLINE',
+              }),
+              1,
+            );
+          }
+        },
+      );
+      await t.test(
+        'simultaneous app/email Accept and Reject have exactly one winner and one decision audit',
+        async () => {
+          for (const flip of [false, true]) {
+            const person = await user('DecisionRace' + flip),
+              invite = await issue(person);
+            const details = await invitations.recipientPreview(
+              person.id,
+              invite.id,
+            );
+            const actions = [
+              () =>
+                invitations.acceptFromInbox(
+                  person.id,
+                  invite.id,
+                  { version: details.version },
+                  randomUUID(),
+                ),
+              () =>
+                invitations.decline(
+                  person.id,
+                  { token: invite.token, confirmDecline: true },
+                  randomUUID(),
+                ),
+            ];
+            if (flip) actions.reverse();
+            const results = await Promise.allSettled(
+              actions.map((run) => run()),
+            );
+            assert.equal(
+              results.filter((row) => row.status === 'fulfilled').length,
+              1,
+            );
+            const state = (await invitations.preview({ token: invite.token }))
+              .state;
+            assert.ok(['ACCEPTED', 'DECLINED'].includes(state));
+            assert.equal(
+              await WeddingMember.countDocuments({
+                userId: person.id,
+                status: 'ACTIVE',
+              }),
+              state === 'ACCEPTED' ? 1 : 0,
+            );
+            assert.equal(
+              await Activity.countDocuments({
+                entityId: invite.id,
+                action: { $in: ['INVITATION_ACCEPT', 'INVITATION_DECLINE'] },
+              }),
+              1,
+            );
+          }
+        },
+      );
+      await t.test(
+        'stale app previews cannot decide a rotated invite and declined writes roll back if final audit fails',
+        async () => {
+          const person = await user('AppStale'),
+            invite = await issue(person),
+            details = await invitations.recipientPreview(person.id, invite.id);
+          instant = new Date(instant.getTime() + 46000);
+          await invitations.resend(
+            creator.id,
+            wid,
+            invite.id,
+            { version: invite.version },
+            randomUUID(),
+          );
+          await assert.rejects(
+            invitations.declineFromInbox(
+              person.id,
+              invite.id,
+              { version: details.version, confirmDecline: true },
+              randomUUID(),
+            ),
+            { code: 'INVITATION_CHANGED' },
+          );
+          const latest = await invitations.recipientPreview(
+              person.id,
+              invite.id,
+            ),
+            original = Activity.create;
+          Activity.create = async () => {
+            throw new Error('Injected final audit failure');
+          };
+          try {
+            await assert.rejects(
+              invitations.declineFromInbox(
+                person.id,
+                invite.id,
+                { version: latest.version, confirmDecline: true },
+                randomUUID(),
+              ),
+              { code: 'INVITATION_UNAVAILABLE' },
+            );
+          } finally {
+            Activity.create = original;
+          }
+          assert.equal(
+            (await invitations.recipientPreview(person.id, invite.id)).state,
+            'PENDING',
+          );
+          assert.equal(
+            (await MemberInvitation.findById(invite.id)).declinedAt,
+            null,
+          );
+          assert.equal(
+            await WeddingMember.countDocuments({ userId: person.id }),
+            0,
+          );
         },
       );
     } finally {

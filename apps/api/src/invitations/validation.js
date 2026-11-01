@@ -35,6 +35,12 @@ export const invitationChange = z
   })
   .strict();
 export const invitationTokenInput = z.object({ token: tokenSchema }).strict();
+export const invitationDeclineInput = invitationTokenInput.extend({
+  confirmDecline: z.literal(true),
+});
+export const recipientDeclineInput = invitationChange.extend({
+  confirmDecline: z.literal(true),
+});
 export const invitationPage = z
   .object({
     page: z

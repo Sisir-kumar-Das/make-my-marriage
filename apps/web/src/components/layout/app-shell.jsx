@@ -183,6 +183,9 @@ export function AppShell({ children }) {
                     <DropdownMenu.Item asChild className={styles.accountItem}>
                       <Link href="/profile">My Profile</Link>
                     </DropdownMenu.Item>
+                    <DropdownMenu.Item asChild className={styles.accountItem}>
+                      <Link href="/invitations">My Invitations</Link>
+                    </DropdownMenu.Item>
                     <DropdownMenu.Item
                       className={styles.accountItem}
                       disabled={pending}

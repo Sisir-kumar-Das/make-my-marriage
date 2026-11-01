@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { CalendarX2, RotateCcw, ShieldCheck, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import {
   PageHeader,
@@ -71,7 +72,7 @@ export function EventRecovery() {
     const attempt =
       action?.event.id === event.id
         ? action
-        : { event, key: crypto.randomUUID() };
+        : { event, key: newIdempotencyKey() };
     setAction({ ...attempt, pending: true, error: '', conflict: false });
     setNotice(null);
     try {

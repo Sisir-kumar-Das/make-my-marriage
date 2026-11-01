@@ -114,5 +114,51 @@ export function createInvitationAcceptanceRouter({
       ),
     });
   });
+  router.post('/decline', limit, cookies.protect, async (req, res) => {
+    const identity = await service.session(cookies.input(req));
+    res.json({
+      success: true,
+      data: await invitations.decline(
+        identity.user.id,
+        req.body,
+        req.get('idempotency-key'),
+      ),
+    });
+  });
+  router.get('/inbox', limit, async (req, res) => {
+    const identity = await service.session(cookies.input(req));
+    res.json({
+      success: true,
+      data: await invitations.inbox(identity.user.id, req.query),
+    });
+  });
+  router.get('/inbox/:invitationId', limit, async (req, res) => {
+    const identity = await service.session(cookies.input(req));
+    res.json({
+      success: true,
+      data: await invitations.recipientPreview(
+        identity.user.id,
+        req.params.invitationId,
+      ),
+    });
+  });
+  for (const action of ['accept', 'decline'])
+    router.post(
+      `/inbox/:invitationId/${action}`,
+      limit,
+      cookies.protect,
+      async (req, res) => {
+        const identity = await service.session(cookies.input(req));
+        res.json({
+          success: true,
+          data: await invitations[`${action}FromInbox`](
+            identity.user.id,
+            req.params.invitationId,
+            req.body,
+            req.get('idempotency-key'),
+          ),
+        });
+      },
+    );
   return router;
 }

@@ -87,8 +87,27 @@ test('API errors retain their code and payload request ID', async (t) => {
   );
   await assert.rejects(apiRequest('/missing'), {
     code: 'NOT_FOUND',
+    status: 404,
     requestId: 'payload-id',
   });
+});
+
+test('the same invitation code preserves distinct terminal and temporary HTTP statuses', async (t) => {
+  for (const status of [400, 503]) {
+    t.mock.method(globalThis, 'fetch', async () =>
+      Response.json(
+        {
+          success: false,
+          error: { code: 'INVITATION_UNAVAILABLE', message: 'Unavailable.' },
+        },
+        { status },
+      ),
+    );
+    await assert.rejects(apiRequest('/member-invitations/preview'), {
+      code: 'INVITATION_UNAVAILABLE',
+      status,
+    });
+  }
 });
 
 test('a timeout before response headers returns TIMEOUT', async (t) => {

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog } from 'radix-ui';
 import { X } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import { Field } from './task-editor';
 import { TaskAssignees } from './task-assignees';
@@ -204,7 +205,7 @@ function SeriesForm({
           },
     });
     if (attempt.current?.body !== body)
-      attempt.current = { body, key: crypto.randomUUID() };
+      attempt.current = { body, key: newIdempotencyKey() };
     lock.current = true;
     setPending(true);
     setFailure('');

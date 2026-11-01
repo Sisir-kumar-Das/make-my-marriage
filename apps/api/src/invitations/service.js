@@ -9,6 +9,8 @@ import {
   invitationInput,
   invitationChange,
   invitationTokenInput,
+  invitationDeclineInput,
+  recipientDeclineInput,
   invitationPage,
   tokenSchema,
 } from './validation.js';
@@ -220,38 +222,64 @@ export function createInvitationService({
         result = { state };
         return;
       }
-      const { Wedding, WeddingMember } = weddingModels(connection);
-      const wedding = await Wedding.findOne({
-        _id: invite.weddingId,
-        deletedAt: null,
-      })
-        .select('name mainDate location')
-        .session(session)
-        .lean();
-      const issuer = await WeddingMember.findOne({
-        weddingId: invite.weddingId,
-        userId: invite.invitedBy,
+      [result] = await recipientDetails(connection, session, [invite], now());
+    }, transactionOptions);
+    return result;
+  }
+  async function recipientDetails(connection, session, rows, instant) {
+    if (!rows.length) return [];
+    const { Wedding, WeddingMember } = weddingModels(connection);
+    const weddings = await Wedding.find({
+      _id: { $in: rows.map((row) => row.weddingId) },
+      deletedAt: null,
+    })
+      .select('name mainDate location')
+      .session(session)
+      .lean();
+    // Match each invitation's exact wedding/issuer pair, not every cross combination.
+    const issuers = await WeddingMember.find({
+      $or: rows.map((row) => ({
+        weddingId: row.weddingId,
+        userId: row.invitedBy,
+      })),
+      status: 'ACTIVE',
+      role: 'ADMIN',
+    })
+      .select('weddingId userId')
+      .session(session)
+      .lean();
+    const people = await authModels(connection)
+      .User.find({
+        _id: { $in: issuers.map((row) => row.userId) },
         status: 'ACTIVE',
-        role: 'ADMIN',
+        emailVerifiedAt: { $ne: null },
       })
-        .session(session)
-        .lean();
+      .select('profile.displayName')
+      .session(session)
+      .lean();
+    return rows.map((invite) => {
+      const state = invitationState(invite, instant);
+      if (state !== 'PENDING') return { state };
+      const wedding = weddings.find(
+        (row) => String(row._id) === String(invite.weddingId),
+      );
+      const issuer = issuers.find(
+        (row) =>
+          String(row.weddingId) === String(invite.weddingId) &&
+          String(row.userId) === String(invite.invitedBy),
+      );
       const person =
         issuer &&
-        (await authModels(connection)
-          .User.findOne({
-            _id: invite.invitedBy,
-            status: 'ACTIVE',
-            emailVerifiedAt: { $ne: null },
-          })
-          .select('profile.displayName')
-          .session(session)
-          .lean());
-      if (!wedding || !person) {
-        result = { state: 'UNAVAILABLE' };
-        return;
-      }
-      result = {
+        people.find((row) => String(row._id) === String(issuer.userId));
+      // The recipient can still reject (never accept) once the issuer or wedding is gone, so they can clear it.
+      if (!wedding || !person)
+        return {
+          state: 'UNAVAILABLE',
+          canReject: true,
+          email: invite.email,
+          expiresAt: new Date(invite.expiresAt).toISOString(),
+        };
+      return {
         state,
         email: invite.email,
         role: invite.role,
@@ -263,6 +291,68 @@ export function createInvitationService({
           mainDate: wedding.mainDate,
           city: wedding.location?.city || '',
         },
+      };
+    });
+  }
+  async function inbox(userId, raw = {}) {
+    const { page } = parse(invitationPage, raw),
+      connection = await database.connect();
+    const { MemberInvitation } = invitationModels(connection);
+    let result;
+    await connection.transaction(async (session) => {
+      const user = await account(connection, userId, session),
+        instant = now();
+      const query = {
+        emailNormalized: user.emailNormalized,
+        status: 'PENDING',
+        expiresAt: { $gt: instant },
+      };
+      const total =
+        await MemberInvitation.countDocuments(query).session(session);
+      const totalPages = Math.ceil(total / 10),
+        selected = Math.min(page, Math.max(1, totalPages));
+      const rows = await MemberInvitation.find(query)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip((selected - 1) * 10)
+        .limit(10)
+        .session(session)
+        .lean();
+      const details = await recipientDetails(
+        connection,
+        session,
+        rows,
+        instant,
+      );
+      result = {
+        accountId: String(user._id),
+        invitations: details.map((row, index) => ({
+          ...row,
+          id: String(rows[index]._id),
+        })),
+        pagination: { page: selected, total, totalPages },
+      };
+    }, transactionOptions);
+    return result;
+  }
+  async function recipientPreview(userId, id) {
+    if (!validId(id)) throw missing();
+    const connection = await database.connect();
+    let result;
+    await connection.transaction(async (session) => {
+      const user = await account(connection, userId, session);
+      const invite = await invitationModels(connection)
+        .MemberInvitation.findOne({
+          _id: id,
+          emailNormalized: user.emailNormalized,
+        })
+        .session(session)
+        .lean();
+      if (!invite) throw missing();
+      [result] = await recipientDetails(connection, session, [invite], now());
+      result = {
+        ...result,
+        accountId: String(user._id),
+        version: invite.__v || 0,
       };
     }, transactionOptions);
     return result;
@@ -291,22 +381,25 @@ export function createInvitationService({
     ).catch(() => {});
     return delivery;
   }
+  // Recipient decisions arrive by app ID (with version) or by email token.
+  function writeInput(operation, id) {
+    if (operation === 'CREATE') return invitationInput;
+    if (operation === 'DECLINE')
+      return id ? recipientDeclineInput : invitationDeclineInput;
+    if (operation === 'ACCEPT')
+      return id ? invitationChange : invitationTokenInput;
+    return invitationChange;
+  }
   async function write(operation, userId, weddingId, id, raw, key) {
-    const input = parse(
-      operation === 'CREATE'
-        ? invitationInput
-        : operation === 'ACCEPT'
-          ? invitationTokenInput
-          : invitationChange,
-      raw,
-    );
+    const recipientAction = ['ACCEPT', 'DECLINE'].includes(operation);
+    const input = parse(writeInput(operation, id), raw);
     if (!idempotencyKeySchema.safeParse(key).success)
       throw new ApiError(
         400,
         'IDEMPOTENCY_KEY_REQUIRED',
         'Please retry this invitation action.',
       );
-    if (operation !== 'ACCEPT' && (!validId(weddingId) || (id && !validId(id))))
+    if ((!recipientAction && !validId(weddingId)) || (id && !validId(id)))
       throw missing();
     const keyHash = hashInvitation(key),
       requestHash = hashInvitation(
@@ -321,7 +414,7 @@ export function createInvitationService({
     async function execute(session) {
       mail = null;
       let actor, wedding;
-      if (operation === 'ACCEPT')
+      if (recipientAction)
         actor = await account(connection, userId, session, true);
       else
         ({ user: actor, wedding } = await admin(
@@ -432,15 +525,20 @@ export function createInvitationService({
         );
         mail = invite.toObject();
         weddingName = wedding.name;
-      } else if (operation === 'ACCEPT') {
-        invite = await MemberInvitation.findOne({
-          tokenHash: hashInvitation(input.token),
-        })
+      } else if (recipientAction) {
+        invite = await MemberInvitation.findOne(
+          id
+            ? { _id: id, emailNormalized: actor.emailNormalized }
+            : {
+                tokenHash: hashInvitation(input.token),
+              },
+        )
           .select('+nonce +tokenHash')
           .session(session);
         if (!invite) throw missing();
         const state = invitationState(invite, instant);
         if (
+          !id &&
           hashInvitation(
             invitationToken(settings, invite._id, invite.nonce),
           ) !== invite.tokenHash
@@ -457,81 +555,97 @@ export function createInvitationService({
             'INVITATION_EMAIL_MISMATCH',
             'Sign in using the exact email address this invitation was sent to.',
           );
-        // Serialize account membership against wedding creation/other acceptance and issuing-Admin changes.
-        try {
-          await admin(
-            connection,
-            String(invite.invitedBy),
-            String(invite.weddingId),
-            session,
-            true,
-          );
-        } catch (failure) {
-          if ([401, 403, 404].includes(failure.status))
-            throw invalid(
-              'INVITATION_UNAVAILABLE',
-              'The inviting Admin or wedding is no longer available. Contact the wedding Admin.',
-            );
-          throw failure;
-        }
-        wedding = await Wedding.findOne({
-          _id: invite.weddingId,
-          deletedAt: null,
-        })
-          .session(session)
-          .lean();
-        if (!wedding) throw missing();
-        if (
-          await WeddingMember.exists({ userId, status: 'ACTIVE' }).session(
-            session,
-          )
-        )
+        if (id && invite.__v !== input.version)
           throw invalid(
-            'WEDDING_ALREADY_EXISTS',
-            'You already belong to a wedding. Open your existing workspace.',
+            'INVITATION_CHANGED',
+            'This invitation changed. Review the latest invitation before responding.',
           );
-        const relationship =
-          String(wedding.createdBy) === String(userId)
-            ? null
-            : invite.relationship?.trim();
-        if (relationship === '') throw missing();
-        if (String(wedding.createdBy) !== String(userId) && !relationship)
-          throw missing();
-        const previous = await WeddingMember.findOne({
-          weddingId: invite.weddingId,
-          userId,
-        }).session(session);
-        if (previous) {
-          previous.set({
-            role: invite.role,
-            relationship,
-            financeAccess: false,
-            status: 'ACTIVE',
-            joinedAt: instant,
-            createdBy: invite.invitedBy,
+        // Declining only clears the recipient's inbox, so it must stay possible after the issuer or wedding is gone.
+        if (operation !== 'DECLINE') {
+          // Serialize account membership against wedding creation/other acceptance and issuing-Admin changes.
+          try {
+            await admin(
+              connection,
+              String(invite.invitedBy),
+              String(invite.weddingId),
+              session,
+              true,
+            );
+          } catch (failure) {
+            if ([401, 403, 404].includes(failure.status))
+              throw invalid(
+                'INVITATION_UNAVAILABLE',
+                'The inviting Admin or wedding is no longer available. Contact the wedding Admin.',
+              );
+            throw failure;
+          }
+          wedding = await Wedding.findOne({
+            _id: invite.weddingId,
+            deletedAt: null,
+          })
+            .session(session)
+            .lean();
+          if (!wedding) throw missing();
+        }
+        if (operation === 'DECLINE') {
+          invite.set({
+            status: 'DECLINED',
+            declinedAt: instant,
+            declinedBy: userId,
           });
-          await previous.save({ session });
-        } else
-          await WeddingMember.create(
-            [
-              {
-                weddingId: invite.weddingId,
-                userId,
-                role: invite.role,
-                relationship,
-                financeAccess: false,
-                status: 'ACTIVE',
-                joinedAt: instant,
-                createdBy: invite.invitedBy,
-              },
-            ],
-            { session },
-          );
-        invite.set({
-          status: 'ACCEPTED',
-          acceptedAt: instant,
-          acceptedBy: userId,
-        });
+        } else {
+          if (
+            await WeddingMember.exists({ userId, status: 'ACTIVE' }).session(
+              session,
+            )
+          )
+            throw invalid(
+              'WEDDING_ALREADY_EXISTS',
+              'You already belong to a wedding. Open your existing workspace.',
+            );
+          const relationship =
+            String(wedding.createdBy) === String(userId)
+              ? null
+              : invite.relationship?.trim();
+          if (relationship === '') throw missing();
+          if (String(wedding.createdBy) !== String(userId) && !relationship)
+            throw missing();
+          const previous = await WeddingMember.findOne({
+            weddingId: invite.weddingId,
+            userId,
+          }).session(session);
+          if (previous) {
+            previous.set({
+              role: invite.role,
+              relationship,
+              financeAccess: false,
+              status: 'ACTIVE',
+              joinedAt: instant,
+              createdBy: invite.invitedBy,
+            });
+            await previous.save({ session });
+          } else
+            await WeddingMember.create(
+              [
+                {
+                  weddingId: invite.weddingId,
+                  userId,
+                  role: invite.role,
+                  relationship,
+                  financeAccess: false,
+                  status: 'ACTIVE',
+                  joinedAt: instant,
+                  createdBy: invite.invitedBy,
+                },
+              ],
+              { session },
+            );
+          invite.set({
+            status: 'ACCEPTED',
+            acceptedAt: instant,
+            acceptedBy: userId,
+          });
+        }
         await invite.save({ session });
       } else {
         invite = await MemberInvitation.findOne({ _id: id, weddingId })
@@ -549,6 +663,24 @@ export function createInvitationService({
             'This invitation is no longer pending. Refresh the list.',
           );
         if (operation === 'RESEND') {
+          const recipient = await User.findOne({
+            emailNormalized: invite.emailNormalized,
+          })
+            .select('_id')
+            .session(session)
+            .lean();
+          if (
+            recipient &&
+            (await WeddingMember.exists({
+              weddingId,
+              userId: recipient._id,
+              status: 'ACTIVE',
+            }).session(session))
+          )
+            throw invalid(
+              'ALREADY_MEMBER',
+              'This person already belongs to your wedding.',
+            );
           const seconds = Math.ceil(
             (invite.lastSentAt.getTime() + 45000 - instant.getTime()) / 1000,
           );
@@ -605,7 +737,9 @@ export function createInvitationService({
       result =
         operation === 'ACCEPT'
           ? { accepted: true, weddingId: String(targetWedding) }
-          : { invitation: invitationRow(invite, instant) };
+          : operation === 'DECLINE'
+            ? { declined: true }
+            : { invitation: invitationRow(invite, instant) };
       await InvitationWriteRequest.findOneAndUpdate(
         { userId, keyHash },
         {
@@ -654,6 +788,17 @@ export function createInvitationService({
     };
   return {
     list: safe(list),
+    inbox: safe(inbox),
+    recipientPreview: safe(recipientPreview),
+    acceptFromInbox: safe((userId, id, raw, key) =>
+      write('ACCEPT', userId, null, id, raw, key),
+    ),
+    declineFromInbox: safe((userId, id, raw, key) =>
+      write('DECLINE', userId, null, id, raw, key),
+    ),
+    decline: safe((userId, raw, key) =>
+      write('DECLINE', userId, null, null, raw, key),
+    ),
     copyLink: safe(copyLink),
     preview: safe(preview),
     verificationContinuation: safe(verificationContinuation),

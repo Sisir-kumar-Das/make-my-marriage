@@ -18,8 +18,10 @@ export function newInvitationToken(settings, id) {
   const token = invitationToken(settings, id, nonce);
   return { nonce, tokenHash: hashInvitation(token) };
 }
-export function invitationUrl(webOrigin, token) {
+export function invitationUrl(webOrigin, token, action) {
   const url = new URL('/invite', webOrigin);
   url.hash = new URLSearchParams({ token }).toString();
+  if (['accept', 'decline'].includes(action))
+    url.hash = new URLSearchParams({ token, action }).toString();
   return url.href;
 }

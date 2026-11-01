@@ -145,11 +145,26 @@ export function invitationEmail({
     FAMILY_MEMBER: 'Family Member',
     VIEWER: 'Viewer',
   }[role];
+  const acceptUrl = invitationUrl(webOrigin, token, 'accept');
+  const declineUrl = invitationUrl(webOrigin, token, 'decline');
+  const escape = (value) =>
+    String(value).replace(
+      /[&<>"']/g,
+      (character) =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[character],
+    );
   return {
     from,
     to: [to],
     subject: 'You’re invited to a wedding workspace — Make My Marriage',
-    text: `You have been invited to ${weddingName} on Make My Marriage.\n\nRole: ${label}\nRelationship: ${relationship}\n\nOpen your invitation:\n${invitationUrl(webOrigin, token)}\n\nSign in or register using this exact email address, verify your email, then explicitly choose Accept invitation. You will join this wedding; you do not need to create another wedding. This link expires in seven days. A newer invitation link replaces the previous link. If you were not expecting this invitation, you can ignore this email.`,
+    text: `You have been invited to ${weddingName} on Make My Marriage.\n\nRole: ${label}\nRelationship: ${relationship}\n\nOpen your invitation:\n${invitationUrl(webOrigin, token)}\n\nAccept invitation:\n${acceptUrl}\n\nReject invitation:\n${declineUrl}\n\nYou can also respond inside the app from My Invitations. Sign in or register using this exact email address, verify your email, then explicitly confirm Accept or Reject. Opening a link alone makes no decision. Accepting joins this wedding; you do not need to create another wedding. This link expires in seven days. Once accepted or rejected, it cannot be used again. A newer invitation link replaces the previous link.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#242124;padding:28px;background:#fff7fb"><h1 style="color:#531d37;font-size:24px">You’re invited to ${escape(weddingName)}</h1><p>Role: <strong>${escape(label)}</strong><br>Relationship: ${escape(relationship)}</p><p>Use your verified <strong>${escape(to)}</strong> account to review and respond.</p><p><a href="${escape(acceptUrl)}" style="display:inline-block;padding:14px 20px;background:#531d37;color:white;border-radius:8px;text-decoration:none">Accept invitation</a> <a href="${escape(declineUrl)}" style="display:inline-block;padding:14px 20px;border:1px solid #531d37;color:#531d37;border-radius:8px;text-decoration:none">Reject invitation</a></p><p>You can also respond from My Invitations in the app. Opening a link makes no decision; confirm your choice on the page.</p><p>This invitation expires in seven days. Accepting or rejecting closes it on both routes.</p></div>`,
   };
 }
 

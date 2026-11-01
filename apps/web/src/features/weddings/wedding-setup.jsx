@@ -19,6 +19,7 @@ import { inter, playfair } from '@/features/home/fonts';
 import { LogoutButton } from '@/features/auth/session-provider';
 import { Field, FormError } from '@/features/auth/form-controls';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { SetupComplete, WeddingReview } from './setup-review';
 import { useCoverUpload } from './use-cover-upload';
 import { defaultFrame } from './cover-data';
@@ -126,7 +127,7 @@ export function WeddingSetup() {
         ),
       );
       if (submission.current?.body !== body)
-        submission.current = { body, key: crypto.randomUUID() };
+        submission.current = { body, key: newIdempotencyKey() };
       const result = await apiRequest('/weddings', {
         method: 'POST',
         headers: {
@@ -210,9 +211,7 @@ export function WeddingSetup() {
               </p>
               <span className={styles.invitePreview}>
                 Arrived via invitation?
-                <button type="button" disabled>
-                  Accept invite · coming soon
-                </button>
+                <Link href="/invitations">Accept Invite · My Invitations</Link>
               </span>
             </div>
             {step === 2 && (

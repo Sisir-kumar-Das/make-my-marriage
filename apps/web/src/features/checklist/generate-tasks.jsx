@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Dialog } from 'radix-ui';
 import { AlertTriangle, Check, Plus, X } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import styles from './checklist.module.css';
 
@@ -116,7 +117,7 @@ export function GenerateTasks({ template, onGenerated }) {
       return;
     if (!attempt.current)
       attempt.current = {
-        key: crypto.randomUUID(),
+        key: newIdempotencyKey(),
         body: JSON.stringify({
           templateId: template.id,
           templateVersion: template.version,

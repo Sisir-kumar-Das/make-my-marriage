@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createContext, Script } from 'node:vm';
 import { loadBindings, transform } from 'next/dist/build/swc/index.js';
 import * as invitationData from '../apps/web/src/features/invitations/invitation-data.js';
+import * as idempotencyKey from '../apps/web/src/lib/idempotency-key.js';
 
 // Exercise the actual JSX component's hooks and handlers with controlled API
 // promises. No browser, network, React test framework or application rewrite.
@@ -125,6 +126,7 @@ function probe(t) {
     '@/features/invitations/invitation-data': invitationData,
     '@/features/invitations/invitations.module.css': css,
     './member-editor.module.css': css,
+    '@/lib/idempotency-key': idempotencyKey,
     '@/lib/api-client': {
       apiRequest: (path, options) => {
         const deferred = Promise.withResolvers();

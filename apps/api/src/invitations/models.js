@@ -15,13 +15,15 @@ const invitationSchema = new Schema(
     nonce: { type: String, required: true, select: false },
     status: {
       type: String,
-      enum: ['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED'],
+      enum: ['PENDING', 'ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'],
       default: 'PENDING',
     },
     expiresAt: { type: Date, required: true },
     invitedBy: { type: Schema.Types.ObjectId, required: true },
     acceptedAt: { type: Date, default: null },
     acceptedBy: { type: Schema.Types.ObjectId, default: null },
+    declinedAt: { type: Date, default: null },
+    declinedBy: { type: Schema.Types.ObjectId, default: null },
     lastSentAt: { type: Date, required: true },
     sendCount: { type: Number, default: 1 },
     delivery: {
@@ -42,6 +44,12 @@ invitationSchema.index(
   { unique: true, partialFilterExpression: { status: 'PENDING' } },
 );
 invitationSchema.index({ weddingId: 1, createdAt: -1, _id: -1 });
+invitationSchema.index({
+  emailNormalized: 1,
+  status: 1,
+  createdAt: -1,
+  _id: -1,
+});
 const receiptSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, required: true },

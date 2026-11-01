@@ -221,6 +221,8 @@ try {
 
   for (const route of [
     'wedding-setup',
+    'invitations',
+    'invitations/000000000000000000000001',
     'dashboard',
     'events',
     'tasks',
@@ -250,7 +252,7 @@ try {
   assert.equal(unknownPage.status, 404);
   await unknownPage.arrayBuffer();
   console.info(
-    'PASS: public homepage/auth routes, planned previews, local assets, setup and all eight workspace gates and unknown-page 404.',
+    'PASS: public homepage/auth routes, planned previews, local assets, setup, recipient invitation gates, all eight workspace gates and unknown-page 404.',
   );
   console.info(
     'Browser connectivity, API-unavailable states and responsive navigation require browser verification.',

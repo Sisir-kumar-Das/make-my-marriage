@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog, AlertDialog } from 'radix-ui';
 import { Copy, Mail, RefreshCw, Send, ShieldCheck, X } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { refreshState } from '@/lib/refresh-state';
 import { useSession } from '@/features/auth/session-provider';
 import { DiscardChangesDialog } from '@/features/tasks/discard-changes-dialog';
@@ -135,7 +136,7 @@ export function MemberInvitations({
     }
     const body = JSON.stringify(draft);
     if (attempt.current?.body !== body)
-      attempt.current = { key: crypto.randomUUID(), body };
+      attempt.current = { key: newIdempotencyKey(), body };
     lock.current = true;
     setPending(true);
     setDiscard(false);
@@ -193,7 +194,7 @@ export function MemberInvitations({
         const body = JSON.stringify({ version: invite.version }),
           signature = `${operation}/${invite.id}/${body}`;
         if (rowAttempt.current?.signature !== signature)
-          rowAttempt.current = { signature, key: crypto.randomUUID() };
+          rowAttempt.current = { signature, key: newIdempotencyKey() };
         const response = await apiRequest(
           `/weddings/${wedding.id}/invitations/${invite.id}${operation === 'RESEND' ? '/resend' : ''}`,
           {
@@ -341,6 +342,37 @@ export function MemberInvitations({
                         </p>
                       )}
                       <div className={styles.cardActions}>
+                        {invite.status === 'DECLINED' && (
+                          <button
+                            className={styles.secondary}
+                            disabled={
+                              !!rowBusy || !!connectionError || refreshing
+                            }
+                            onClick={() => {
+                              attempt.current = null;
+                              setDraft({
+                                email: invite.email,
+                                role: invite.role,
+                                relationshipChoice:
+                                  relationshipChoices.includes(
+                                    invite.relationship,
+                                  )
+                                    ? invite.relationship
+                                    : 'OTHER',
+                                customRelationship:
+                                  relationshipChoices.includes(
+                                    invite.relationship,
+                                  )
+                                    ? ''
+                                    : invite.relationship,
+                              });
+                              setError('');
+                              setOpen(true);
+                            }}
+                          >
+                            Invite again · New invitation
+                          </button>
+                        )}
                         {renewable && (
                           <button
                             className={styles.secondary}

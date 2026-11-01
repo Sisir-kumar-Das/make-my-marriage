@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog } from 'radix-ui';
 import { X, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import { DiscardChangesDialog } from '@/features/tasks/discard-changes-dialog';
 import {
@@ -196,7 +197,7 @@ function ScopedMemberEditor({
     attempt.current ||= {
       scope,
       data,
-      key: crypto.randomUUID(),
+      key: newIdempotencyKey(),
       version: data.member.version,
       body: JSON.stringify({
         role: draft.role,

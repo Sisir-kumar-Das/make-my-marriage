@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog } from 'radix-ui';
 import { X, UserMinus, ShieldCheck } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { newIdempotencyKey } from '@/lib/idempotency-key';
 import { useSession } from '@/features/auth/session-provider';
 import { roleLabels } from '@/features/invitations/invitation-data';
 import { DiscardChangesDialog } from '@/features/tasks/discard-changes-dialog';
@@ -208,7 +209,7 @@ export function MemberRemoval({ memberId, onClose, onSaved, onReturnFocus }) {
       return;
     }
     attempt.current ||= {
-      key: crypto.randomUUID(),
+      key: newIdempotencyKey(),
       version: data.member.version,
       data,
       body: JSON.stringify({
