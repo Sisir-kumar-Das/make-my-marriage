@@ -3,7 +3,12 @@
 import Image from 'next/image';
 import { useId, useRef, useState } from 'react';
 import { CloudUpload, RotateCcw } from 'lucide-react';
-import { defaultFrame, draggedFrame, frameStyle } from './cover-data';
+import {
+  defaultFrame,
+  draggedFrame,
+  frameStyle,
+  movableAxes,
+} from './cover-data';
 import styles from './cover.module.css';
 
 export function CoverEditor({
@@ -21,6 +26,7 @@ export function CoverEditor({
     cover.setFrame(value);
     onFrameChange?.(value);
   }
+  const movable = movableAxes(image, cover.frame.zoom);
   function pick(event) {
     cover.choose(event.target.files?.[0]);
     event.target.value = '';
@@ -140,30 +146,40 @@ export function CoverEditor({
               ['zoom', 'Zoom', 1, 3, 0.01],
               ['x', 'Horizontal position', 0, 1, 0.01],
               ['y', 'Vertical position', 0, 1, 0.01],
-            ].map(([key, label, min, max, step]) => (
-              <label key={key}>
-                <span>
-                  {label}
-                  {key === 'zoom'
-                    ? ` · ${Math.round(cover.frame.zoom * 100)}%`
-                    : ''}
-                </span>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={cover.frame[key]}
-                  disabled={disabled}
-                  onChange={(event) =>
-                    changeFrame({
-                      ...cover.frame,
-                      [key]: Number(event.target.value),
-                    })
-                  }
-                />
-              </label>
-            ))}
+            ].map(([key, label, min, max, step]) => {
+              const stuck = key !== 'zoom' && !movable[key];
+              return (
+                <label key={key}>
+                  <span>
+                    {label}
+                    {key === 'zoom'
+                      ? ` · ${Math.round(cover.frame.zoom * 100)}%`
+                      : ''}
+                    {stuck && (
+                      <small className={styles.sliderHint}>
+                        {' '}
+                        · Zoom in to move{' '}
+                        {key === 'x' ? 'sideways' : 'up or down'}
+                      </small>
+                    )}
+                  </span>
+                  <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={cover.frame[key]}
+                    disabled={disabled || stuck}
+                    onChange={(event) =>
+                      changeFrame({
+                        ...cover.frame,
+                        [key]: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+              );
+            })}
           </div>
           <div className={styles.editorActions}>
             <button

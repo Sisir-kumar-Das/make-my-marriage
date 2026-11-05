@@ -93,8 +93,9 @@
 }
 .columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: 1.5rem;
+  align-items: start;
 }
 .settingsGrid {
   display: grid;
@@ -347,21 +348,408 @@
 }
 .progressRow {
   display: grid;
-  grid-template-columns: minmax(15rem, 1.15fr) minmax(0, 1.85fr);
+  /* Stitch: progress 5 columns, metrics 7 columns from 1024px. */
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: 1.5rem;
 }
 .dial {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 9px solid var(--secondary);
   border-radius: 100%;
   width: 7rem;
   height: 7rem;
   flex-shrink: 0;
   color: var(--primary);
   font-size: 1.5rem;
+  font-weight: 700;
+  background: conic-gradient(
+    var(--primary) var(--progress, 0%),
+    var(--secondary) 0
+  );
+}
+.dial::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 100%;
+  background: white;
+}
+.dial > span {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.dial small {
+  margin-top: 0.3rem;
+  color: var(--muted-foreground);
+  font-size: 0.6rem;
   font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.progressCount {
+  color: var(--muted-foreground);
+}
+.progressCount strong {
+  margin-right: 0.25rem;
+  color: var(--primary);
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 500;
+}
+.schedule {
+  border-radius: 1rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.neutral {
+  background: var(--secondary);
+  color: #514348;
+}
+.good {
+  background: #dcefe0;
+  color: #1d4f2b;
+}
+.warning {
+  background: #f9dfb0;
+  color: #261a00;
+}
+.schedule.danger {
+  background: #ffdad6;
+  color: #93000a;
+}
+.countPill {
+  border-radius: 1rem;
+  padding: 0.25rem 0.6rem;
+  background: #ffd5dd;
+  color: #7a5a61;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.taskItem {
+  display: block;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: #f9f2f6;
+}
+.taskItem:hover,
+.taskItem:focus-visible {
+  background: #f3ecf0;
+}
+.taskTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.taskTitle strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.priority {
+  border-radius: 1rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--secondary);
+  color: #514348;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.priorityHigh {
+  background: #ffdad6;
+  color: #93000a;
+}
+.taskMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin-top: 0.35rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+.taskMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.oneLine {
+  display: block;
+  margin-top: 0.25rem;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ceremonyList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.ceremonyItem {
+  display: block;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: #f9f2f6;
+}
+.ceremonyItem:hover,
+.ceremonyItem:focus-visible {
+  background: #f3ecf0;
+}
+.ceremonyTop {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ceremonyName {
+  display: block;
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.ceremonyMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+  color: #514348;
+  font-size: 0.75rem;
+}
+.ceremonyMeta span {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+/* Time and days stay together on the first line; the venue follows and shortens with "…". */
+.ceremonyMeta .venueText {
+  max-width: 100%;
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+}
+.ceremonyMeta .venueText > span {
+  display: block;
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ceremonyMeta svg {
+  color: var(--primary);
+}
+.dateTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.dateTile strong {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.125rem;
+}
+.daysLeft {
+  color: var(--primary);
+  font-weight: 600;
+}
+.viewAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.viewAll:hover {
+  text-decoration: underline;
+}
+.pastLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  margin-top: 1rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #f3ecf0;
+  color: #514348;
+  font-size: 0.75rem;
+}
+.pastLine > span:first-child {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.375rem;
+  font-weight: 500;
+}
+.pastLine > span:last-child {
+  flex-shrink: 0;
+  max-width: 45%;
+  font-weight: 600;
+  text-align: right;
+}
+.pastLine svg {
+  flex-shrink: 0;
+}
+.pastLine svg {
+  color: #3d2e0d;
+}
+.attentionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+.attentionHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.attentionHeading p {
+  color: #514348;
+  font-size: 0.75rem;
+}
+.alertTile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 100%;
+  background: #ffd5dd;
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+.attentionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.attentionGrid > li {
+  min-width: 0;
+}
+.attentionItem {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: #f9f2f6;
+}
+.attentionItem h3 {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.attentionTop {
+  /* Tag left, status right on one row; on a narrow card the status moves below. Never overlaps. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.attentionStatus {
+  color: #75565d;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.statusStrong {
+  color: #3d2e0d;
+  font-weight: 600;
+}
+.upper {
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.attentionFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+  color: #514348;
+  font-size: 0.75rem;
+}
+.attentionFooter > span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.25rem;
+  overflow-wrap: anywhere;
+}
+.attentionFooter a {
+  flex-shrink: 0;
+  color: var(--primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.attentionFooter a:hover {
+  text-decoration: underline;
+}
+@media (max-width: 1023px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .attentionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .attentionGrid {
+    grid-template-columns: 1fr;
+  }
+}
+.tagWarning {
+  background: #f9dfb0;
+  color: #261a00;
+}
+.tagSoft {
+  background: #ffd5dd;
+  color: #7a5a61;
 }
 .progressBody {
   display: flex;
@@ -375,9 +763,16 @@
 }
 .progressTrack {
   height: 0.4rem;
+  overflow: hidden;
   border-radius: 1rem;
   background: var(--secondary);
   margin-top: 1.25rem;
+}
+.progressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: 1rem;
+  background: var(--primary);
 }
 .sectionHeader {
   display: flex;
@@ -393,10 +788,14 @@
 .danger {
   color: #ba1a1a;
 }
-@media (max-width: 1199px) {
+/* Owner decision (3 Nov): with the sidebar, 5/7 is too narrow below 1280px, so the
+   progress card sits above the four metric tiles there. */
+@media (max-width: 1279px) {
   .progressRow {
     grid-template-columns: 1fr;
   }
+}
+@media (max-width: 1199px) {
   .hero {
     grid-template-columns: minmax(0, 1fr) minmax(16rem, 1fr);
   }
@@ -411,9 +810,6 @@
   .columns,
   .settingsGrid {
     grid-template-columns: 1fr;
-  }
-  .metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .card,
   .heroText {
@@ -445,4 +841,128 @@
   .stack * {
     scroll-behavior: auto;
   }
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.tertiary {
+  color: #3d2e0d;
+}
+.primaryText {
+  color: var(--primary);
+}
+.metric .overdueLine {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin: 1rem 0 0;
+}
+.metric .overdueLine strong {
+  display: inline;
+  margin: 0;
+}
+.metric .overdueLine + p {
+  color: var(--foreground);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.taskItem .priority {
+  display: inline-block;
+  margin-top: 0.3rem;
+}
+.taskName {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.dueStrong {
+  color: var(--primary);
+  font-weight: 500;
+}
+.tile0 {
+  background: var(--primary);
+  color: white;
+}
+.tile1 {
+  background: #3d2e0d;
+  color: white;
+}
+.tile2 {
+  background: #6e334e;
+  color: #ec9ebe;
+}
+.countdownLabel {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.actionsTitle {
+  font-size: 1rem !important;
+}
+
+/* Like Stitch, a long tag wraps inside itself so the status stays on the right. */
+.attentionTop .priority {
+  justify-self: start;
+  max-width: 100%;
+  white-space: normal;
+}
+.attentionStatus {
+  margin-left: auto;
+  text-align: right;
+}
+
+/* Stitch: metrics show 2 columns below 640px and 4 from 640px. */
+@media (max-width: 639px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Metric notes keep their Stitch colour (red attention, brown resolved). */
+.metric small.danger {
+  color: #ba1a1a;
+}
+.metric small.tertiary {
+  color: #3d2e0d;
+}
+.ceremonyMeta svg {
+  flex-shrink: 0;
+}
+
+/* Slim in-page note when a background refresh fails; the last numbers stay visible. */
+.refreshNote {
+  align-items: center;
+  background: #fff4dc;
+  color: #4d3a12;
+}
+.noteAction {
+  margin-left: auto;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+/* Phones: a 44px tap area; negative margins keep the banner as slim as before. */
+@media (max-width: 639px) {
+  .noteAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.5rem;
+    margin-block: -0.75rem;
+    margin-right: -0.5rem;
+  }
+}
+.noteAction:disabled {
+  cursor: default;
+  opacity: 0.6;
+  text-decoration: none;
 }

@@ -48,6 +48,7 @@ After a successful build, `npm run start:web` starts the production web server l
 - `apps/api`: Node.js/Express, ES modules, REST under `/api/v1`.
 - `docs`: approved project documents, [project status and handoff](docs/PROJECT_STATUS.md), [development guide](docs/DEVELOPMENT.md) and [architecture decisions](docs/decisions/ADR-011-npm-workspace-monorepo.md).
 - `AGENTS.md`: project instructions and application boundaries.
+- `CLAUDE.md`: Claude Code entry point to the shared instructions; [agent handoff](docs/AGENT_HANDOFF.md) maps Codex/Claude ownership, current increments and next checks.
 
 There is one root npm lockfile. Express owns business logic and MongoDB access; web code communicates through its central REST client.
 

@@ -1,13 +1,5 @@
 import Link from 'next/link';
-import {
-  Clock3,
-  Sparkles,
-  Search,
-  ListTodo,
-  CircleCheck,
-  Clock,
-  TriangleAlert,
-} from 'lucide-react';
+import { Clock3, Sparkles, Search } from 'lucide-react';
 import styles from './workspace-ui.module.css';
 export function ComingSoon() {
   return (
@@ -48,34 +40,6 @@ export function PageHeader({ eyebrow, title, description, children }) {
         <p className={styles.description}>{description}</p>
       </div>
       <div className={styles.actions}>{children}</div>
-    </div>
-  );
-}
-export function MetricPanels() {
-  return (
-    <div className={styles.metrics}>
-      {[
-        [ListTodo, 'Total Tasks'],
-        [CircleCheck, 'Completed'],
-        [Clock, 'In Progress'],
-        [TriangleAlert, 'Overdue'],
-      ].map(([Icon, label], i) => (
-        <div className={styles.metric} key={label}>
-          <span
-            className={styles.iconTile}
-            style={{
-              background: ['#f3ecf0', '#f9dfb0', '#ffd5dd', '#ffdad6'][i],
-            }}
-          >
-            <Icon size={18} />
-          </span>
-          <div>
-            <strong aria-label={`${label}: coming soon`}>—</strong>
-            <p>{label}</p>
-            <small>Planning tools coming soon</small>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

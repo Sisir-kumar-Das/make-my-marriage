@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { DropdownMenu } from 'radix-ui';
 import {
@@ -28,9 +28,14 @@ import { Brand } from '@/features/home/brand';
 import { inter, playfair } from '@/features/home/fonts';
 import { weddingDate } from '@/features/weddings/form-data';
 import { useSession } from '@/features/auth/session-provider';
+import { apiRequest } from '@/lib/api-client';
+import {
+  badgeAfterFailure,
+  noAccessStatuses,
+} from '@/features/dashboard/dashboard-data';
 import styles from './workspace.module.css';
 
-function Navigation({ pathname, mobile = false }) {
+function Navigation({ pathname, mobile = false, memberCount }) {
   return (
     <nav
       aria-label={mobile ? 'Mobile navigation' : 'Main navigation'}
@@ -52,6 +57,9 @@ function Navigation({ pathname, mobile = false }) {
             >
               <Icon size={20} aria-hidden="true" />
               {label}
+              {href === '/members' && memberCount > 0 && (
+                <span className={styles.navCount}>{memberCount} Active</span>
+              )}
             </Link>
           );
           return mobile ? (
@@ -64,6 +72,74 @@ function Navigation({ pathname, mobile = false }) {
         })}
     </nav>
   );
+}
+// Stitch shows the current active member count beside Members. Express counts only current
+// eligible members. The count belongs to one account + wedding scope and is hidden until it
+// loads, after a scope change or if the request fails.
+export function useMemberCount(userId, weddingId) {
+  const scope = `${userId}:${weddingId}`;
+  const [result, setResult] = useState(null);
+  const [revision, setRevision] = useState(0);
+  const started = useRef(0);
+  // The scope that already used its one quick retry since the last good count.
+  const retried = useRef(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    let retryTimer;
+    started.current = Date.now();
+    // Same 15-second limit as the dashboard summary, so a slow network still gets a count.
+    void apiRequest(`/weddings/${weddingId}/members/count`, {
+      signal: controller.signal,
+      timeoutMs: 15000,
+    })
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        retried.current = null;
+        setResult({ scope, count: response.data.counts.ALL });
+      })
+      .catch((failure) => {
+        if (controller.signal.aborted) return;
+        setResult((previous) => badgeAfterFailure(previous, scope, failure));
+        // One quick retry after a hiccup; later recounts follow focus/membership changes.
+        if (
+          retried.current !== scope &&
+          !noAccessStatuses.includes(failure?.status)
+        ) {
+          retried.current = scope;
+          retryTimer = window.setTimeout(
+            () => setRevision((value) => value + 1),
+            5000,
+          );
+        }
+      });
+    return () => {
+      controller.abort();
+      window.clearTimeout(retryTimer);
+    };
+  }, [weddingId, scope, revision]);
+  useEffect(() => {
+    const recount = () => setRevision((value) => value + 1);
+    // Returning to the tab picks up changes made elsewhere, at most every 30 seconds from the
+    // last request start, so a slow request in flight is not restarted.
+    const onFocus = () => {
+      if (Date.now() - started.current >= 30000) recount();
+    };
+    window.addEventListener('focus', onFocus);
+    const channel =
+      typeof BroadcastChannel !== 'undefined'
+        ? new BroadcastChannel('mmm-session')
+        : null;
+    // Recount after membership changes; logout is handled by the session provider.
+    if (channel)
+      channel.onmessage = (event) => {
+        if (event.data === 'membership-changed') recount();
+      };
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      channel?.close();
+    };
+  }, []);
+  return result?.scope === scope ? result.count : null;
 }
 function WeddingCard({ wedding }) {
   return (
@@ -91,6 +167,7 @@ export function AppShell({ children }) {
   const { user, wedding, membership, logout, pending } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const memberCount = useMemberCount(user.id, wedding.id);
   const role =
     membership.role === 'ADMIN'
       ? 'Admin'
@@ -104,7 +181,7 @@ export function AppShell({ children }) {
         <WeddingCard wedding={wedding} />
         <div className={styles.navArea}>
           <p className={styles.navLabel}>Workspace</p>
-          <Navigation pathname={pathname} />
+          <Navigation pathname={pathname} memberCount={memberCount} />
         </div>
         <Link href="/profile" className={styles.userCard}>
           <span className={styles.avatar}>
@@ -145,7 +222,11 @@ export function AppShell({ children }) {
                   <BrandRow />
                   <WeddingCard wedding={wedding} />
                   <div className="px-4">
-                    <Navigation pathname={pathname} mobile />
+                    <Navigation
+                      pathname={pathname}
+                      memberCount={memberCount}
+                      mobile
+                    />
                   </div>
                 </SheetContent>
               </Sheet>

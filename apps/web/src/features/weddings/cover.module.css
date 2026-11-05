@@ -72,6 +72,7 @@
 .frame {
   position: relative;
   width: 100%;
+  /* ADR-044 (owner, 3 Nov): wide 2:1 cover frame for setup, review and editing. */
   aspect-ratio: 2 / 1;
   overflow: hidden;
   background: #f3ecf0;
@@ -196,27 +197,265 @@
 
 .presentation {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(16rem, 1fr);
+  /* ADR-044: details beside a wide cover photo that fills the banner height. */
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   align-items: center;
 }
 .coverPane {
   min-width: 0;
 }
 .presentation .coverPane {
-  padding: 0.75rem;
+  position: relative;
+  width: 100%;
+  align-self: stretch;
+  /* At least the 2:1 editor shape; taller only when the details column is taller. */
+  aspect-ratio: 2 / 1;
 }
 .presentation .frame {
-  border-radius: 0.35rem;
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  border-radius: 0;
 }
-@media (max-width: 767px) {
+/* The editor preview looks like a cover: wide, about half the space on large screens. */
+.editor .frame {
+  width: min(100%, max(50%, 32rem));
+  margin-inline: auto;
+}
+.sliderHint {
+  color: #837378;
+  font-size: 0.7rem;
+}
+@media (max-width: 1023px) {
   .presentation {
     grid-template-columns: 1fr;
   }
+  /* Stitch stacks the cover below the wedding details on tablet and mobile. */
   .presentation .coverPane {
-    grid-row: 1;
-    padding: 0;
+    grid-row: 2;
   }
-  .presentation .frame {
-    border-radius: 0;
+}
+
+/* Owner decision, 4 Nov (not in Stitch): profile-photo style cover menu on the dashboard. */
+.coverHit {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color 150ms ease;
+}
+.coverIcon {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: #fffffff2;
+  color: var(--primary);
+  box-shadow: 0 1px 3px #0000002e;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+/* Only devices with a real hover dim the photo; on touch screens a tap would leave it stuck. */
+@media (hover: hover) {
+  .frame:hover .coverHit {
+    background: #00000024;
   }
+  .frame:hover .coverIcon {
+    opacity: 1;
+  }
+}
+/* Any focus (also the scripted focus after Save/Remove) shows the icon, so focus is never on
+   an invisible control. */
+.coverIcon:focus,
+.coverIcon[data-state='open'] {
+  opacity: 1;
+}
+.coverIcon:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+/* Touch screens have no hover, so the corner icon always shows. */
+@media (hover: none) {
+  .coverIcon {
+    opacity: 1;
+  }
+}
+.coverMenu {
+  z-index: 60;
+  min-width: 11rem;
+  padding: 0.35rem;
+  border: 1px solid #e7dde1;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 8px 24px #1d1b1e24;
+}
+.coverMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: #1d1b1e;
+  cursor: pointer;
+  outline: none;
+}
+.coverMenuItem[data-highlighted] {
+  background: #f3ecf0;
+  color: var(--primary);
+}
+.viewerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: #000000d9;
+}
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 71;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1rem 1rem;
+  outline: none;
+}
+.viewerImage {
+  position: relative;
+  width: min(100%, 72rem);
+  height: min(100%, 85dvh);
+}
+.viewerPhoto {
+  object-fit: contain;
+}
+.viewerClose {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: #ffffffe6;
+  color: #1d1b1e;
+}
+.coverMenuItem[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+/* The editor heading clears the sticky header when scrolled into view after Change cover. */
+.manage h2 {
+  scroll-margin-top: 5.5rem;
+}
+.manage h2:focus {
+  outline: none;
+}
+/* Keyboard users see where focus landed after Change cover. */
+.manage h2:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 0.25rem;
+}
+
+/* Stitch toast (Members page): fixed bottom-right, surface-container-highest card, plum check. */
+.toast {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 28rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #e8e0e4;
+  color: #1d1b1e;
+  box-shadow:
+    0 20px 25px -5px #0000001a,
+    0 8px 10px -6px #0000001a;
+  animation: toastIn 300ms ease-out;
+  /* It never blocks clicks on what is underneath during its 2 seconds. */
+  pointer-events: none;
+}
+.toastIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+}
+.toastText {
+  display: flex;
+  flex-direction: column;
+}
+.toastText strong {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.toastText span {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #514348;
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Owner, 4 Nov: on phones the toast sits bottom-centre with 16px side margins. */
+@media (max-width: 639px) {
+  .toast {
+    right: 1rem;
+    left: 1rem;
+    bottom: 1rem;
+    max-width: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+/* Full-photo viewer: loading and "couldn't load" states on the dark background. */
+.viewerMessage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #fff;
+  font-size: 0.95rem;
+  text-align: center;
+  /* A solid dark panel, so the page behind never shows through the message. */
+  background: #1d1b1e;
+  border-radius: 0.75rem;
+}
+.viewerRetry {
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primary);
+  font-weight: 600;
 }

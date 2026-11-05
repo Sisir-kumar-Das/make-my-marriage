@@ -225,7 +225,7 @@ Checks: `npm test` includes deterministic storage/decoding/framing/transport/ret
 
 Follow [ADR-021](decisions/ADR-021-stitch-page-alignment.md) for each route's corrected reference. The ignored local Stitch HTML is the visual source; its PNGs may be stale. Discuss intentional visual departures with the owner before implementing them. Use real authorized account/wedding details and disabled, clearly labelled Coming soon previews for unbuilt business features. Never copy simulated permissions, sample task counts or gallery-only security claims into live behavior.
 
-Check the shared shell and every affected route on desktop and 320/390 px mobile widths. Keep profile/recovery reachable through account/settings navigation, both layout and page-level guards intact, and the existing cover preview/framing consistent. The optional dashboard connection check is under Connection status. Visual-test fixtures must use a separate local origin and synthetic data; do not overwrite the owner's wedding or send real email to test layout.
+Check the shared shell and every affected route on desktop and 320/390 px mobile widths. Keep profile/recovery reachable through account/settings navigation, both layout and page-level guards intact, and the existing cover preview/framing consistent. The dashboard no longer shows a Connection status panel (owner decision, 2 November 2026); `npm run smoke` checks API health. Visual-test fixtures must use a separate local origin and synthetic data; do not overwrite the owner's wedding or send real email to test layout.
 
 ## Events Step 1
 

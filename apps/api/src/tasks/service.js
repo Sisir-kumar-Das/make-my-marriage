@@ -6,6 +6,7 @@ import { weddingModels } from '../weddings/models.js';
 import { eventModels } from '../events/models.js';
 import { taskModels } from './models.js';
 import { taskQueryFilter } from './query.js';
+import { scheduleStatus } from './summary.js';
 import { createRecurrenceService } from './recurrence-service.js';
 import { createTaskLifecycle } from './lifecycle-service.js';
 import { createChecklistGeneration } from '../checklist/generation-service.js';
@@ -22,6 +23,15 @@ import {
 } from './validation.js';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
+// Dashboard previews show one short line of saved notes; the full text stays on the record.
+const firstLine = (text = '') => {
+  const line =
+    text
+      .split('\n')
+      .find((part) => part.trim())
+      ?.trim() || '';
+  return line.length > 140 ? line.slice(0, 139).trimEnd() + '…' : line;
+};
 const validId = (value) =>
   typeof value === 'string' && /^[a-f\d]{24}$/.test(value);
 const absent = () =>
@@ -709,6 +719,232 @@ export function createTaskService({ database, now = () => new Date() }) {
     );
     return result;
   }
+  // Dashboard progress for every current member: real counts from the same task scope as the
+  // list (deleted and recurrence-retired copies excluded) plus the caller's nearest open tasks.
+  async function summary(userId, weddingId) {
+    if (!validId(weddingId))
+      throw new ApiError(
+        404,
+        'WEDDING_NOT_FOUND',
+        'This wedding is not available.',
+      );
+    const connection = await database.connect(),
+      { Task } = taskModels(connection);
+    let result;
+    await connection.transaction(
+      async (transaction) => {
+        await authorize(connection, transaction, userId, weddingId);
+        const instant = now();
+        const scope = taskQueryFilter({}, weddingId, userId, false, instant);
+        const open = { status: { $ne: 'COMPLETED' } };
+        const count = (term) => ({ $sum: { $cond: [term, 1, 0] } });
+        const [grouped = {}] = await Task.aggregate([
+          { $match: scope },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              todo: count({ $eq: ['$status', 'TODO'] }),
+              inProgress: count({ $eq: ['$status', 'IN_PROGRESS'] }),
+              completed: count({ $eq: ['$status', 'COMPLETED'] }),
+              overdue: count({
+                $and: [
+                  { $ne: ['$status', 'COMPLETED'] },
+                  { $ne: ['$dueAt', null] },
+                  { $lt: ['$dueAt', instant] },
+                ],
+              }),
+              dated: count({ $ne: ['$dueAt', null] }),
+            },
+          },
+        ]).session(transaction);
+        const {
+          total = 0,
+          todo = 0,
+          inProgress = 0,
+          completed = 0,
+          overdue = 0,
+          dated = 0,
+        } = grouped;
+        const mine = {
+          $and: [taskQueryFilter({}, weddingId, userId, true, instant), open],
+        };
+        const myOpen = await Task.countDocuments(mine).session(transaction);
+        // Nearest deadline first; tasks without a deadline follow, oldest first.
+        const rows = await Task.aggregate([
+          { $match: mine },
+          {
+            $addFields: {
+              noDeadline: { $eq: [{ $ifNull: ['$dueAt', null] }, null] },
+            },
+          },
+          { $sort: { noDeadline: 1, dueAt: 1, createdAt: 1, _id: 1 } },
+          { $limit: 4 },
+          { $project: { noDeadline: 0 } },
+        ]).session(transaction);
+        const { Event } = eventModels(connection);
+        const ceremonies = await Event.countDocuments({
+          weddingId,
+          deletedAt: null,
+        }).session(transaction);
+        // Step 2: upcoming Planned/Confirmed ceremonies (ongoing ones included) and the
+        // latest finished one. Only saved, user-entered venue fields are returned (ADR-028).
+        const active = {
+          weddingId,
+          deletedAt: null,
+          status: { $in: ['PLANNED', 'CONFIRMED'] },
+          endAt: { $gte: instant },
+        };
+        const ceremony = (row) => ({
+          id: String(row._id),
+          name: row.name,
+          type: row.type,
+          description: firstLine(row.description),
+          status: row.status,
+          startAt: row.startAt.toISOString(),
+          endAt: row.endAt.toISOString(),
+          venue: row.venue
+            ? {
+                name: row.venue.name || '',
+                city: row.venue.city || '',
+                onMap: row.venue.source === 'GOOGLE',
+              }
+            : null,
+        });
+        const upcoming = await Event.find(active)
+          .sort({ startAt: 1, _id: 1 })
+          .limit(3)
+          .session(transaction)
+          .lean();
+        // Past milestone: the latest ceremony marked Completed (owner decision, 3 Nov).
+        const [past] = await Event.find({
+          weddingId,
+          deletedAt: null,
+          status: 'COMPLETED',
+          endAt: { $lt: instant },
+        })
+          .sort({ endAt: -1, _id: -1 })
+          .limit(1)
+          .session(transaction)
+          .lean();
+        // Attention, most serious first: overdue, unassigned High/Urgent, ceremonies without a
+        // venue, ceremonies within seven days. Each item appears once; at most four are listed (Stitch's 4-card row).
+        const overdueScope = {
+          $and: [scope, open, { dueAt: { $ne: null, $lt: instant } }],
+        };
+        const unassignedScope = {
+          $and: [
+            scope,
+            open,
+            { priority: { $in: ['HIGH', 'URGENT'] } },
+            { assigneeIds: { $size: 0 } },
+            { $or: [{ dueAt: null }, { dueAt: { $gte: instant } }] },
+          ],
+        };
+        const noVenueScope = { ...active, venue: null };
+        const soonScope = {
+          ...active,
+          venue: { $ne: null },
+          startAt: { $lte: new Date(instant.getTime() + 7 * 86400000) },
+        };
+        const attentionCounts = {
+          overdue,
+          unassigned:
+            await Task.countDocuments(unassignedScope).session(transaction),
+          noVenue:
+            await Event.countDocuments(noVenueScope).session(transaction),
+          soon: await Event.countDocuments(soonScope).session(transaction),
+        };
+        const items = [];
+        const take = () => 4 - items.length;
+        for (const [type, filter, sort] of [
+          ['OVERDUE_TASK', overdueScope, { dueAt: 1, _id: 1 }],
+          [
+            'UNASSIGNED_TASK',
+            unassignedScope,
+            { dueAt: 1, createdAt: 1, _id: 1 },
+          ],
+        ]) {
+          if (!take()) break;
+          const found = await Task.aggregate([
+            { $match: filter },
+            {
+              $addFields: {
+                noDeadline: { $eq: [{ $ifNull: ['$dueAt', null] }, null] },
+                urgent: { $eq: ['$priority', 'URGENT'] },
+              },
+            },
+            // Urgent unassigned work first, then by nearest deadline (undated last).
+            {
+              $sort: {
+                ...(type === 'UNASSIGNED_TASK' && { urgent: -1 }),
+                noDeadline: 1,
+                ...sort,
+              },
+            },
+            { $limit: take() },
+            { $project: { noDeadline: 0, urgent: 0 } },
+          ]).session(transaction);
+          for (const task of await dtos(
+            connection,
+            transaction,
+            weddingId,
+            found,
+            instant,
+          ))
+            items.push({
+              type,
+              task: { ...task, description: firstLine(task.description) },
+            });
+        }
+        for (const [type, filter] of [
+          ['NO_VENUE', noVenueScope],
+          ['SOON', soonScope],
+        ]) {
+          if (!take()) break;
+          const found = await Event.find(filter)
+            .sort({ startAt: 1, _id: 1 })
+            .limit(take())
+            .session(transaction)
+            .lean();
+          for (const row of found) items.push({ type, event: ceremony(row) });
+        }
+        result = {
+          counts: {
+            total,
+            todo,
+            inProgress,
+            completed,
+            overdue,
+            myOpen,
+            ceremonies,
+          },
+          progress: total ? Math.round((completed / total) * 100) : 0,
+          schedule: scheduleStatus({
+            total,
+            open: todo + inProgress,
+            overdue,
+            dated,
+          }),
+          // The Family Tasks card never shows notes, so they are not sent.
+          myTasks: (
+            await dtos(connection, transaction, weddingId, rows, instant)
+          ).map((task) => ({ ...task, description: '' })),
+          ceremonies: {
+            upcoming: upcoming.map(ceremony),
+            past: past ? ceremony(past) : null,
+          },
+          attention: {
+            total: Object.values(attentionCounts).reduce((a, b) => a + b, 0),
+            counts: attentionCounts,
+            items,
+          },
+        };
+      },
+      { readConcern: { level: 'snapshot' } },
+    );
+    return result;
+  }
   const recurrence = createRecurrenceService({
     database,
     now,
@@ -727,6 +963,7 @@ export function createTaskService({ database, now = () => new Date() }) {
     close: recurrence.close,
     list,
     my: (userId, weddingId, raw) => list(userId, weddingId, raw, true),
+    summary,
     assignees,
     read,
     create: (userId, weddingId, raw, key) =>

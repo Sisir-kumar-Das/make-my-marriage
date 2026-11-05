@@ -25,6 +25,17 @@ export function createMemberRouter({ service, members, settings }) {
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
+  router.get('/count', async (req, res) => {
+    if (req.get('origin') && req.get('origin') !== settings.webOrigin)
+      throw new ApiError(
+        403,
+        'ORIGIN_NOT_ALLOWED',
+        'This request is not allowed.',
+      );
+    const identity = await service.session(cookies.input(req));
+    const data = await members.count(identity.user.id, req.params.weddingId);
+    res.json({ success: true, data });
+  });
   router.get('/', async (req, res) => {
     if (req.get('origin') && req.get('origin') !== settings.webOrigin)
       throw new ApiError(

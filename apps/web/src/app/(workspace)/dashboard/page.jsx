@@ -8,6 +8,10 @@ export default async function DashboardPage() {
   const session = await getPlanningSession();
   if (!session) return <SessionRestore embedded />;
   return (
-    <Dashboard wedding={session.wedding} membership={session.membership} />
+    <Dashboard
+      wedding={session.wedding}
+      membership={session.membership}
+      userId={session.user.id}
+    />
   );
 }

@@ -95,6 +95,20 @@
 .nav a:hover {
   background: #ede6ea;
 }
+.navCount {
+  margin-left: auto;
+  border-radius: 1rem;
+  padding: 0.125rem 0.4rem;
+  background: #ede6ea;
+  color: #514348;
+  font-size: 0.625rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.nav a[aria-current='page'] .navCount {
+  background: #ffffff26;
+  color: white;
+}
 .nav a[aria-current='page'] {
   background: #6e334e;
   color: white;

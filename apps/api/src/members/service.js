@@ -51,7 +51,8 @@ export function createMemberService({
   settings = config,
   now = () => new Date(),
 }) {
-  async function list(userId, weddingId, raw = {}) {
+  // countOnly serves the sidebar badge: same eligibility, no member rows or task counts.
+  async function list(userId, weddingId, raw = {}, { countOnly = false } = {}) {
     if (!validId(weddingId)) throw unavailable();
     const parsed = memberListQuery.safeParse(raw);
     if (!parsed.success)
@@ -130,6 +131,10 @@ export function createMemberService({
           counts[item._id] = item.count;
           counts.ALL += item.count;
         }
+        if (countOnly) {
+          result = { counts };
+          return;
+        }
         const total = counts[role || 'ALL'];
         const totalPages = Math.ceil(total / limit);
         const selectedPage = Math.min(page, Math.max(1, totalPages));
@@ -205,5 +210,10 @@ export function createMemberService({
     );
     return result;
   }
-  return { list, ...createMemberManagement({ database, settings, now }) };
+  return {
+    list,
+    count: (userId, weddingId) =>
+      list(userId, weddingId, {}, { countOnly: true }),
+    ...createMemberManagement({ database, settings, now }),
+  };
 }

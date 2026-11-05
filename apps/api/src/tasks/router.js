@@ -69,6 +69,12 @@ export function createTaskRouter({ service, tasks, settings }) {
       meta: result.meta,
     });
   });
+  router.get('/summary', async (req, res) => {
+    res.json({
+      success: true,
+      data: await tasks.summary(req.identity.user.id, req.params.weddingId),
+    });
+  });
   router.get('/assignees', async (req, res) => {
     const result = await tasks.assignees(
       req.identity.user.id,
