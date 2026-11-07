@@ -12,16 +12,19 @@ import { memberModels } from '../members/models.js';
 export function createAuthDatabase(settings) {
   let connection;
   let pending;
+  let closing;
 
   async function connect() {
-    if (!settings.mongodbUri) {
+    if (!settings.mongodbUri || closing) {
       throw new ApiError(
         503,
         'AUTH_UNAVAILABLE',
         'Registration is temporarily unavailable. Please try again later.',
       );
     }
-    if (connection?.readyState === 1) return connection;
+    // A disconnected or stale-heartbeat client still owns its pools and retries
+    // recovery. Keep it until close() releases it instead of leaking replacements.
+    if (connection) return connection;
     if (!pending) {
       pending = (async () => {
         const candidate = mongoose.createConnection(settings.mongodbUri, {
@@ -71,10 +74,19 @@ export function createAuthDatabase(settings) {
     return pending;
   }
 
-  async function close() {
-    if (pending) await pending.catch(() => {});
-    if (connection) await connection.close();
-    connection = undefined;
+  function close() {
+    // Publish the shutdown promise before invoking the driver, which can emit
+    // connection events synchronously as it begins closing the client.
+    closing ??= Promise.resolve()
+      .then(async () => {
+        if (pending) await pending.catch(() => {});
+        if (connection) await connection.close();
+        connection = undefined;
+      })
+      .finally(() => {
+        closing = undefined;
+      });
+    return closing;
   }
 
   return { connect, close };

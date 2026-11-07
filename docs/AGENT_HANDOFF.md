@@ -1,45 +1,63 @@
 # Shared Codex / Claude Code handoff
 
-Last updated: 3 November 2026 (Asia/Kolkata)  
-Updated by: Claude Code — Dashboard review fixes
+Last updated: 7 November 2026 (Asia/Kolkata)
+
+Updated by: Codex — MongoDB shutdown follow-up and verification
 
 Both Codex and Claude Code work in this repository. Use this file to see who is handling the current increment, what changed and what the next assistant should check. [PROJECT_STATUS.md](PROJECT_STATUS.md) remains the milestone, feature-order and verification record. Approved requirements and ADRs remain authoritative; this file does not grant implementation, testing, Git or deployment approval.
 
 ## Current ownership
 
-| Participant   | Current responsibility                                             | Next action                                                                                                         |
-| ------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Sisir         | Product/design decisions and acceptance                            | Review findings before approving any fixes.                                                                         |
-| Claude Code   | Dashboard Steps 1–2 and latest UI implementation                   | Preserve the current implementation for the requested review checkpoint. New changes still require owner approval.  |
-| Codex         | Coordinate the two existing agents at the owner's explicit request | Review requests sent; do not run tests or implement fixes personally. Results pending.                              |
-| Code Reviewer | Independent current-diff review                                    | Check summary correctness, authorization, retry/privacy and design contracts; report findings without code changes. |
-| Manual Tester | Independent isolated production/browser checks                     | Check functional flows and Stitch desktop/mobile alignment; preserve owner servers/data and retain tagged fixtures. |
+| Participant   | Current responsibility                                    | Next action                                                                                           |
+| ------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Sisir         | Product/design decisions and acceptance                   | Confirm Dashboard acceptance and discuss Step 3 scope and the View All layout before implementation.  |
+| Claude Code   | Implementer of Dashboard Steps 1–2 and cover improvements | Continue from the committed checkpoint after the owner approves the next increment.                   |
+| Codex         | Owner-approved connection reuse and shutdown fixes        | Restart verified after passing focused, native and independent checks.                                |
+| Code Reviewer | Independent review when requested                         | Latest recorded review outcomes are in the history below. No new review is dispatched by this update. |
+| Manual Tester | Independent testing when requested                        | Latest recorded run 19 passed. No new testing is dispatched by this update.                           |
 
 ## Feature map
 
 Keep these IDs stable so notes from either assistant refer to the same increment.
 
-| ID      | Feature / increment                                              | Current state                                                                                                                             | Evidence / main status                                                                                    |
-| ------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| INV-043 | Recipient inbox and shared Accept/Reject, including later polish | Committed in `b2bd171` on DEV, 1 November. Owner acceptance remains pending.                                                              | ADR-043; PROJECT_STATUS invitation follow-up/polish entries. Built across Codex and Claude Code sessions. |
-| DASH-01 | Live progress, task counts, schedule status and My Tasks         | Implemented by Claude Code; uncommitted. Independent review requested 2 November, including the later approved UI corrections.            | PROJECT_STATUS → Remaining V1 development, item 6, Step 1.                                                |
-| DASH-02 | Upcoming ceremonies, past milestone and Attention Required       | Implemented by Claude Code; uncommitted. Latest 2 November alignment/cover changes are included in the requested review. Results pending. | PROJECT_STATUS → Remaining V1 development, item 6, Step 2 and alignment correction.                       |
-| DASH-03 | Recent Activity and full activity view                           | Planned; no delivered implementation recorded. Discuss/confirm the next scope and missing Stitch states before building.                  | PROJECT_STATUS → Remaining V1 development, item 6, Step 3.                                                |
+| ID      | Feature / increment                                              | Current state                                                                                                                                             | Evidence / main status                                                                                    |
+| ------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| INV-043 | Recipient inbox and shared Accept/Reject, including later polish | Committed in `b2bd171` on DEV, 1 November. Owner acceptance remains pending.                                                                              | ADR-043; PROJECT_STATUS invitation follow-up/polish entries. Built across Codex and Claude Code sessions. |
+| DASH-01 | Live progress, task counts, schedule status and Family Tasks     | Implemented by Claude Code and committed/pushed as `f3c0dbb` on DEV, 5 November. Review corrections are recorded below. Owner acceptance remains pending. | PROJECT_STATUS → Remaining V1 development, item 6, Step 1 and subsequent corrections.                     |
+| DASH-02 | Upcoming ceremonies, past milestone and Attention Required       | Implemented by Claude Code and committed/pushed as `f3c0dbb`, including cover controls/viewer and review fixes. Owner acceptance remains pending.         | PROJECT_STATUS → Remaining V1 development, item 6, Step 2 and subsequent corrections; ADR-044.            |
+| DASH-03 | Recent Activity and full activity view                           | Planned. Owner supplied an activity design on 6 November; imported privately as a draft. Shell/copy/card decisions remain pending before implementation.  | PROJECT_STATUS → Current checkpoint and Remaining V1 development, item 6, Step 3.                         |
 
-Current Git baseline: `DEV`, latest local commit `b2bd171`. Recheck Git at every handoff; this is not a live lock or a fresh remote synchronization check. Preserve existing uncommitted work, including untracked Dashboard source and tests.
+Current Git baseline checked by Codex on 6 November: `DEV` HEAD and the local `origin/DEV` reference both point to `f3c0dbb`. Claude Code recorded the owner-authorized push on 5 November. No remote fetch was performed for this documentation update. The current working tree has edits to this handoff and PROJECT_STATUS.md plus untracked local `.claude/` tooling. Recheck actual Git changes before continuing.
 
 ## Current implementation boundaries
 
-- Dashboard backend changes: task-summary route/service and `apps/api/src/tasks/summary.js`.
+- Committed Dashboard backend: task-summary route/service and `apps/api/src/tasks/summary.js`, plus the scoped member-count read in `apps/api/src/members/`.
 - Dashboard frontend changes: `dashboard.jsx`, `task-summary.jsx`, `dashboard-data.js`, shared workspace components/styles under `apps/web/src/features/dashboard/`.
-- Checks added by Claude Code: `scripts/dashboard.test.mjs`, `scripts/dashboard-db.test.mjs` and root npm test commands.
-- Latest owner-approved 2 November scope: Family Tasks card, Coordinator Actions, metric/schedule presentation, ceremony/attention styling, sidebar active-member badge, removal of the scaffold Connection status panel, and shared 4:3 cover/dashboard banner under ADR-044. Cover, shell and reference-document changes are part of the review.
-- Workflow/status changes: root AGENTS.md and PROJECT_STATUS.md. Local `.claude/launch.json` is tooling configuration, not a delivered application feature.
-- Verification recorded by Claude Code on 1 November: 199 native checks, 7 Dashboard database entries, lint/build/smoke and project formatting. An untracked tooling JSON formatting exception was recorded separately. Codex has read the notes and current files; it has not independently rerun those checks.
+- Checks added by Claude Code include `scripts/dashboard.test.mjs`, `dashboard-db.test.mjs`, `dashboard-routes.test.mjs`, `dashboard-provider.test.mjs` and `dashboard-cover.test.mjs`.
+- Latest delivered scope includes Family Tasks, Coordinator Actions, real metrics/ceremonies/attention, the active-member badge, refresh/error states, and cover editing/menu/full-photo viewing. The current ADR-044 revision uses a 2:1 shared cover frame and the wider dashboard photo without fade or label. Read [STITCH_DEPARTURES.md](STITCH_DEPARTURES.md) for all recorded approved visual departures.
+- Latest checks recorded by Claude Code on 5 November are 230/230 native tests, lint, formatting, build, smoke and focused browser checks. ManualTester run 19 passed and CodeReviewer results are recorded below; four subsequent polish changes were verified and mutation-checked by Claude Code. A new independent check of those final polish changes is not claimed. Physical touch and screen-reader speech remain unverified.
+- Codex's 6 November work checks Git, documentation and the existing Recent Activity placeholder only. It does not rerun application checks or change recorded owner acceptance.
+- Local `.claude/launch.json` is tooling configuration. Preserve existing local edits when preparing a future Git handoff.
 
-## Open Dashboard decisions
+## Next increment — DASH-03
 
-Historical questions from Claude Code's 1 November handoff follow. The later owner-approved 2 November corrections in PROJECT_STATUS.md and ADR-044 supersede settled points (including Family Tasks and cover framing). Review the latest approval record and actual implementation before treating any older question as still open; do not infer approval for other departures.
+Current operational checkpoint, 7 November: Codex restarted the owner-authorized API on port 4000 with the connection reuse and shutdown fixes loaded. The new process had nine established MongoDB sockets at startup, down from 164 in the previous process. API and web health checks passed. The owner shared passing independent rechecks using simulated outages. Live Atlas failover and long-running stability remain unverified. Preserve the uncommitted source, test and docs work. Continue DASH-03 using the selected refined content reference and recorded owner adjustments.
+
+Connection fix implementation, 6 November (historical): Sisir approved the reuse guard and initially reserved test timing. Codex retained the initialized owned client through transient state changes and added four network-free regressions. The later independent results for that version and the subsequent shutdown fix are recorded in PROJECT_STATUS.md and the latest handoff below. The pre-fix reproduction remains separate from validation of the fixes.
+
+Latest operational finding, 6 November — Codex reproduced a connection-ownership leak in the unchanged auth/database.js helper using an inline network-free probe. The real installed Mongoose readyState getter can return 0 for a stale heartbeat while its client remains alive; the helper creates another client and overwrites the previous reference. Twenty healthy concurrent calls used one client, but ten simulated stale/recovery cycles left eleven clients open; helper shutdown closed only the last. This is a confirmed code defect and a plausible incident mechanism, with the historical trigger/sole cause still unproven. Propose reusing the owned client during transient recovery and closing any deliberately replaced client, with focused regression checks. Owner approval for functional fixes is pending. Actual outage/cloud reproduction was not performed. Normal API was found stopped and started under the standing rule; final web/API/relay returned HTTP 200 with nine visible local MongoDB sockets and no 4100 listener. Representative database suites auto-drop test databases, so inspect and resolve retention constraints before running them. PROJECT_STATUS.md contains the detailed investigation evidence. This supersedes earlier statements that no leak path had been confirmed.
+
+Owner design decisions, 6 November (latest): the owner said to ignore the decorative live dot, use accurate real counts during implementation and adjust mobile layouts as needed. Record this as omitting the mockup-only live indicator, retaining the agreed timeline/View All composition and approved existing shell, and making responsive/touch/wrapping adjustments at 320/390px while preserving the design language. These supersede the earlier candidate-review blockers below. The refined activity export is the selected content reference. This settles design direction, not implementation completion or fresh verification. Product implementation remains pending an explicit instruction to build; the Atlas connection-lifecycle follow-up remains open. See STITCH_DEPARTURES.md entry 12.
+
+Latest design revision, 6 November — after the owner agreed to preserve the existing shell, simplify the privacy banner and keep the old Dashboard card styling with View All, they supplied `Downloads/stitch_make_my_marriage_landing_page (1)/code.html`. Codex imported HTML/PNG/DESIGN.md byte-for-byte into the ignored `make_my_marriage_wedding_activity_timeline_refined/` folder, preserving the first draft. The shell/copy and mobile page structure are improved and the accepted 20-entry page size remains. REVIEW.md records one pending design decision about the new pulsing Live update stream dot and remaining card-header differences. Sample row/group counts do not match the pagination labels and must be real data during implementation. Evidence is HTML/supplied-PNG inspection only; full browser/mobile rendering is unverified. This is the latest reference candidate, with final decisions and implementation pending.
+
+Operational follow-up first, 6 November — Codex mitigated the Atlas alert with the owner's explicit authorization. The orphaned mail-stub API on 4100 (old PID 29299, 311 MongoDB sockets) was stopped and the normal API on 4000 (old PID 20243, 407 sockets) was restarted. Replacement API PID 55682 had 9 visible MongoDB sockets; web/API/relay health returned HTTP 200 and 4100 had no listener. Test data is retained. AGENTS.md now explicitly requires Codex, Claude Code and agents to close their own test clients/processes after each run, distinguish retained fixtures from running services and avoid abandoned test APIs. Investigate connection accumulation despite `maxPoolSize: 5` before another database test batch or the next feature. Cause and Atlas-side alert recovery remain unconfirmed. This owner authorization covered process cleanup/restart and shared notes; any functional fix follows the existing discussion/approval gate.
+
+Discuss Recent Activity on Dashboard and a paginated View All activity page before implementation. The recorded scope includes task completion, event changes, member invitations/joining and role changes, with readable history after entity deletion and current wedding/role privacy checks. The owner accepted 20 entries per full-page result. The Dashboard currently shows a Coming soon activity placeholder. On 6 November the owner supplied a new export, copied intact into the ignored `stitch_make_my_marriage_landing_page_v1_final/make_my_marriage_wedding_activity_timeline/` directory with REVIEW.md. It includes desktop activity, state gallery, Dashboard card and mobile specimens. Codex inspected HTML and the supplied PNG; browser rendering remains unchecked. The core timeline fits the plan, but the draft changes shared navigation, adds technical/privacy wording and restyles the Dashboard card. Owner decisions on those differences and complete responsive verification remain pending before making it the final reference. After Dashboard/activity, the agreed sequence continues with remaining Profile/Settings and wedding recovery, then final V1 acceptance checks. Importing a reference does not approve Step 3 implementation or dispatch agents.
+
+## Historical Dashboard discussion
+
+Historical questions from Claude Code's 1 November handoff follow. The later approved corrections through 5 November in PROJECT_STATUS.md, ADR-044 and STITCH_DEPARTURES.md supersede settled points, including Family Tasks and cover framing. These questions are retained as history rather than a current approval checklist. Review the latest approval record and actual implementation before treating an older question as still open.
 
 1. Keep **Review** for all Attention links, or use Stitch's differing action labels? Current links open records rather than performing inline actions.
 2. Confirm the approaching-ceremony **Coming up** card style, which is absent from the checked Stitch reference.
@@ -47,7 +65,7 @@ Historical questions from Claude Code's 1 November handoff follow. The later own
 4. Reconfirm the accepted scope of timing/date/notes additions: **in N days**, full time ranges, India date format and one-line notes.
 5. Settle **My Tasks** versus Stitch's **Family Tasks**, the count pill, View all and absence of inline completion checkboxes.
 
-Claude Code recorded desktop 1280/mobile 390 screenshot checks after the 2 November corrections. Independent screenshot comparison is now requested, with results pending. Compare the current build against actual corrected Stitch HTML and approved exceptions at desktop/mobile/breakpoint widths; report remaining differences. Codex has not checked or changed the owner's server state during dispatch.
+The 2 November dispatch and later reviews are recorded below. Compare future increments against the corrected Stitch HTML and the latest approved departures at desktop/mobile/breakpoint widths. Retain the explicit limits of each recorded check.
 
 ## Rules for each handoff
 
@@ -74,6 +92,29 @@ Tagged test-data inventory / owned test resources, if applicable:
 ```
 
 ## Latest handoff
+
+7 November 2026 — Codex, owner-approved MongoDB shutdown follow-up. `auth/database.js` now shares the close promise and rejects new connects with the existing 503 while shutdown is pending. Deliberate reopen after successful close stays supported. Added three lifecycle cases and a Mongoose fixture maintenance note. Codex ran 7/7 focused and 237/237 native tests, lint, focused formatting and diff checks. The initial native run was blocked by sandbox loopback binds and passed on authorized rerun. The later independent shutdown recheck and owner-authorized restart are recorded in PROJECT_STATUS.md. No commit or deployment.
+
+6 November 2026 — Codex, owner-authorized account/wedding fresh-start reset. Deleted the three explicitly confirmed owner accounts and their one shared wedding from make_my_marriage_dev, with linked memberships/sessions/events/tasks/checklist generations/invitations/history. Removed seven media rows after checking storage cleanup; two existing R2 objects were removed and all 21 scoped keys verified absent. Zero targeted accounts/linked records remain and unrelated collection counts match the before snapshot. Closed the temporary database/session/storage clients. Preserve other agent fixtures. Personal account emails and file keys are omitted from tracked handoff notes. The owner can register again and create a new wedding; earlier owner wedding/session state is no longer present. Connection-fix tests and deployment remain pending their separate approvals.
+
+6 November 2026 — Codex, explicit owner implementation approval for the MongoDB client leak. Delivered the retained-client guard/comment, four pending regression cases and npm test inclusion. Updated shared ownership/status. Formatted touched source/test/package files and checked diff whitespace. Tests/lint/build/smoke/live recovery remain pending because the owner will say when to test; the running API was not restarted. No new agent dispatch or Git handoff.
+
+6 November 2026 — Codex, owner-requested connection investigation. Confirmed the stale-heartbeat client-replacement leak with the unchanged helper, real Mongoose state logic and mocked persistence; no network or database fixture was used by the probe. Recorded the proposed fix and evidence, restored the stopped normal API and checked local health/connections. Source changes and independent agent review remain pending explicit owner authorization. Documentation formatting/diff checks passed.
+
+6 November 2026 — Codex, revised activity design review/import. Saved the second supplied export in its own ignored refined reference folder, verified source-copy hashes and retained the previous draft. Main requested corrections are reflected; final live-indicator/card-header decision and responsive checks remain pending. Updated the shared checkpoint, with documentation formatting/diff checks only.
+
+6 November 2026 — Codex, owner-requested design review/import. Copied code.html and screen.png from the supplied Downloads export to the private Wedding Activity reference folder, verified both byte-for-byte and confirmed Git ignores them. Added a draft review note identifying shared-shell/copy/Dashboard-card decisions and incomplete mobile evidence. Recorded the accepted 20-entry page size. Updated the current handoff/status while preserving the original export and earlier notes. Functional code, browser validation and final design approval remain pending.
+
+6 November 2026 — Codex, owner-authorized Atlas connection mitigation. Gracefully stopped the identified 4100 test API, restarted 4000, verified 3000/4000 and same-origin health, and measured the local socket reduction from 718 to 9. Recorded the all-assistant test-process cleanup rule and pending cause investigation in AGENTS.md and PROJECT_STATUS.md. Kept test fixtures and private configuration. No application source changes or new agent dispatch. Documentation formatting and whitespace checks accompany this handoff.
+
+6 November 2026 — Codex, owner-requested documentation synchronization.
+
+- Updated current ownership, feature states, Git baseline, delivered cover rules, verification attribution and the next increment from the later entries and actual checkout.
+- `f3c0dbb` is the current DEV checkpoint. DASH-01/02 are committed; DASH-03 remains discussion-first and unimplemented. Owner acceptance stays pending.
+- Checked Git and the existing activity placeholder, then checked formatting and diff whitespace for the two documentation files. No new application verification is claimed.
+- PROJECT_STATUS.md now leads with the same checkpoint. Prior implementation/review notes and existing local work are retained.
+
+## Implementation and review history
 
 3 November 2026 — Claude Code
 
@@ -138,3 +179,4 @@ Tagged test-data inventory / owned test resources, if applicable:
   - All four were mutation-checked (the panel test first passed for the wrong reason; fixed so it now fails without the fix).
   - Claude Code ran npm test 230/230, lint, prettier, build and smoke. Browser checks with real clicks: focus on Retry; clicking the message text and the panel keeps the viewer open; a dark-area click closes it, focus returns to the icon and the page stays clickable.
   - Left as accepted notes: the harness's Radix model is an assumption (mutation checks are the stronger evidence); screen readers may read a repeated toast as the same words (a deliberate trade-off); drags and long presses in agent runs were simulated events.
+- 5 November: owner approved commit and push. Claude Code committed f3c0dbb ("feat: live dashboard planning summary, cover menu and full photo view") and pushed it to origin/DEV; the local `.claude/launch.json` stays uncommitted. Next: Dashboard Step 3 (Recent Activity + View All), discussion first. No Step 3 code yet.
