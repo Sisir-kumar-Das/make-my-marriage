@@ -142,6 +142,13 @@ export function TaskFilters({ weddingId, filters, filterKey, onApply }) {
             </label>
           ))}
           <span>Due dates · IST</span>
+          <label>
+            Sort by
+            <select name="sort" value={draft.sort} onChange={change}>
+              <option value="due">Due date · Overdue first</option>
+              <option value="newest">Newest added</option>
+            </select>
+          </label>
           <button type="submit" className={styles.secondary}>
             Apply filters
           </button>

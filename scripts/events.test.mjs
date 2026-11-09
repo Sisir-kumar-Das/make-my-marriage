@@ -17,6 +17,7 @@ import {
 } from '../apps/api/src/events/validation.js';
 import {
   eventFormSchema,
+  eventTypes,
   eventFormValidation,
   eventStatusTiming,
   eventInput,
@@ -53,6 +54,23 @@ const input = {
   startAt: '2020-02-20T23:00:00+05:30',
   endAt: '2020-02-21T02:00:00+05:30',
 };
+test('each ceremony dropdown option is valid in Express, including existing ceremonies', () => {
+  const types = eventTypes.map(([type]) => type);
+  assert.deepEqual(types.slice(0, 7), [
+    'ENGAGEMENT',
+    'HALDI',
+    'MEHENDI',
+    'SANGEET',
+    'BARAJATRI',
+    'WEDDING',
+    'RECEPTION',
+  ]);
+  assert.equal(types.length, 14);
+  assert.equal(types.at(-1), 'CUSTOM');
+  for (const type of types)
+    assert.equal(createEventSchema.parse({ ...input, type }).type, type);
+});
+
 test('events accept past and overnight timings and normalize equivalent instants; reject invalid time order and injected fields', () => {
   const parsed = createEventSchema.parse(input);
   assert.equal(parsed.name, 'Haldi');
@@ -439,6 +457,7 @@ test('literal search escapes regex syntax and India date bounds include overnigh
 test('event filter URLs round-trip search/date/status/page while preserving unrelated parameters and fragments', () => {
   const filters = {
     q: 'A & B + Hall',
+    sort: 'latest',
     status: 'PLANNED',
     from: '2028-02-20',
     to: '2028-02-21',
@@ -480,6 +499,7 @@ test('creation clears only incompatible filters and leaves compatible overnight/
   };
   const compatible = {
     q: 'a.*',
+    sort: 'upcoming',
     status: 'CONFIRMED',
     from: '2028-02-21',
     to: '2028-02-21',

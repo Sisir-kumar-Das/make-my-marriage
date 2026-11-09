@@ -6,6 +6,7 @@ export const emptyTaskFilters = {
   view: 'all',
   q: '',
   status: '',
+  sort: 'due',
   priority: '',
   assigneeId: '',
   eventId: '',
@@ -31,6 +32,7 @@ export const taskFilterSchema = z
         'Search must not contain control characters.',
       ),
     status: z.enum(['', 'TODO', 'IN_PROGRESS', 'COMPLETED']),
+    sort: z.enum(['due', 'newest']).default('due'),
     priority: z.enum(['', 'LOW', 'MEDIUM', 'HIGH', 'URGENT']),
     assigneeId: z.union([z.literal(''), z.literal('unassigned'), id]),
     eventId: z.union([z.literal(''), z.literal('none'), id]),
@@ -76,6 +78,7 @@ export function taskFilterParams(filters, api = false) {
   for (const key of keys)
     if (
       filters[key] &&
+      !(key === 'sort' && filters.sort === 'due') &&
       !(key === 'page' && Number(filters[key]) === 1) &&
       !(key === 'view' && (api || filters.view === 'all'))
     )
@@ -88,5 +91,7 @@ export function taskFilterUrl(filters, fromEvent = null) {
   return '/tasks' + (params.size ? '?' + params : '');
 }
 export function hasTaskFilters(filters) {
-  return keys.some((key) => !['view', 'page'].includes(key) && !!filters[key]);
+  return keys.some(
+    (key) => !['view', 'page', 'sort'].includes(key) && !!filters[key],
+  );
 }

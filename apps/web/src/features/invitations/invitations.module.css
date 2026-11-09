@@ -373,6 +373,9 @@
   justify-content: flex-start;
   margin-top: 1.5rem;
 }
+.acceptCard .rejectAction {
+  margin-top: 0.75rem;
+}
 .acceptBadge {
   display: inline-flex;
   align-items: center;

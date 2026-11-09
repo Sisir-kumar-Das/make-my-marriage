@@ -13,6 +13,12 @@ export const eventTypes = [
   ['BARAJATRI', 'Barajatri'],
   ['WEDDING', 'Wedding'],
   ['RECEPTION', 'Reception'],
+  ['PRE_WEDDING_PHOTOSHOOT', 'Pre-wedding Photoshoot'],
+  ['WELCOME_DINNER', 'Welcome Dinner'],
+  ['COCKTAIL_NIGHT', 'Cocktail Night'],
+  ['DIYA_MANGULA_PUJA', 'Diya Mangula Puja'],
+  ['JAI_RAGADA', 'Jai Ragada'],
+  ['ASTHAMANGALA', 'Asthamangala'],
   ['CUSTOM', 'Custom Celebration'],
 ];
 export const eventStatuses = [

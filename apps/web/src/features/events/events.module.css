@@ -56,13 +56,15 @@
   gap: 0.5rem;
   min-width: 0;
 }
-.dateFilters label {
+.dateFilters label,
+.sortControl {
   display: grid;
   gap: 0.2rem;
   font-size: 0.7rem;
   color: #514348;
 }
-.dateFilters input {
+.dateFilters input,
+.sortControl select {
   background: #f9f2f6;
   border: 1px solid #d5c1c7;
   border-radius: 0.4rem;

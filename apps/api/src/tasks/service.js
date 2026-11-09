@@ -54,6 +54,13 @@ function parse(schema, raw) {
     );
   return result.data;
 }
+export function taskActivityAction(previous, saved) {
+  if (!previous) return 'TASK_CREATED';
+  return previous.status !== 'COMPLETED' && saved.status === 'COMPLETED'
+    ? 'TASK_COMPLETED'
+    : 'TASK_UPDATED';
+}
+
 export function createTaskService({ database, now = () => new Date() }) {
   async function authorize(
     connection,
@@ -412,12 +419,42 @@ export function createTaskService({ database, now = () => new Date() }) {
         } = grouped[0] || {};
         const totalPages = Math.ceil(total / limit),
           selectedPage = Math.min(page, Math.max(1, totalPages));
-        const rows = await Task.find(filter)
-          .sort({ createdAt: -1, _id: -1 })
-          .skip((selectedPage - 1) * limit)
-          .limit(limit)
-          .session(transaction)
-          .lean();
+        const offset = (selectedPage - 1) * limit;
+        const rows =
+          query.sort === 'newest'
+            ? await Task.find(filter)
+                .sort({ createdAt: -1, _id: -1 })
+                .skip(offset)
+                .limit(limit)
+                .session(transaction)
+                .lean()
+            : await Task.aggregate([
+                { $match: filter },
+                {
+                  $set: {
+                    deadlineGroup: {
+                      $switch: {
+                        branches: [
+                          { case: { $eq: ['$status', 'COMPLETED'] }, then: 3 },
+                          {
+                            case: {
+                              $eq: [{ $ifNull: ['$dueAt', null] }, null],
+                            },
+                            then: 2,
+                          },
+                          { case: { $lt: ['$dueAt', instant] }, then: 0 },
+                        ],
+                        default: 1,
+                      },
+                    },
+                  },
+                },
+                {
+                  $sort: { deadlineGroup: 1, dueAt: 1, createdAt: -1, _id: -1 },
+                },
+                { $skip: offset },
+                { $limit: limit },
+              ]).session(transaction);
         result = {
           tasks: await dtos(connection, transaction, weddingId, rows, instant),
           meta: {
@@ -674,7 +711,8 @@ export function createTaskService({ database, now = () => new Date() }) {
               {
                 weddingId,
                 actorId: userId,
-                action: taskId ? 'TASK_UPDATED' : 'TASK_CREATED',
+                action: taskActivityAction(current, task),
+                feedHidden: false,
                 entityType: 'TASK',
                 entityId: task._id,
                 displaySnapshot: { label: task.title },

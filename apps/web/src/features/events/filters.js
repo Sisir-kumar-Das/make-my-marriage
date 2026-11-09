@@ -16,6 +16,7 @@ export const eventFilterSchema = z
         'Search must not contain control characters.',
       ),
     status: z.enum(['', 'PLANNED', 'CONFIRMED', 'COMPLETED', 'CANCELLED']),
+    sort: z.enum(['upcoming', 'earliest', 'latest']).default('upcoming'),
     from: date,
     to: date,
     page: z.coerce.number().int().min(1).max(100000),
@@ -27,6 +28,7 @@ export const eventFilterSchema = z
 export const emptyEventFilters = {
   q: '',
   status: '',
+  sort: 'upcoming',
   from: '',
   to: '',
   page: 1,
@@ -52,7 +54,11 @@ export function readEventFilters(params) {
 export function eventFilterParams(filters) {
   const params = new URLSearchParams();
   for (const key of keys) {
-    if (filters[key] && !(key === 'page' && Number(filters[key]) === 1))
+    if (
+      filters[key] &&
+      !(key === 'page' && Number(filters[key]) === 1) &&
+      !(key === 'sort' && filters.sort === 'upcoming')
+    )
       params.set(key, filters[key]);
   }
   return params;

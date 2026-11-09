@@ -215,6 +215,7 @@ export function createChecklistGeneration({ database, now, authorize }) {
               weddingId,
               actorId: userId,
               action: 'TASK_CREATED',
+              feedHidden: true,
               entityType: 'TASK',
               entityId: task._id,
               displaySnapshot: { label: task.title },

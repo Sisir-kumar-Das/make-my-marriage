@@ -17,7 +17,7 @@ import {
   budgetLabel,
 } from '@/features/weddings/form-data';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
-import { EmptyPanel } from './workspace-ui';
+import { WeddingActivity } from './wedding-activity';
 import {
   AttentionCard,
   MyTasksCard,
@@ -134,13 +134,7 @@ export function Dashboard({ wedding, membership, userId }) {
           <UpcomingCeremonies />
           <div className={styles.stack}>
             <MyTasksCard />
-            <section className={styles.card}>
-              <p className={styles.eyebrow}>Collaborators log</p>
-              <h2 className="mt-2">Recent Activity</h2>
-              <EmptyPanel icon={Users}>
-                <p>Updates from your planning team are coming soon.</p>
-              </EmptyPanel>
-            </section>
+            <WeddingActivity weddingId={wedding.id} userId={userId} compact />
           </div>
         </div>
       </TaskSummaryProvider>

@@ -793,7 +793,8 @@
   gap: 0.3rem;
   min-width: 0;
 }
-.dateFilters input {
+.dateFilters input,
+.dateFilters select {
   padding: 0.5rem;
   min-width: 0;
   background: #f9f2f6;

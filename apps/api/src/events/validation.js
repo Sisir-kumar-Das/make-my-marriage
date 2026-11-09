@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ceremonyTypes } from './models.js';
 
 const text = (max) => z.string().trim().max(max);
 const instant = z
@@ -84,16 +85,7 @@ const venue = z
 const fields = z
   .object({
     name: text(160).min(1, 'Enter an event name.'),
-    type: z.enum([
-      'ENGAGEMENT',
-      'HALDI',
-      'MEHENDI',
-      'SANGEET',
-      'BARAJATRI',
-      'WEDDING',
-      'RECEPTION',
-      'CUSTOM',
-    ]),
+    type: z.enum(ceremonyTypes),
     description: text(2000),
     startAt: instant,
     endAt: instant,
@@ -133,6 +125,7 @@ export const eventListSchema = z
       )
       .optional(),
     status: fields.shape.status.optional(),
+    sort: z.enum(['upcoming', 'earliest', 'latest']).optional(),
     from: z.iso
       .date()
       .regex(/^[1-9]\d{3}-/)

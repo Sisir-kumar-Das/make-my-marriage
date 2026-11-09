@@ -285,13 +285,16 @@ export function EventsPage({ openCreate = false }) {
     }
   }
   const events = list?.data.events || [];
-  const groups = Object.groupBy(events, (event) =>
-    eventDate(event.startAt, {
+  const groups = [];
+  for (const event of events) {
+    const label = eventDate(event.startAt, {
       day: undefined,
       month: 'long',
       year: 'numeric',
-    }),
-  );
+    });
+    if (groups.at(-1)?.label !== label) groups.push({ label, items: [] });
+    groups.at(-1).items.push(event);
+  }
   return (
     <div className={styles.page}>
       {returnEventId &&
@@ -464,8 +467,8 @@ export function EventsPage({ openCreate = false }) {
               )}
             </div>
           )}
-          {Object.entries(groups).map(([label, items]) => (
-            <section key={label} className={styles.group}>
+          {groups.map(({ label, items }) => (
+            <section key={items[0].id} className={styles.group}>
               <h2>{label}</h2>
               {items.map((event) => {
                 const day = indiaParts(event.startAt).date;

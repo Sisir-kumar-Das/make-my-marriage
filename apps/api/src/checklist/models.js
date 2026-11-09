@@ -21,6 +21,7 @@ const generationSchema = new Schema(
   { collection: 'checklistGenerations', versionKey: false },
 );
 generationSchema.index({ weddingId: 1, createdAt: -1, _id: -1 });
+generationSchema.index({ addedTaskIds: 1, weddingId: 1 });
 const requestSchema = new Schema(
   {
     weddingId: { type: Schema.Types.ObjectId, required: true },

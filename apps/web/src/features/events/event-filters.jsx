@@ -60,6 +60,14 @@ export function EventFilters({ filters, filterKey, counts, onApply }) {
           ))}
           <span className={styles.timezone}>IST</span>
         </div>
+        <label className={styles.sortControl}>
+          Sort by
+          <select name="sort" defaultValue={filters.sort}>
+            <option value="upcoming">Upcoming first</option>
+            <option value="earliest">Earliest date</option>
+            <option value="latest">Latest date</option>
+          </select>
+        </label>
         <button type="submit" className={styles.secondary}>
           Apply filters
         </button>

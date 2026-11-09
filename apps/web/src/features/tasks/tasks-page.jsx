@@ -74,6 +74,13 @@ export function TasksPage() {
     if (url !== window.location.pathname + window.location.search)
       window.history[replace ? 'replaceState' : 'pushState'](null, '', url);
   }
+  function refreshAfterMutation() {
+    setRevision((value) => value + 1);
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('mmm-session');
+    channel.postMessage({ type: 'tasks-changed', weddingId: wedding.id });
+    channel.close();
+  }
   const setPage = (value) => applyFilters({ ...filters, page: value });
   const receiveShortcut = useCallback(
     (nextEditor) => {
@@ -570,7 +577,7 @@ export function TasksPage() {
             trigger.current = createButton.current;
             setEditor(null);
             setNotice({ removed: true });
-            setRevision((value) => value + 1);
+            refreshAfterMutation();
           }}
           onSaved={(result, created) => {
             setNotice({
@@ -595,7 +602,7 @@ export function TasksPage() {
               );
               setEditor(null);
             }
-            setRevision((value) => value + 1);
+            refreshAfterMutation();
           }}
         />
       )}
@@ -606,7 +613,7 @@ export function TasksPage() {
           onClose={() => setSeriesEditor(null)}
           onSaved={(result) => {
             setSeriesEditor(null);
-            setRevision((value) => value + 1);
+            refreshAfterMutation();
             setNotice({ series: true, generatedCount: result.generatedCount });
           }}
           onReturnFocus={() =>

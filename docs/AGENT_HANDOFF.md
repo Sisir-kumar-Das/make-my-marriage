@@ -1,8 +1,8 @@
 # Shared Codex / Claude Code handoff
 
-Last updated: 7 November 2026 (Asia/Kolkata)
+Last updated: 9 November 2026 (Asia/Kolkata)
 
-Updated by: Codex — MongoDB shutdown follow-up and verification
+Updated by: Codex — Dashboard Step 3 review follow-up
 
 Both Codex and Claude Code work in this repository. Use this file to see who is handling the current increment, what changed and what the next assistant should check. [PROJECT_STATUS.md](PROJECT_STATUS.md) remains the milestone, feature-order and verification record. Approved requirements and ADRs remain authoritative; this file does not grant implementation, testing, Git or deployment approval.
 
@@ -10,9 +10,9 @@ Both Codex and Claude Code work in this repository. Use this file to see who is 
 
 | Participant   | Current responsibility                                    | Next action                                                                                           |
 | ------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Sisir         | Product/design decisions and acceptance                   | Confirm Dashboard acceptance and discuss Step 3 scope and the View All layout before implementation.  |
+| Sisir         | Product/design decisions and acceptance                   | Review the complete Dashboard, including the new Recent Activity card and View All timeline.          |
 | Claude Code   | Implementer of Dashboard Steps 1–2 and cover improvements | Continue from the committed checkpoint after the owner approves the next increment.                   |
-| Codex         | Owner-approved connection reuse and shutdown fixes        | Restart verified after passing focused, native and independent checks.                                |
+| Codex         | DASH-03 implementation and local verification             | Hand off the complete Dashboard for owner review.                                                     |
 | Code Reviewer | Independent review when requested                         | Latest recorded review outcomes are in the history below. No new review is dispatched by this update. |
 | Manual Tester | Independent testing when requested                        | Latest recorded run 19 passed. No new testing is dispatched by this update.                           |
 
@@ -25,9 +25,11 @@ Keep these IDs stable so notes from either assistant refer to the same increment
 | INV-043 | Recipient inbox and shared Accept/Reject, including later polish | Committed in `b2bd171` on DEV, 1 November. Owner acceptance remains pending.                                                                              | ADR-043; PROJECT_STATUS invitation follow-up/polish entries. Built across Codex and Claude Code sessions. |
 | DASH-01 | Live progress, task counts, schedule status and Family Tasks     | Implemented by Claude Code and committed/pushed as `f3c0dbb` on DEV, 5 November. Review corrections are recorded below. Owner acceptance remains pending. | PROJECT_STATUS → Remaining V1 development, item 6, Step 1 and subsequent corrections.                     |
 | DASH-02 | Upcoming ceremonies, past milestone and Attention Required       | Implemented by Claude Code and committed/pushed as `f3c0dbb`, including cover controls/viewer and review fixes. Owner acceptance remains pending.         | PROJECT_STATUS → Remaining V1 development, item 6, Step 2 and subsequent corrections; ADR-044.            |
-| DASH-03 | Recent Activity and full activity view                           | Planned. Owner supplied an activity design on 6 November; imported privately as a draft. Shell/copy/card decisions remain pending before implementation.  | PROJECT_STATUS → Current checkpoint and Remaining V1 development, item 6, Step 3.                         |
+| DASH-03 | Recent Activity and full activity view                           | Implemented under ADR-045/046. Sisir confirmed the final Gmail and task-count checks and authorized the DEV Git handoff.                                  | ADR-045, ADR-046 and PROJECT_STATUS                                                                       |
 
-Current Git baseline checked by Codex on 6 November: `DEV` HEAD and the local `origin/DEV` reference both point to `f3c0dbb`. Claude Code recorded the owner-authorized push on 5 November. No remote fetch was performed for this documentation update. The current working tree has edits to this handoff and PROJECT_STATUS.md plus untracked local `.claude/` tooling. Recheck actual Git changes before continuing.
+Historical Git baseline checked by Codex on 6 November: `DEV` HEAD and the local `origin/DEV` reference both point to `f3c0dbb`. Claude Code recorded the owner-authorized push on 5 November. No remote fetch was performed for this documentation update. The current working tree has edits to this handoff and PROJECT_STATUS.md plus untracked local `.claude/` tooling. Recheck actual Git changes before continuing.
+
+The Dashboard Step 3 handoff follows `2d6a073` on DEV. My Profile is the next feature discussion.
 
 ## Current implementation boundaries
 
@@ -39,7 +41,19 @@ Current Git baseline checked by Codex on 6 November: `DEV` HEAD and the local `o
 - Codex's 6 November work checks Git, documentation and the existing Recent Activity placeholder only. It does not rerun application checks or change recorded owner acceptance.
 - Local `.claude/launch.json` is tooling configuration. Preserve existing local edits when preparing a future Git handoff.
 
-## Next increment — DASH-03
+## Current increment — DASH-03
+
+9 November 2026 — Codex completed the owner-authorized reset of one invitation recipient in the development database, preserving the wedding and shared history. The recipient’s unfinished task was left unassigned. Sisir confirmed receiving a fresh invitation from the dedicated Gmail sender. Sisir also confirmed the Dashboard task-count check passed. Sisir subsequently authorized the DEV Git handoff.
+
+8 November 2026 — After Sisir updated the private Gmail sender, Codex restarted port 4000 with the latest backend and verified API health and Gmail SMTP authentication. The owner confirmed actual inbox delivery on 9 November. The owner also confirmed the Dashboard task-count check on 9 November.
+
+7 November 2026 — Sisir authorized the walkthrough follow-up. Codex implemented invitation spacing, additional ceremony types, date sorting, a Dashboard task-count refresh and matching desktop column heights under ADR-046. See PROJECT_STATUS.md for isolated browser and local MongoDB verification. The 8 November restart above loaded the updated backend for the owner walkthrough.
+
+7 November 2026 — After Sisir shared both independent reports and approved the fixes, Codex corrected activity wording and event classification, grouped recurring setup, removed the preview count, and aligned the mobile pager and link tap areas. Local replica-set verification passed with 40,007 visible entries. See ADR-045 and PROJECT_STATUS.md for tests, timings and remaining owner acceptance. The owner authorized the API restart. Codex verified health and the protected activity route directly and through the web relay. After the prior API process disappeared, Codex restored port 4000 as a detached process and verified the web relay and wedding setup. Sisir can now run the signed-in Dashboard walkthrough.
+
+7 November 2026 — Owner authorized Step 3 and Codex implemented the three-entry Recent Activity card and 20-entry Wedding Activity timeline. Follow ADR-045 and the approved refined Stitch reference. This completes the implementation scope for the Dashboard steps. The combined owner review is next. See PROJECT_STATUS.md for verification and the Atlas coverage boundary.
+
+### Earlier design and operational notes
 
 Current operational checkpoint, 7 November: Codex restarted the owner-authorized API on port 4000 with the connection reuse and shutdown fixes loaded. The new process had nine established MongoDB sockets at startup, down from 164 in the previous process. API and web health checks passed. The owner shared passing independent rechecks using simulated outages. Live Atlas failover and long-running stability remain unverified. Preserve the uncommitted source, test and docs work. Continue DASH-03 using the selected refined content reference and recorded owner adjustments.
 
@@ -110,7 +124,7 @@ Tagged test-data inventory / owned test resources, if applicable:
 6 November 2026 — Codex, owner-requested documentation synchronization.
 
 - Updated current ownership, feature states, Git baseline, delivered cover rules, verification attribution and the next increment from the later entries and actual checkout.
-- `f3c0dbb` is the current DEV checkpoint. DASH-01/02 are committed; DASH-03 remains discussion-first and unimplemented. Owner acceptance stays pending.
+- At this historical checkpoint, `f3c0dbb` contained DASH-01/02 and DASH-03 remained unimplemented. See the current increment above.
 - Checked Git and the existing activity placeholder, then checked formatting and diff whitespace for the two documentation files. No new application verification is claimed.
 - PROJECT_STATUS.md now leads with the same checkpoint. Prior implementation/review notes and existing local work are retained.
 

@@ -1,6 +1,22 @@
 import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
+export const ceremonyTypes = [
+  'ENGAGEMENT',
+  'HALDI',
+  'MEHENDI',
+  'SANGEET',
+  'BARAJATRI',
+  'WEDDING',
+  'RECEPTION',
+  'PRE_WEDDING_PHOTOSHOOT',
+  'WELCOME_DINNER',
+  'COCKTAIL_NIGHT',
+  'DIYA_MANGULA_PUJA',
+  'JAI_RAGADA',
+  'ASTHAMANGALA',
+  'CUSTOM',
+];
 const ceremonyActivitySchema = new Schema({
   name: { type: String, required: true, maxlength: 160 },
   startAt: { type: Date, required: true },
@@ -14,16 +30,7 @@ const eventSchema = new Schema(
     type: {
       type: String,
       required: true,
-      enum: [
-        'ENGAGEMENT',
-        'HALDI',
-        'MEHENDI',
-        'SANGEET',
-        'BARAJATRI',
-        'WEDDING',
-        'RECEPTION',
-        'CUSTOM',
-      ],
+      enum: ceremonyTypes,
     },
     description: { type: String, maxlength: 2000, default: '' },
     startAt: { type: Date, required: true },
@@ -87,11 +94,17 @@ const activitySchema = new Schema(
     weddingId: { type: Schema.Types.ObjectId, required: true, immutable: true },
     actorId: { type: Schema.Types.ObjectId, required: true, immutable: true },
     action: { type: String, required: true, immutable: true },
+    feedHidden: { type: Boolean, immutable: true },
     entityType: { type: String, required: true, immutable: true },
     entityId: { type: Schema.Types.ObjectId, required: true, immutable: true },
     parentEventId: { type: Schema.Types.ObjectId, immutable: true },
     displaySnapshot: {
       label: { type: String, maxlength: 160, immutable: true },
+      role: {
+        type: String,
+        enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'],
+        immutable: true,
+      },
     },
     memberChange: {
       type: new Schema(
@@ -136,7 +149,7 @@ const activitySchema = new Schema(
   },
   { collection: 'activities', versionKey: false },
 );
-activitySchema.index({ weddingId: 1, createdAt: -1 });
+activitySchema.index({ weddingId: 1, createdAt: -1, _id: -1 });
 export function eventModels(connection) {
   return {
     Event: connection.models.Event || connection.model('Event', eventSchema),

@@ -26,6 +26,8 @@ import {
   createInvitationAcceptanceRouter,
 } from './invitations/router.js';
 import { createInvitationSender } from './auth/email.js';
+import { createActivityService } from './activity/service.js';
+import { createActivityRouter } from './activity/router.js';
 
 const database = createAuthDatabase(config);
 export const weddingService = createWeddingService({ database });
@@ -52,6 +54,7 @@ export function createApp({
   tasks = taskService,
   members = memberService,
   invitations = invitationService,
+  listActivity = createActivityService({ database }),
   settings = config,
 } = {}) {
   const app = express();
@@ -87,6 +90,10 @@ export function createApp({
   app.use(
     '/api/v1/weddings/:weddingId/invitations',
     createInvitationRouter({ service, invitations, settings }),
+  );
+  app.use(
+    '/api/v1/weddings/:weddingId/activity',
+    createActivityRouter({ service, listActivity, settings }),
   );
   app.use(
     '/api/v1/checklist-templates',

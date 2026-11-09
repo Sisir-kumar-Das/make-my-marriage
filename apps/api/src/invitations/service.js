@@ -728,7 +728,10 @@ export function createInvitationService({
             action: `INVITATION_${operation}`,
             entityType: 'MEMBER_INVITATION',
             entityId: invite._id,
-            displaySnapshot: { label: 'Wedding collaborator invitation' },
+            displaySnapshot: {
+              label: 'Wedding collaborator invitation',
+              ...(operation === 'ACCEPT' ? { role: invite.role } : {}),
+            },
             createdAt: instant,
           },
         ],

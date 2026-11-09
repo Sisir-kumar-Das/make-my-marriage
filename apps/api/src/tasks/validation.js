@@ -85,6 +85,7 @@ export const taskListSchema = taskPageSchema
       )
       .optional(),
     status: fields.shape.status.optional(),
+    sort: z.enum(['due', 'newest']).optional(),
     priority: fields.shape.priority.optional(),
     assigneeId: z
       .union([z.literal('unassigned'), z.string().regex(/^[a-f\d]{24}$/)])

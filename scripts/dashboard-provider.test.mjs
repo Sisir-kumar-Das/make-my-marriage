@@ -30,7 +30,8 @@ function probe(t) {
   const cells = [],
     requests = [];
   const listeners = {},
-    intervals = [];
+    intervals = [],
+    channels = [];
   let clock = Date.parse('2027-01-10T06:00:00Z');
   let cursor = 0,
     effects = [],
@@ -112,6 +113,15 @@ function probe(t) {
         clearInterval() {},
       },
       document: { visibilityState: 'visible' },
+      BroadcastChannel: class {
+        constructor(name) {
+          assert.equal(name, 'mmm-session');
+          channels.push(this);
+        }
+        close() {
+          this.onmessage = undefined;
+        }
+      },
       AbortController,
       Date: class extends Date {
         static now() {
@@ -149,6 +159,14 @@ function probe(t) {
       render();
     },
     value: () => value,
+    taskChanged(weddingId) {
+      channels.at(-1).onmessage({ data: { type: 'tasks-changed', weddingId } });
+      render();
+    },
+    pageRestored(persisted) {
+      listeners.pageshow({ persisted });
+      render();
+    },
     // Advance the page clock, then fire a window focus or the 60-second tick.
     focus(afterMs) {
       clock += afterMs;
@@ -211,6 +229,24 @@ test('while the header session differs from the page, nothing is shown or reques
   p.set(A, B);
   assert.equal(p.value().data, undefined);
   assert.equal(p.requests.length, 1, 'no request for the old wedding');
+});
+
+test('a saved task refreshes the cached zero immediately for the same wedding', async (t) => {
+  const p = probe(t);
+  p.set(A);
+  p.requests[0].resolve(summary(0));
+  await p.flush();
+  p.focus(1000);
+  p.taskChanged(B.weddingId);
+  p.pageRestored(false);
+  assert.equal(p.requests.length, 1);
+  p.taskChanged(A.weddingId);
+  assert.equal(p.requests.length, 2);
+  p.requests[1].resolve(summary(1));
+  await p.flush();
+  assert.equal(p.value().data.counts.total, 1);
+  p.pageRestored(true);
+  assert.equal(p.requests.length, 3);
 });
 
 test('session and badge helper rules', () => {

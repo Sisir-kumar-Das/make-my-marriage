@@ -243,36 +243,61 @@ export function createEventService({ database, now = () => new Date() }) {
         const total = status ? counts[status] : counts.ALL;
         const totalPages = Math.ceil(total / limit);
         let selectedPage = Math.min(page, Math.max(1, totalPages));
+        const upcoming = !filters.sort || filters.sort === 'upcoming';
+        const sort = upcoming
+          ? { past: 1, upcomingStart: 1, pastStart: -1, _id: 1 }
+          : filters.sort === 'latest'
+            ? { startAt: -1, _id: -1 }
+            : { startAt: 1, _id: 1 };
+        const pipeline = [{ $match: filter }];
+        if (upcoming) {
+          pipeline.push(
+            { $set: { past: { $lte: ['$endAt', now()] } } },
+            {
+              $set: {
+                upcomingStart: { $cond: ['$past', null, '$startAt'] },
+                pastStart: { $cond: ['$past', '$startAt', null] },
+              },
+            },
+          );
+        }
         let located = false;
         if (locate) {
-          const target = await Event.findOne({ ...filter, _id: locate })
-            .session(transaction)
-            .lean();
-          if (target) {
-            const position = await Event.countDocuments({
-              $and: [
-                filter,
-                {
-                  $or: [
-                    { startAt: { $lt: target.startAt } },
-                    { startAt: target.startAt, _id: { $lte: target._id } },
-                  ],
+          const [target] = await Event.aggregate([
+            ...pipeline,
+            {
+              $setWindowFields: {
+                sortBy: sort,
+                output: {
+                  position: {
+                    $sum: 1,
+                    window: { documents: ['unbounded', 'current'] },
+                  },
                 },
-              ],
-            }).session(transaction);
-            selectedPage = Math.ceil(position / limit);
+              },
+            },
+            { $match: { _id: new Types.ObjectId(locate) } },
+            { $project: { position: 1 } },
+          ]).session(transaction);
+          if (target) {
+            selectedPage = Math.ceil(target.position / limit);
             located = true;
           }
         }
-        const events = await Event.find(filter)
-          .select(
-            '-activities.name -activities.description -activities.startAt -activities.endAt',
-          )
-          .sort({ startAt: 1, _id: 1 })
-          .skip((selectedPage - 1) * limit)
-          .limit(limit)
-          .session(transaction)
-          .lean();
+        const events = await Event.aggregate([
+          ...pipeline,
+          { $sort: sort },
+          { $skip: (selectedPage - 1) * limit },
+          { $limit: limit },
+          {
+            $unset: [
+              'activities.name',
+              'activities.description',
+              'activities.startAt',
+              'activities.endAt',
+            ],
+          },
+        ]).session(transaction);
         const linked = events.length
           ? await taskModels(connection)
               .Task.aggregate([

@@ -49,6 +49,7 @@ function Navigation({ pathname, mobile = false, memberCount }) {
               href={href}
               aria-current={
                 pathname === href ||
+                (href === '/dashboard' && pathname === '/activity') ||
                 (href === '/settings' &&
                   ['/profile', '/recovery'].includes(pathname))
                   ? 'page'

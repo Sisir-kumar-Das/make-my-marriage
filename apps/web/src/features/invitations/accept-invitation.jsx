@@ -678,7 +678,7 @@ function InvitationReview({ token, invitationId }) {
               <button
                 ref={rejectButton}
                 type="button"
-                className={styles.secondary}
+                className={`${styles.secondary} ${styles.rejectAction}`}
                 disabled={busy || uncertainAction === 'accept'}
                 onClick={() => setRejectOpen(true)}
               >

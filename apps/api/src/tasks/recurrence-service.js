@@ -102,6 +102,7 @@ export function createRecurrenceService({
     entityId,
     label,
     instant,
+    feedHidden = false,
   ) {
     await eventModels(connection).Activity.create(
       [
@@ -109,6 +110,7 @@ export function createRecurrenceService({
           weddingId,
           actorId: actor,
           action,
+          feedHidden,
           entityType,
           entityId,
           displaySnapshot: { label },
@@ -151,6 +153,7 @@ export function createRecurrenceService({
           weddingId: series.weddingId,
           actorId: actor,
           action: 'TASK_CREATED',
+          feedHidden: true,
           entityType: 'TASK',
           entityId: task._id,
           displaySnapshot: { label: task.title },
@@ -345,6 +348,7 @@ export function createRecurrenceService({
         current._id,
         data.title,
         instant,
+        true,
       );
     }
     const generated = await fill(

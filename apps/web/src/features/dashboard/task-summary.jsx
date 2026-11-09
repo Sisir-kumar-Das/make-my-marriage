@@ -85,13 +85,31 @@ export function TaskSummaryProvider({ weddingId, userId, children }) {
       )
         setRevision((value) => value + 1);
     };
+    const revalidate = () => {
+      if (!blocked.current) setRevision((value) => value + 1);
+    };
+    const restore = (event) => {
+      if (event.persisted) revalidate();
+    };
+    const channel =
+      typeof BroadcastChannel !== 'undefined'
+        ? new BroadcastChannel('mmm-session')
+        : null;
+    if (channel)
+      channel.onmessage = ({ data }) => {
+        if (data?.type === 'tasks-changed' && data.weddingId === weddingId)
+          revalidate();
+      };
     window.addEventListener('focus', refresh);
+    window.addEventListener('pageshow', restore);
     const timer = window.setInterval(refresh, 60000);
     return () => {
       window.removeEventListener('focus', refresh);
+      window.removeEventListener('pageshow', restore);
       window.clearInterval(timer);
+      channel?.close();
     };
-  }, []);
+  }, [weddingId]);
   // A failed background refresh keeps the last good numbers and raises a slim note; only a
   // failure with nothing loaded yet shows the error panel in the cards. While the next attempt
   // runs, the note stays and says "Retrying…" instead of vanishing with no sign of progress.

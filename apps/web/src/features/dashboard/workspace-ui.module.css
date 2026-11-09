@@ -95,7 +95,6 @@
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: 1.5rem;
-  align-items: start;
 }
 .settingsGrid {
   display: grid;
