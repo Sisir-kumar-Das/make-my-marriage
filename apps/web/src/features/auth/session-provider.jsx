@@ -110,8 +110,13 @@ export function SessionProvider({
   const [pending, setPending] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const revoked = useRef(false);
+  const sessionCheck = useRef(0);
   const contextKey = useRef(
-    JSON.stringify([initialSession.wedding, initialSession.membership]),
+    JSON.stringify([
+      initialSession.user.id,
+      initialSession.wedding,
+      initialSession.membership,
+    ]),
   );
   useEffect(() => {
     let active = true;
@@ -124,12 +129,14 @@ export function SessionProvider({
     };
     async function check() {
       if (revoked.current || document.visibilityState === 'hidden') return;
+      const checkId = ++sessionCheck.current;
       try {
         const result = await apiRequest('/auth/session');
-        if (active && !revoked.current) {
+        if (active && !revoked.current && checkId === sessionCheck.current) {
           setSession(result.data);
           setError('');
           const key = JSON.stringify([
+            result.data.user.id,
             result.data.wedding,
             result.data.membership,
           ]);
@@ -144,7 +151,8 @@ export function SessionProvider({
           }
         }
       } catch (failure) {
-        if (!active || revoked.current) return;
+        if (!active || revoked.current || checkId !== sessionCheck.current)
+          return;
         if (failure.code === 'SESSION_EXPIRED') leave();
         else setError(failure.message);
       }
@@ -156,7 +164,8 @@ export function SessionProvider({
     if (channel)
       channel.onmessage = (event) => {
         if (event.data === 'logout') leave();
-        else if (event.data === 'membership-changed') void check();
+        else if (['membership-changed', 'profile-changed'].includes(event.data))
+          void check();
       };
     const timer = setInterval(check, 60000);
     void check();
@@ -174,6 +183,27 @@ export function SessionProvider({
       window.removeEventListener('mmm:session-expired', leave);
     };
   }, [router, attempt, pathname]);
+  function applySavedProfile({ id, displayName, avatar, avatarVersion }) {
+    sessionCheck.current++;
+    setSession((current) =>
+      current?.user.id === id
+        ? {
+            ...current,
+            user: {
+              ...current.user,
+              ...(displayName !== undefined && { displayName }),
+              ...(avatar !== undefined && { avatar, avatarVersion }),
+            },
+          }
+        : current,
+    );
+    setAttempt((value) => value + 1);
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('mmm-session');
+      channel.postMessage('profile-changed');
+      channel.close();
+    }
+  }
   async function logout() {
     setPending(true);
     setError('');
@@ -202,7 +232,9 @@ export function SessionProvider({
     (preserveSetupState && pathname === '/wedding-setup') ||
     (preserveEventState && pathname === '/events') ||
     (preserveTaskState &&
-      ['/tasks', '/recovery', '/checklist', '/members'].includes(pathname));
+      ['/tasks', '/recovery', '/checklist', '/members', '/profile'].includes(
+        pathname,
+      ));
   if (
     !session ||
     (error && !preserveDraft) ||
@@ -221,6 +253,7 @@ export function SessionProvider({
         wedding: session.wedding,
         membership: session.membership,
         logout,
+        applySavedProfile,
         pending,
         connectionError: error,
         retrySession: () => setAttempt((value) => value + 1),

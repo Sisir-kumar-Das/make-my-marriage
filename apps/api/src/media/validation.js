@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
 export const MAX_COVER_BYTES = 15_000_000;
+export const MAX_AVATAR_BYTES = 10_000_000;
+export const PROFILE_AVATAR = 'PROFILE_AVATAR';
+export const WEDDING_COVER = 'WEDDING_COVER';
 export const mediaIdSchema = z.string().regex(/^[a-f\d]{24}$/);
 export const coverFrameSchema = z
   .object({
@@ -16,6 +19,16 @@ export const uploadSchema = z
     sizeBytes: z.number().int().min(1).max(MAX_COVER_BYTES),
   })
   .strict();
+export const avatarUploadSchema = z.strictObject({
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  sizeBytes: z.number().int().min(1).max(MAX_AVATAR_BYTES),
+});
+export const saveAvatarSchema = z.strictObject({
+  accountId: mediaIdSchema,
+  mediaId: mediaIdSchema.nullable(),
+  frame: coverFrameSchema.default(defaultCoverFrame),
+  version: z.number().int().min(0),
+});
 export const saveCoverSchema = z
   .object({
     mediaId: mediaIdSchema.nullable(),
@@ -36,8 +49,12 @@ export function storageScope(settings) {
   return settings.nodeEnv === 'production' ? 'prod' : 'dev';
 }
 
+export function assetPrefix(settings, purpose) {
+  return `${storageScope(settings)}/${purpose === PROFILE_AVATAR ? 'avatars' : 'covers'}/`;
+}
+
 export function assetInScope(asset, settings) {
-  const base = `${storageScope(settings)}/covers/${asset._id}/`;
+  const base = assetPrefix(settings, asset.purpose) + asset._id + '/';
   return (
     asset.bucket === settings.r2Bucket &&
     asset.objectKey === base + 'original' &&

@@ -1,5 +1,6 @@
 'use client';
 
+import { MemberAvatar, initials } from '@/features/profile/avatar-photo';
 import { useEffect, useRef, useState } from 'react';
 import {
   Download,
@@ -50,16 +51,6 @@ function Soon({ children, primary = false, compact = false }) {
     </button>
   );
 }
-function initials(name) {
-  return name
-    .trim()
-    .split(/\s+/u)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => [...word][0])
-    .join('')
-    .toLocaleUpperCase();
-}
 
 export function MembersPage({ inviteShortcut = false }) {
   const inviteTrigger = useRef(null);
@@ -109,9 +100,18 @@ export function MembersPage({ inviteShortcut = false }) {
       if (document.visibilityState !== 'hidden')
         setRevision((value) => value + 1);
     };
+    const channel =
+      typeof BroadcastChannel !== 'undefined'
+        ? new BroadcastChannel('mmm-session')
+        : null;
+    if (channel)
+      channel.onmessage = ({ data }) => {
+        if (data === 'profile-changed') refresh();
+      };
     window.addEventListener('focus', refresh);
     const timer = window.setInterval(refresh, 60000);
     return () => {
+      channel?.close();
       window.removeEventListener('focus', refresh);
       window.clearInterval(timer);
     };
@@ -292,11 +292,15 @@ export function MembersPage({ inviteShortcut = false }) {
                           <td>
                             <div className={styles.identity}>
                               <span
-                                className={styles.avatar}
+                                className={`${styles.avatar} relative overflow-hidden`}
                                 data-creator={member.isCreator}
                                 aria-hidden="true"
                               >
                                 {initials(member.name)}
+                                <MemberAvatar
+                                  avatar={member.avatar}
+                                  scope={`${user.id}/${wedding.id}`}
+                                />
                               </span>
                               <div className={styles.identityText}>
                                 <div className={styles.name}>
@@ -320,6 +324,9 @@ export function MembersPage({ inviteShortcut = false }) {
                                 )}
                                 {member.email && (
                                   <p className={styles.email}>{member.email}</p>
+                                )}
+                                {member.phone && (
+                                  <p className={styles.email}>{member.phone}</p>
                                 )}
                               </div>
                             </div>

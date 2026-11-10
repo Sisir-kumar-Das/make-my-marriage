@@ -12,6 +12,9 @@ import {
 } from '../apps/api/src/media/storage.js';
 import {
   uploadSchema,
+  avatarUploadSchema,
+  MAX_AVATAR_BYTES,
+  PROFILE_AVATAR,
   saveCoverSchema,
   MAX_COVER_BYTES,
   assetInScope,
@@ -183,6 +186,206 @@ const jpeg = await sharp({
 })
   .jpeg()
   .toBuffer();
+
+test('avatar limits and decoding are isolated from wedding covers', async () => {
+  const image = await sharp(jpeg).webp().toBuffer();
+  assert.equal(
+    avatarUploadSchema.safeParse({
+      mimeType: 'image/webp',
+      sizeBytes: MAX_AVATAR_BYTES,
+    }).success,
+    true,
+  );
+  assert.equal(
+    avatarUploadSchema.safeParse({
+      mimeType: 'image/webp',
+      sizeBytes: MAX_AVATAR_BYTES + 1,
+    }).success,
+    false,
+  );
+  assert.equal(
+    uploadSchema.safeParse({ mimeType: 'image/webp', sizeBytes: image.length })
+      .success,
+    false,
+  );
+  assert.equal((await prepareCover(image, 'image/webp', true)).width, 160);
+  await assert.rejects(prepareCover(image, 'image/webp'), {
+    code: 'INVALID_COVER',
+  });
+  await assert.rejects(prepareCover(jpeg, 'image/webp', true), {
+    code: 'INVALID_AVATAR',
+  });
+  const base = `dev/avatars/${id}/`;
+  assert.equal(
+    assetInScope({ ...asset, purpose: PROFILE_AVATAR }, settings),
+    false,
+  );
+  assert.equal(
+    assetInScope(
+      {
+        ...asset,
+        purpose: PROFILE_AVATAR,
+        objectKey: base + 'original',
+        uploadKey: base + 'upload',
+        displayKey: base + 'display.webp',
+      },
+      settings,
+    ),
+    true,
+  );
+});
+
+test('avatar saves claim only the owner’s staged avatar and version removals and retries', async () => {
+  const owner = 'b'.repeat(24);
+  const outsider = 'c'.repeat(24);
+  const replacement = 'e'.repeat(24);
+  const weddingId = 'd'.repeat(24);
+  const staged = (mediaId) => ({
+    _id: mediaId,
+    ownerUserId: owner,
+    weddingId: null,
+    purpose: PROFILE_AVATAR,
+    status: 'READY',
+    attached: false,
+    purgeAfter: new Date(Date.now() + 60000),
+    bucket: settings.r2Bucket,
+    objectKey: `dev/avatars/${mediaId}/original`,
+    uploadKey: `dev/avatars/${mediaId}/upload`,
+    displayKey: `dev/avatars/${mediaId}/display.webp`,
+  });
+  const assets = new Map([
+    [id, staged(id)],
+    [replacement, staged(replacement)],
+  ]);
+  const account = { _id: owner };
+  let writes = 0;
+  const query = (value) => ({
+    lean: async () => value,
+    select() {
+      return this;
+    },
+    session() {
+      return this;
+    },
+  });
+  const matches = (row, filter) =>
+    row &&
+    Object.entries(filter).every(([key, value]) =>
+      key === 'purgeAfter' ? row[key] > value.$gt : row[key] === value,
+    );
+  const models = {
+    User: {
+      findOne: (filter) =>
+        query(filter._id === owner ? { ...account } : { _id: outsider }),
+      exists: async (filter) =>
+        filter._id === owner && filter.avatarMediaId === account.avatarMediaId,
+      updateOne: async (filter, changes) => {
+        assert.equal(filter._id, owner);
+        assert.equal(filter.status, 'ACTIVE');
+        Object.assign(account, changes.$set);
+        for (const key of Object.keys(changes.$unset ?? {}))
+          delete account[key];
+        account.avatarVersion =
+          (account.avatarVersion ?? 0) + changes.$inc.avatarVersion;
+        writes++;
+      },
+    },
+    AuthToken: {},
+    Session: {},
+    Wedding: { exists: async () => true },
+    WeddingMember: {
+      findOne: ({ userId }) =>
+        query(userId === 'a'.repeat(24) ? { weddingId } : null),
+      exists: async (filter) =>
+        filter.userId === owner &&
+        filter.weddingId === weddingId &&
+        filter.status === 'ACTIVE',
+    },
+    WeddingCreationRequest: {},
+    MediaAsset: {
+      findOne: (filter) => {
+        const row = assets.get(filter._id);
+        return query(matches(row, filter) ? row : null);
+      },
+      updateOne: async (filter, update) => {
+        const row = assets.get(filter._id);
+        if (!matches(row, filter)) return { modifiedCount: 0 };
+        Object.assign(row, update.$set);
+        for (const key of Object.keys(update.$unset ?? {})) delete row[key];
+        return { modifiedCount: 1 };
+      },
+    },
+  };
+  const media = createMediaService({
+    settings,
+    database: {
+      connect: async () => ({ models, transaction: (fn) => fn({}) }),
+    },
+    storage: { readUrl: async (photo) => 'signed/' + photo._id },
+  });
+  const frame = { x: 0.2, y: 0.7, zoom: 1.6 };
+  await assert.rejects(
+    media.setAvatar(outsider, {
+      accountId: owner,
+      mediaId: id,
+      frame,
+      version: 0,
+    }),
+    { code: 'AVATAR_CHANGED' },
+  );
+  await assert.rejects(
+    media.setAvatar(outsider, {
+      accountId: outsider,
+      mediaId: id,
+      frame,
+      version: 0,
+    }),
+    { code: 'MEDIA_NOT_FOUND' },
+  );
+  await assert.rejects(media.readAvatar(owner, id), {
+    code: 'MEDIA_NOT_FOUND',
+  });
+  const patch = { accountId: owner, mediaId: id, frame, version: 0 };
+  assert.deepEqual(await media.setAvatar(owner, patch), {
+    id: owner,
+    avatar: { mediaId: id, frame },
+    avatarVersion: 1,
+  });
+  assert.deepEqual(await media.setAvatar(owner, patch), {
+    id: owner,
+    avatar: { mediaId: id, frame },
+    avatarVersion: 1,
+  });
+  assert.equal(writes, 1);
+  assert.equal((await media.readAvatar(owner, id)).url, 'signed/' + id);
+  assert.equal(
+    (await media.readAvatar('a'.repeat(24), id)).url,
+    'signed/' + id,
+  );
+  await assert.rejects(media.readAvatar(outsider, id), {
+    code: 'MEDIA_NOT_FOUND',
+  });
+
+  await assert.rejects(
+    media.setAvatar(owner, { ...patch, mediaId: replacement }),
+    { code: 'AVATAR_CHANGED' },
+  );
+  await media.setAvatar(owner, { ...patch, mediaId: replacement, version: 1 });
+  assert.equal(assets.get(id).status, 'DELETE_PENDING');
+  await assert.rejects(media.readAvatar(owner, id), {
+    code: 'MEDIA_NOT_FOUND',
+  });
+  const removed = await media.setAvatar(owner, {
+    ...patch,
+    mediaId: null,
+    version: 2,
+  });
+  assert.equal(removed.avatar, null);
+  assert.equal(assets.get(replacement).status, 'DELETE_PENDING');
+  await assert.rejects(media.readAvatar('a'.repeat(24), replacement), {
+    code: 'MEDIA_NOT_FOUND',
+  });
+});
 
 test('cover contracts accept exactly 15 MB, bound framing, and reject unsupported/injected metadata', () => {
   assert.equal(

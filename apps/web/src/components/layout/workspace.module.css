@@ -327,6 +327,10 @@
   .headerInner {
     padding: 0 1.5rem;
   }
+  .accountTrigger > .avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
 }
 @media (max-width: 639px) {
   .headerInner {

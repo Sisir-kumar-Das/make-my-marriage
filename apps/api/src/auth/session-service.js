@@ -1,3 +1,4 @@
+import { avatarSummary } from '../media/avatar.js';
 import argon2 from 'argon2';
 import mongoose from 'mongoose';
 import { SignJWT, jwtVerify } from 'jose';
@@ -54,6 +55,8 @@ export function createSessionService({
       email: user.email,
       displayName: user.profile.displayName,
       emailVerified: true,
+      ...(user.avatarMediaId && { avatar: avatarSummary(user) }),
+      ...(user.avatarVersion && { avatarVersion: user.avatarVersion }),
     },
     session: { expiresAt: session.expiresAt.toISOString() },
     ...(await getWeddingContext(String(user._id))),

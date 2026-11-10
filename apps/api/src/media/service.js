@@ -5,8 +5,13 @@ import { weddingModels } from '../weddings/models.js';
 import { ApiError } from '../lib/api-error.js';
 import { mediaModel } from './models.js';
 import { createCoverStorage } from './storage.js';
+import { avatarOperations } from './avatar.js';
 import {
   uploadSchema,
+  avatarUploadSchema,
+  assetPrefix,
+  PROFILE_AVATAR,
+  WEDDING_COVER,
   mediaIdSchema,
   storageConfigured,
   storageScope,
@@ -28,7 +33,7 @@ export function createMediaService({
   storage = createCoverStorage(settings),
   now = () => new Date(),
 }) {
-  async function authorize(connection, userId, weddingId) {
+  async function authorize(connection, userId, weddingId, purpose) {
     const { User } = authModels(connection);
     if (
       !(await User.exists({
@@ -38,6 +43,7 @@ export function createMediaService({
       }))
     )
       throw new ApiError(401, 'SESSION_EXPIRED', 'Please sign in to continue.');
+    if (purpose === PROFILE_AVATAR) return;
     const { Wedding, WeddingMember } = weddingModels(connection);
     if (weddingId) {
       if (!mediaIdSchema.safeParse(weddingId).success) throw absent();
@@ -64,25 +70,30 @@ export function createMediaService({
         'Open your wedding workspace to change its cover.',
       );
   }
-  function configured() {
+  function configured(avatar = false) {
     if (!storageConfigured(settings))
       throw new ApiError(
         503,
         'MEDIA_UNAVAILABLE',
-        'Photo uploads are temporarily unavailable. You can use the signature cover.',
+        avatar
+          ? 'Profile photos are temporarily unavailable.'
+          : 'Photo uploads are temporarily unavailable. You can use the signature cover.',
       );
   }
-  async function upload(userId, weddingId, raw) {
-    const parsed = uploadSchema.safeParse(raw);
+  async function upload(userId, weddingId, raw, purpose = WEDDING_COVER) {
+    const avatar = purpose === PROFILE_AVATAR;
+    const parsed = (avatar ? avatarUploadSchema : uploadSchema).safeParse(raw);
     if (!parsed.success)
       throw new ApiError(
         400,
-        'INVALID_COVER',
-        'Choose a JPG or PNG up to 15 MB.',
+        avatar ? 'INVALID_AVATAR' : 'INVALID_COVER',
+        avatar
+          ? 'Choose a JPG, PNG or WebP up to 10 MB.'
+          : 'Choose a JPG or PNG up to 15 MB.',
       );
-    configured();
+    configured(purpose === PROFILE_AVATAR);
     const connection = await database.connect();
-    await authorize(connection, userId, weddingId);
+    await authorize(connection, userId, weddingId, purpose);
     const Media = mediaModel(connection);
     const instant = now();
     if (
@@ -96,13 +107,16 @@ export function createMediaService({
       throw new ApiError(
         429,
         'MEDIA_LIMIT',
-        'Several uploads are awaiting completion. Please try again later or use the signature cover.',
+        avatar
+          ? 'Several uploads are awaiting completion. Please try again later.'
+          : 'Several uploads are awaiting completion. Please try again later or use the signature cover.',
       );
     const id = new mongoose.Types.ObjectId();
-    const base = `${storageScope(settings)}/covers/${id}/`;
+    const base = assetPrefix(settings, purpose) + id + '/';
     const asset = await Media.create({
       _id: id,
       ownerUserId: userId,
+      purpose,
       weddingId: weddingId || null,
       ...parsed.data,
       bucket: settings.r2Bucket,
@@ -118,15 +132,16 @@ export function createMediaService({
       expiresAt: new Date(instant.getTime() + 300_000).toISOString(),
     };
   }
-  async function complete(userId, weddingId, mediaId) {
+  async function complete(userId, weddingId, mediaId, purpose = WEDDING_COVER) {
     if (!mediaIdSchema.safeParse(mediaId).success) throw absent();
-    configured();
+    configured(purpose === PROFILE_AVATAR);
     const connection = await database.connect();
-    await authorize(connection, userId, weddingId);
+    await authorize(connection, userId, weddingId, purpose);
     const Media = mediaModel(connection);
     const query = {
       _id: mediaId,
       ownerUserId: userId,
+      purpose,
       weddingId: weddingId || null,
     };
     const asset = await Media.findOne(query).lean();
@@ -158,7 +173,7 @@ export function createMediaService({
     if (!claimed) throw busy();
     try {
       const details = await storage.finish(claimed);
-      await authorize(connection, userId, weddingId);
+      await authorize(connection, userId, weddingId, purpose);
       const result = await Media.updateOne(
         {
           ...query,
@@ -179,7 +194,7 @@ export function createMediaService({
       if (result.modifiedCount !== 1) throw busy();
       return { mediaId, state: 'READY' };
     } catch (error) {
-      if (error.code === 'INVALID_COVER')
+      if (['INVALID_COVER', 'INVALID_AVATAR'].includes(error.code))
         await Media.updateOne(
           { ...query, status: 'PENDING_UPLOAD', processingToken: token },
           {
@@ -220,7 +235,13 @@ export function createMediaService({
       }).lean());
     if (!wedding) throw absent();
     const asset = await mediaModel(connection)
-      .findOne({ _id: mediaId, weddingId, status: 'READY', attached: true })
+      .findOne({
+        _id: mediaId,
+        weddingId,
+        purpose: WEDDING_COVER,
+        status: 'READY',
+        attached: true,
+      })
       .lean();
     if (!asset || !assetInScope(asset, settings)) throw absent();
     return {
@@ -239,9 +260,10 @@ export function createMediaService({
       const connection = await database.connect();
       const Media = mediaModel(connection);
       const { Wedding } = weddingModels(connection);
+      const { User } = authModels(connection);
       const scope = {
         bucket: settings.r2Bucket,
-        objectKey: { $regex: `^${storageScope(settings)}/covers/` },
+        objectKey: { $regex: `^${storageScope(settings)}/(?:covers|avatars)/` },
       };
       const staging = await Media.find({
         ...scope,
@@ -282,9 +304,13 @@ export function createMediaService({
           ).lean();
           if (
             claimed &&
-            (await Wedding.exists({ coverMediaId: claimed._id }).session(
-              transaction,
-            ))
+            (claimed.purpose === PROFILE_AVATAR
+              ? await User.exists({ avatarMediaId: claimed._id }).session(
+                  transaction,
+                )
+              : await Wedding.exists({ coverMediaId: claimed._id }).session(
+                  transaction,
+                ))
           ) {
             await Media.updateOne(
               { _id: claimed._id },
@@ -339,7 +365,16 @@ export function createMediaService({
         );
       }
     };
+  const avatars = avatarOperations({
+    database,
+    settings,
+    storage,
+    now,
+    configured,
+  });
   return {
+    setAvatar: safe(avatars.set),
+    readAvatar: safe(avatars.read),
     upload: safe(upload),
     complete: safe(complete),
     read: safe(read),

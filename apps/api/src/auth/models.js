@@ -11,7 +11,12 @@ const userSchema = new Schema(
     lastLoginAt: { type: Date, default: null },
     profile: {
       displayName: { type: String, required: true, maxlength: 100 },
+      phone: { type: String, match: /^\+91[6-9]\d{9}$/ },
+      detailsVersion: { type: Number, min: 0 },
     },
+    avatarMediaId: Schema.Types.ObjectId,
+    avatarFrame: { x: Number, y: Number, zoom: Number },
+    avatarVersion: { type: Number, min: 0 },
     status: { type: String, enum: ['ACTIVE', 'DISABLED'], default: 'ACTIVE' },
   },
   { timestamps: true, collection: 'users' },

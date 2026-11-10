@@ -53,9 +53,12 @@ export async function performCoverUpload({
     return receipt.current.mediaId;
   } catch (failure) {
     if (
-      ['INVALID_COVER', 'UPLOAD_EXPIRED', 'MEDIA_NOT_FOUND'].includes(
-        failure.code,
-      )
+      [
+        'INVALID_COVER',
+        'INVALID_AVATAR',
+        'UPLOAD_EXPIRED',
+        'MEDIA_NOT_FOUND',
+      ].includes(failure.code)
     )
       receipt.current = null;
     progress(null);

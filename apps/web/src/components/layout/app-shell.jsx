@@ -11,7 +11,6 @@ import {
   Menu,
   Settings,
   ShieldCheck,
-  UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +26,11 @@ import { navigation } from '@/lib/navigation';
 import { Brand } from '@/features/home/brand';
 import { inter, playfair } from '@/features/home/fonts';
 import { weddingDate } from '@/features/weddings/form-data';
+import {
+  AvatarPhoto,
+  initials,
+  useAvatarPhoto,
+} from '@/features/profile/avatar-photo';
 import { useSession } from '@/features/auth/session-provider';
 import { apiRequest } from '@/lib/api-client';
 import {
@@ -169,6 +173,8 @@ export function AppShell({ children }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const memberCount = useMemberCount(user.id, wedding.id);
+  const avatarPhoto = useAvatarPhoto(user.avatar, user.id);
+  const monogram = initials(user.displayName);
   const role =
     membership.role === 'ADMIN'
       ? 'Admin'
@@ -185,8 +191,12 @@ export function AppShell({ children }) {
           <Navigation pathname={pathname} memberCount={memberCount} />
         </div>
         <Link href="/profile" className={styles.userCard}>
-          <span className={styles.avatar}>
-            <UserRound size={18} />
+          <span
+            className={`${styles.avatar} relative overflow-hidden`}
+            aria-hidden="true"
+          >
+            {monogram}
+            <AvatarPhoto photo={avatarPhoto} frame={user.avatar?.frame} />
           </span>
           <div>
             <strong>{user.displayName}</strong>
@@ -244,8 +254,15 @@ export function AppShell({ children }) {
                     className={styles.accountTrigger}
                     aria-label="Account menu"
                   >
-                    <span className={styles.avatar}>
-                      <UserRound size={18} />
+                    <span
+                      className={`${styles.avatar} relative overflow-hidden`}
+                      aria-hidden="true"
+                    >
+                      {monogram}
+                      <AvatarPhoto
+                        photo={avatarPhoto}
+                        frame={user.avatar?.frame}
+                      />
                     </span>
                     <span className={styles.accountName}>
                       {user.displayName}
@@ -258,9 +275,21 @@ export function AppShell({ children }) {
                     sideOffset={8}
                     collisionPadding={16}
                   >
-                    <DropdownMenu.Label>
-                      <strong>{user.displayName}</strong>
-                      <p>{user.email}</p>
+                    <DropdownMenu.Label className="flex items-center gap-2">
+                      <span
+                        className={`${styles.avatar} relative overflow-hidden`}
+                        aria-hidden="true"
+                      >
+                        {monogram}
+                        <AvatarPhoto
+                          photo={avatarPhoto}
+                          frame={user.avatar?.frame}
+                        />
+                      </span>
+                      <div className="min-w-0">
+                        <strong>{user.displayName}</strong>
+                        <p>{user.email}</p>
+                      </div>
                     </DropdownMenu.Label>
                     <DropdownMenu.Item asChild className={styles.accountItem}>
                       <Link href="/profile">My Profile</Link>

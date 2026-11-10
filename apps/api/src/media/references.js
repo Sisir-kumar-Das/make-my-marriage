@@ -47,10 +47,16 @@ export async function attachCover(
     );
 }
 
-export async function detachCover(connection, transaction, mediaId, instant) {
+export async function detachCover(
+  connection,
+  transaction,
+  mediaId,
+  instant,
+  scope = {},
+) {
   if (!mediaId) return;
   await mediaModel(connection).updateOne(
-    { _id: mediaId, status: 'READY', attached: true },
+    { ...scope, _id: mediaId, status: 'READY', attached: true },
     {
       $set: {
         attached: false,

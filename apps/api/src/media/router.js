@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { createAuthCookies } from '../auth/cookies.js';
 import { ApiError } from '../lib/api-error.js';
+import { PROFILE_AVATAR } from './validation.js';
 
 export function createMediaRouter({ service, weddings, media, settings }) {
   const router = Router();
@@ -50,6 +51,43 @@ export function createMediaRouter({ service, weddings, media, settings }) {
   });
   const write = [...guard, cookies.protect, limit];
   const result = (res, data) => res.json({ success: true, data });
+  router.post('/media/profile-avatar/upload-url', ...write, async (req, res) =>
+    result(
+      res,
+      await media.upload(req.identity.user.id, null, req.body, PROFILE_AVATAR),
+    ),
+  );
+  router.post(
+    '/media/profile-avatar/:mediaId/complete',
+    ...write,
+    async (req, res) =>
+      result(
+        res,
+        await media.complete(
+          req.identity.user.id,
+          null,
+          req.params.mediaId,
+          PROFILE_AVATAR,
+        ),
+      ),
+  );
+  router.get('/media/profile-avatar/:mediaId', ...guard, async (req, res) =>
+    result(
+      res,
+      await media.readAvatar(req.identity.user.id, req.params.mediaId),
+    ),
+  );
+  async function saveAvatar(req, res) {
+    result(
+      res,
+      await media.setAvatar(
+        req.identity.user.id,
+        req.method === 'DELETE' ? { ...req.body, mediaId: null } : req.body,
+      ),
+    );
+  }
+  router.put('/users/me/profile-image', ...write, saveAvatar);
+  router.delete('/users/me/profile-image', ...write, saveAvatar);
   router.post('/media/wedding-cover/upload-url', ...write, async (req, res) =>
     result(res, await media.upload(req.identity.user.id, null, req.body)),
   );

@@ -7,7 +7,7 @@ const mediaSchema = new Schema(
     ownerUserId: { type: Schema.Types.ObjectId, required: true },
     purpose: {
       type: String,
-      enum: ['WEDDING_COVER'],
+      enum: ['WEDDING_COVER', 'PROFILE_AVATAR'],
       default: 'WEDDING_COVER',
     },
     provider: { type: String, default: 'R2' },

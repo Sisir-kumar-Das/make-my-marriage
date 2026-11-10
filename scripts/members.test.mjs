@@ -121,12 +121,13 @@ const row = {
   userId: 'member-user',
   name: 'Ramesh',
   email: 'private@example.invalid',
+  phone: '+919876543210',
   relationship: ' Bride’s father ',
   role: 'FAMILY_MEMBER',
   passwordHash: 'never-return',
   financeAccess: true,
 };
-test('only the current Admin or account owner receives a member email', () => {
+test('only the current Admin or account owner receives a member email and phone', () => {
   for (const viewerRole of ['FAMILY_MEMBER', 'VIEWER']) {
     const other = memberDirectoryRow(
       row,
@@ -134,27 +135,34 @@ test('only the current Admin or account owner receives a member email', () => {
       3,
     );
     assert.equal(Object.hasOwn(other, 'email'), false);
+    assert.equal(Object.hasOwn(other, 'phone'), false);
     assert.equal(JSON.stringify(other).includes(row.email), false);
     assert.equal(other.relationship, 'Bride’s father');
     assert.equal(other.openTaskCount, 3);
     assert.equal(Object.hasOwn(other, 'passwordHash'), false);
     assert.equal(Object.hasOwn(other, 'financeAccess'), false);
-    assert.equal(
-      memberDirectoryRow(row, {
-        viewerId: row.userId,
-        viewerRole,
-        creatorId: 'creator',
-      }).email,
-      row.email,
-    );
-  }
-  assert.equal(
-    memberDirectoryRow(row, {
-      viewerId: 'admin',
-      viewerRole: 'ADMIN',
+    const own = memberDirectoryRow(row, {
+      viewerId: row.userId,
+      viewerRole,
       creatorId: 'creator',
-    }).email,
-    row.email,
+    });
+    assert.equal(own.email, row.email);
+    assert.equal(own.phone, row.phone);
+  }
+  const admin = {
+    viewerId: 'admin',
+    viewerRole: 'ADMIN',
+    creatorId: 'creator',
+  };
+  const visible = memberDirectoryRow(row, admin);
+  assert.equal(visible.email, row.email);
+  assert.equal(visible.phone, row.phone);
+  assert.equal(
+    Object.hasOwn(
+      memberDirectoryRow({ ...row, phone: undefined }, admin),
+      'phone',
+    ),
+    false,
   );
 });
 test('the original creator exception follows wedding creation, not an Admin role or inferred name', () => {

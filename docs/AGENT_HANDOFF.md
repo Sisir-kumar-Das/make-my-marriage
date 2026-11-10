@@ -1,8 +1,8 @@
 # Shared Codex / Claude Code handoff
 
-Last updated: 9 November 2026 (Asia/Kolkata)
+Last updated: 10 November 2026 (Asia/Kolkata)
 
-Updated by: Codex — Dashboard Step 3 review follow-up
+Updated by: Codex — My Profile Step 2
 
 Both Codex and Claude Code work in this repository. Use this file to see who is handling the current increment, what changed and what the next assistant should check. [PROJECT_STATUS.md](PROJECT_STATUS.md) remains the milestone, feature-order and verification record. Approved requirements and ADRs remain authoritative; this file does not grant implementation, testing, Git or deployment approval.
 
@@ -10,9 +10,9 @@ Both Codex and Claude Code work in this repository. Use this file to see who is 
 
 | Participant   | Current responsibility                                    | Next action                                                                                           |
 | ------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Sisir         | Product/design decisions and acceptance                   | Review the complete Dashboard, including the new Recent Activity card and View All timeline.          |
+| Sisir         | Product/design decisions and acceptance                   | Review both My Profile increments before Wedding Settings.                                            |
 | Claude Code   | Implementer of Dashboard Steps 1–2 and cover improvements | Continue from the committed checkpoint after the owner approves the next increment.                   |
-| Codex         | DASH-03 implementation and local verification             | Hand off the complete Dashboard for owner review.                                                     |
+| Codex         | PROFILE-02 implementation and local verification          | Hand off profile editing and Members contact privacy for owner review.                                |
 | Code Reviewer | Independent review when requested                         | Latest recorded review outcomes are in the history below. No new review is dispatched by this update. |
 | Manual Tester | Independent testing when requested                        | Latest recorded run 19 passed. No new testing is dispatched by this update.                           |
 
@@ -20,16 +20,18 @@ Both Codex and Claude Code work in this repository. Use this file to see who is 
 
 Keep these IDs stable so notes from either assistant refer to the same increment.
 
-| ID      | Feature / increment                                              | Current state                                                                                                                                             | Evidence / main status                                                                                    |
-| ------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| INV-043 | Recipient inbox and shared Accept/Reject, including later polish | Committed in `b2bd171` on DEV, 1 November. Owner acceptance remains pending.                                                                              | ADR-043; PROJECT_STATUS invitation follow-up/polish entries. Built across Codex and Claude Code sessions. |
-| DASH-01 | Live progress, task counts, schedule status and Family Tasks     | Implemented by Claude Code and committed/pushed as `f3c0dbb` on DEV, 5 November. Review corrections are recorded below. Owner acceptance remains pending. | PROJECT_STATUS → Remaining V1 development, item 6, Step 1 and subsequent corrections.                     |
-| DASH-02 | Upcoming ceremonies, past milestone and Attention Required       | Implemented by Claude Code and committed/pushed as `f3c0dbb`, including cover controls/viewer and review fixes. Owner acceptance remains pending.         | PROJECT_STATUS → Remaining V1 development, item 6, Step 2 and subsequent corrections; ADR-044.            |
-| DASH-03 | Recent Activity and full activity view                           | Implemented under ADR-045/046. Sisir confirmed the final Gmail and task-count checks and authorized the DEV Git handoff.                                  | ADR-045, ADR-046 and PROJECT_STATUS                                                                       |
+| ID         | Feature / increment                                              | Current state                                                                                                                                             | Evidence / main status                                                                                    |
+| ---------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| INV-043    | Recipient inbox and shared Accept/Reject, including later polish | Committed in `b2bd171` on DEV, 1 November. Owner acceptance remains pending.                                                                              | ADR-043; PROJECT_STATUS invitation follow-up/polish entries. Built across Codex and Claude Code sessions. |
+| DASH-01    | Live progress, task counts, schedule status and Family Tasks     | Implemented by Claude Code and committed/pushed as `f3c0dbb` on DEV, 5 November. Review corrections are recorded below. Owner acceptance remains pending. | PROJECT_STATUS → Remaining V1 development, item 6, Step 1 and subsequent corrections.                     |
+| DASH-02    | Upcoming ceremonies, past milestone and Attention Required       | Implemented by Claude Code and committed/pushed as `f3c0dbb`, including cover controls/viewer and review fixes. Owner acceptance remains pending.         | PROJECT_STATUS → Remaining V1 development, item 6, Step 2 and subsequent corrections; ADR-044.            |
+| DASH-03    | Recent Activity and full activity view                           | Implemented under ADR-045/046. Sisir confirmed the final Gmail and task-count checks and authorized the DEV Git handoff.                                  | ADR-045, ADR-046 and PROJECT_STATUS                                                                       |
+| PROFILE-01 | My Profile display name and optional phone                       | Implemented by Codex. Owner walkthrough pending.                                                                                                          | ADR-047 and PROJECT_STATUS                                                                                |
+| PROFILE-02 | Private profile photos, framing, replacement and removal         | Implemented by Codex. Owner walkthrough and independent verification pending.                                                                             | ADR-048 and PROJECT_STATUS                                                                                |
 
 Historical Git baseline checked by Codex on 6 November: `DEV` HEAD and the local `origin/DEV` reference both point to `f3c0dbb`. Claude Code recorded the owner-authorized push on 5 November. No remote fetch was performed for this documentation update. The current working tree has edits to this handoff and PROJECT_STATUS.md plus untracked local `.claude/` tooling. Recheck actual Git changes before continuing.
 
-The Dashboard Step 3 handoff follows `2d6a073` on DEV. My Profile is the next feature discussion.
+Dashboard Step 3 and the walkthrough follow-up are on DEV. Codex checked that DEV and its local origin/DEV reference matched at `c76c57c` before starting PROFILE-01. The existing local Claude launcher was already untracked.
 
 ## Current implementation boundaries
 
@@ -41,7 +43,29 @@ The Dashboard Step 3 handoff follows `2d6a073` on DEV. My Profile is the next fe
 - Codex's 6 November work checks Git, documentation and the existing Recent Activity placeholder only. It does not rerun application checks or change recorded owner acceptance.
 - Local `.claude/launch.json` is tooling configuration. Preserve existing local edits when preparing a future Git handoff.
 
-## Current increment — DASH-03
+## Prior increment — PROFILE-01
+
+9 November 2026 — Sisir approved own-account display name and optional phone editing. Codex implemented the protected form and Express account-scoped read/update, role-scoped Members phone projection, and workspace name refresh. See ADR-047 and PROJECT_STATUS for Codex’s 248 native tests, isolated browser/build/smoke and real local MongoDB checks. At the initial checkpoint, the owner API still needed a restart to load the endpoint. Owner acceptance is pending. Profile Step 2 is avatar uploads, followed by remaining Settings and Wedding Recovery. The owner then shared independent Claude Code Reviewer and Manual Tester reports. No agents were dispatched by Codex.
+
+9 November follow-up — Codex fixed the three owner-approved findings under ADR-047: hidden name formatting on registration/profile writes, technical field errors and the hidden photo availability label. Codex passed 249 native tests, lint, changed-file formatting, isolated build/smoke and desktop/mobile browser checks. See PROJECT_STATUS for process cleanup and exact coverage. The next verifier is the owner or their independently requested agents. The one reported Viewer sign-out remains unconfirmed.
+
+10 November follow-up — Independent manual recheck passed the prior three fixes and Viewer refresh. Independent code review identified Latin joiner lookalikes and three rejected script-specific sequences. Codex fixed both findings with focused regressions under ADR-047, then started the idle owner web/API ports with Sisir’s approval and verified both with smoke. See PROJECT_STATUS for exact coverage and pending owner acceptance.
+
+## Current increment — PROFILE-02
+
+10 November — Sisir authorized and Codex implemented the final My Profile increment. ADR-048 records ownership, team visibility, approved Stitch framing controls, storage boundaries, versioned saves and cleanup. Codex passed 251 native tests, lint, changed-file formatting and isolated build, smoke and Chrome checks. Real R2 and database-backed transactions remain to be verified. The two independent review prompts include the Step 1 joiner recheck and browser coverage carried forward at the owner's request. No agents were dispatched. Owner acceptance is pending. Next feature is Wedding Settings, then Wedding Recovery.
+
+10 November review follow-up — Independent reviewer and manual tester reported no blockers. The Manual Tester verified live R2 via an isolated proxy and logged retained tagged fixtures in RUN 25. Codex fixed photo link recovery, grapheme initials and the mobile zoom target. An isolated MongoDB replica set verified real rollback and a successful retry with stubbed storage. Codex passed 252 native tests and isolated production build, smoke and browser rechecks. PROJECT_STATUS records ports, process cleanup and test data. Owner acceptance and direct localhost:3000 live R2 upload remain pending.
+
+Owner walkthrough polish — Sisir confirmed the avatar appears in the workspace header, approved a 40 px laptop/desktop header avatar and approved the existing Members avatar size. Codex applied the header sizing and verified the responsive layout with an isolated production build, smoke and Chrome.
+
+Final Profile review — Manual RUN 26 passed. The Code Reviewer identified an assertion gap in the isolated rollback test. Codex now asserts MongoDB error 121 on the exact original photo document before checking rollback and retry. The stricter test passed on real local MongoDB. See PROJECT_STATUS for cleanup and fixture details. The next discussion is Wedding Settings.
+
+10 November Git handoff — Sisir authorized committing and pushing My Profile to DEV. Both independent agents completed the earlier Step 1 name-validation recheck during Profile Step 2. The Manual Tester confirmed saved names after reload and an already-open Members tab updating after a rename. See PROJECT_STATUS for untested cases.
+
+**Temporary carry-forward for the next Wedding Settings increment:** Include the stricter avatar rollback test in both independent prompts. Verify the original photo gets MongoDB validation error 121 on the final write, remains attached and readable, and can be replaced on retry. Use an isolated loopback replica set. Codex already verified it locally. Remove this note and its PROJECT_STATUS pointer once included in both prompts, and record the independent results separately.
+
+## Prior increment — DASH-03
 
 9 November 2026 — Codex completed the owner-authorized reset of one invitation recipient in the development database, preserving the wedding and shared history. The recipient’s unfinished task was left unassigned. Sisir confirmed receiving a fresh invitation from the dedicated Gmail sender. Sisir also confirmed the Dashboard task-count check passed. Sisir subsequently authorized the DEV Git handoff.
 

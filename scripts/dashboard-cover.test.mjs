@@ -966,6 +966,7 @@ test('sidebar count: 15 s limit, one quick retry per hiccup spell, none after "n
         '@/features/home/fonts': unused,
         '@/features/weddings/form-data': unused,
         '@/features/auth/session-provider': unused,
+        '@/features/profile/avatar-photo': unused,
         '@/lib/api-client': {
           apiRequest(path, options) {
             const deferred = Promise.withResolvers();

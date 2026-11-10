@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Clock3, Sparkles, Search } from 'lucide-react';
+import { Clock3, Sparkles, Search, UserRound } from 'lucide-react';
 import styles from './workspace-ui.module.css';
 export function ComingSoon() {
   return (
@@ -72,7 +72,14 @@ export function SearchFilters({ kind = 'tasks' }) {
 }
 export function SettingsTabs({ active }) {
   return (
-    <nav className={styles.tabs} aria-label="Workspace settings">
+    <nav
+      className={
+        active === '/profile'
+          ? `${styles.tabs} ${styles.profileTabs}`
+          : styles.tabs
+      }
+      aria-label="Workspace settings"
+    >
       {[
         ['/settings', 'Wedding Settings'],
         ['/profile', 'My Profile'],
@@ -83,6 +90,9 @@ export function SettingsTabs({ active }) {
           key={href}
           aria-current={active === href ? 'page' : undefined}
         >
+          {active === '/profile' && href === active && (
+            <UserRound size={16} aria-hidden="true" />
+          )}
           {label}
         </Link>
       ))}

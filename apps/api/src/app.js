@@ -7,6 +7,7 @@ import { requestContext } from './middleware/request-context.js';
 import { errorHandler, notFound } from './middleware/error-handler.js';
 import { createAuthRouter } from './auth/router.js';
 import { createProductionAuthService } from './auth/service.js';
+import { createProfileRouter, createProfileService } from './auth/profile.js';
 import { createAuthDatabase } from './auth/database.js';
 import { createWeddingService } from './weddings/service.js';
 import { createWeddingRouter } from './weddings/router.js';
@@ -48,6 +49,7 @@ export const authService = createProductionAuthService(config, {
 
 export function createApp({
   service = authService,
+  profiles = createProfileService({ database }),
   weddings = weddingService,
   media = mediaService,
   events = eventService,
@@ -83,6 +85,10 @@ export function createApp({
   });
 
   app.use('/api/v1/auth', createAuthRouter({ service, settings }));
+  app.use(
+    '/api/v1/users',
+    createProfileRouter({ service, profiles, settings }),
+  );
   app.use(
     '/api/v1/member-invitations',
     createInvitationAcceptanceRouter({ service, invitations, settings }),

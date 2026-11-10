@@ -11,19 +11,24 @@ import sharp from 'sharp';
 import { ApiError } from '../lib/api-error.js';
 import {
   MAX_COVER_BYTES,
+  MAX_AVATAR_BYTES,
+  PROFILE_AVATAR,
   storageConfigured,
   assetInScope,
 } from './validation.js';
 
-const invalid = () =>
+const invalid = (avatar = false) =>
   new ApiError(
     400,
-    'INVALID_COVER',
-    'Choose a valid JPG or PNG up to 15 MB and 40 megapixels.',
+    avatar ? 'INVALID_AVATAR' : 'INVALID_COVER',
+    avatar
+      ? 'Choose a valid JPG, PNG or WebP up to 10 MB and 40 megapixels.'
+      : 'Choose a valid JPG or PNG up to 15 MB and 40 megapixels.',
   );
 
-export async function prepareCover(bytes, expectedMime) {
-  if (!bytes.length || bytes.length > MAX_COVER_BYTES) throw invalid();
+export async function prepareCover(bytes, expectedMime, avatar = false) {
+  const maxBytes = avatar ? MAX_AVATAR_BYTES : MAX_COVER_BYTES;
+  if (!bytes.length || bytes.length > maxBytes) throw invalid(avatar);
   try {
     const image = sharp(bytes, {
       limitInputPixels: 40_000_000,
@@ -31,20 +36,24 @@ export async function prepareCover(bytes, expectedMime) {
       animated: false,
     });
     const metadata = await image.metadata();
-    const mime = { jpeg: 'image/jpeg', png: 'image/png' }[metadata.format];
+    const mime = {
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      ...(avatar && { webp: 'image/webp' }),
+    }[metadata.format];
     if (
       mime !== expectedMime ||
       (metadata.pages || 1) !== 1 ||
       !metadata.width ||
       !metadata.height
     )
-      throw invalid();
+      throw invalid(avatar);
     const { data, info } = await image
       .timeout({ seconds: 10 })
       .rotate()
       .resize({
-        width: 2400,
-        height: 2400,
+        width: avatar ? 960 : 2400,
+        height: avatar ? 960 : 2400,
         fit: 'inside',
         withoutEnlargement: true,
       })
@@ -58,7 +67,7 @@ export async function prepareCover(bytes, expectedMime) {
     };
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw invalid();
+    throw invalid(avatar);
   }
 }
 
@@ -109,7 +118,14 @@ export function createCoverStorage(
       );
     }
   }
-  async function writeImmutable(key, bytes, mimeType, checksum, signal) {
+  async function writeImmutable(
+    key,
+    bytes,
+    mimeType,
+    checksum,
+    signal,
+    avatar,
+  ) {
     const input = { Bucket: settings.r2Bucket, Key: key };
     try {
       await ready().send(
@@ -128,7 +144,7 @@ export function createCoverStorage(
       const previous = await ready().send(new HeadObjectCommand(input), {
         abortSignal: signal,
       });
-      if (previous.Metadata?.sha256 !== checksum) throw invalid();
+      if (previous.Metadata?.sha256 !== checksum) throw invalid(avatar);
     }
   }
   return {
@@ -151,6 +167,8 @@ export function createCoverStorage(
       });
     },
     async finish(asset) {
+      const avatar = asset.purpose === PROFILE_AVATAR;
+      const maxBytes = avatar ? MAX_AVATAR_BYTES : MAX_COVER_BYTES;
       if (processing >= 2)
         throw new ApiError(
           429,
@@ -168,10 +186,10 @@ export function createCoverStorage(
           });
           if (
             head.ContentLength !== asset.sizeBytes ||
-            head.ContentLength > MAX_COVER_BYTES ||
+            head.ContentLength > maxBytes ||
             head.ContentType !== asset.mimeType
           )
-            throw invalid();
+            throw invalid(avatar);
           const response = await ready().send(
             new GetObjectCommand({ ...request, IfMatch: head.ETag }),
             { abortSignal: signal },
@@ -181,22 +199,23 @@ export function createCoverStorage(
           try {
             for await (const chunk of response.Body) {
               size += chunk.length;
-              if (size > asset.sizeBytes || size > MAX_COVER_BYTES)
-                throw invalid();
+              if (size > asset.sizeBytes || size > maxBytes)
+                throw invalid(avatar);
               chunks.push(chunk);
             }
           } finally {
             response.Body.destroy?.();
           }
-          if (size !== asset.sizeBytes) throw invalid();
+          if (size !== asset.sizeBytes) throw invalid(avatar);
           const original = Buffer.concat(chunks);
-          const prepared = await prepareCover(original, asset.mimeType);
+          const prepared = await prepareCover(original, asset.mimeType, avatar);
           await writeImmutable(
             asset.objectKey,
             original,
             asset.mimeType,
             prepared.checksum,
             signal,
+            avatar,
           );
           await writeImmutable(
             asset.displayKey,
@@ -204,6 +223,7 @@ export function createCoverStorage(
             'image/webp',
             prepared.checksum,
             signal,
+            avatar,
           );
           return {
             width: prepared.width,

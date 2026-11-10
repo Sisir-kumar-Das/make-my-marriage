@@ -1,3 +1,4 @@
+import { avatarSummary } from '../media/avatar.js';
 import { Types } from 'mongoose';
 import { z } from 'zod';
 import { ApiError } from '../lib/api-error.js';
@@ -42,7 +43,10 @@ export function memberDirectoryRow(
     isCreator,
     relationship: isCreator ? null : row.relationship?.trim() || null,
     openTaskCount,
-    ...(viewerRole === 'ADMIN' || isYou ? { email: row.email } : {}),
+    ...(row.avatarMediaId && { avatar: avatarSummary(row) }),
+    ...(viewerRole === 'ADMIN' || isYou
+      ? { email: row.email, ...(row.phone && { phone: row.phone }) }
+      : {}),
   };
 }
 
@@ -138,6 +142,10 @@ export function createMemberService({
         const total = counts[role || 'ALL'];
         const totalPages = Math.ceil(total / limit);
         const selectedPage = Math.min(page, Math.max(1, totalPages));
+        const canReadContact =
+          viewer.role === 'ADMIN'
+            ? true
+            : { $eq: ['$userId', new Types.ObjectId(String(userId))] };
         const rows = await WeddingMember.aggregate([
           ...base,
           ...(role ? [{ $match: { role } }] : []),
@@ -151,18 +159,12 @@ export function createMemberService({
               role: 1,
               relationship: 1,
               name: '$account.profile.displayName',
-              email:
-                viewer.role === 'ADMIN'
-                  ? '$account.email'
-                  : {
-                      $cond: [
-                        {
-                          $eq: ['$userId', new Types.ObjectId(String(userId))],
-                        },
-                        '$account.email',
-                        '$$REMOVE',
-                      ],
-                    },
+              avatarMediaId: '$account.avatarMediaId',
+              avatarFrame: '$account.avatarFrame',
+              email: { $cond: [canReadContact, '$account.email', '$$REMOVE'] },
+              phone: {
+                $cond: [canReadContact, '$account.profile.phone', '$$REMOVE'],
+              },
             },
           },
         ]).session(transaction);

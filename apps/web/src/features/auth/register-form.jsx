@@ -14,7 +14,11 @@ import { invitationAuthHref } from '@/features/invitations/invitation-data';
 
 const schema = z
   .object({
-    name: z.string().trim().min(2, 'Enter at least 2 characters.').max(100),
+    name: z
+      .string()
+      .trim()
+      .min(2, 'Enter a display name with at least 2 characters.')
+      .max(100, 'Use 100 characters or fewer for your display name.'),
     email: z.string().trim().max(254).email('Enter a valid email address.'),
     password: passwordSchema,
     confirmPassword: z.string(),

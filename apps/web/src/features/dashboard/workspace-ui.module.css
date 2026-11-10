@@ -212,6 +212,17 @@
   color: #837378;
   cursor: not-allowed;
 }
+.profileTabs {
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 0.25rem;
+  border-bottom: 0;
+}
+.profileTabs > * {
+  flex-shrink: 0;
+}
 .tableWrap {
   overflow: auto;
   border-radius: 0.5rem;
