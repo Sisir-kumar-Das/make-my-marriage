@@ -1,5 +1,13 @@
 import Link from 'next/link';
-import { Clock3, Sparkles, Search, UserRound } from 'lucide-react';
+import {
+  Clock3,
+  Sparkles,
+  Search,
+  UserRound,
+  Heart,
+  History,
+  TriangleAlert,
+} from 'lucide-react';
 import styles from './workspace-ui.module.css';
 export function ComingSoon() {
   return (
@@ -74,11 +82,12 @@ export function SettingsTabs({ active }) {
   return (
     <nav
       className={
-        active === '/profile'
+        ['/profile', '/settings'].includes(active)
           ? `${styles.tabs} ${styles.profileTabs}`
           : styles.tabs
       }
       aria-label="Workspace settings"
+      data-wedding-settings={active === '/settings' || undefined}
     >
       {[
         ['/settings', 'Wedding Settings'],
@@ -93,10 +102,23 @@ export function SettingsTabs({ active }) {
           {active === '/profile' && href === active && (
             <UserRound size={16} aria-hidden="true" />
           )}
+          {active === '/settings' &&
+            (href === '/settings' ? (
+              <Heart size={18} aria-hidden="true" />
+            ) : href === '/profile' ? (
+              <UserRound size={18} aria-hidden="true" />
+            ) : (
+              <History size={18} aria-hidden="true" />
+            ))}
           {label}
         </Link>
       ))}
-      <button disabled>Wedding Workspace Lifecycle · Coming soon</button>
+      <button disabled>
+        {active === '/settings' && (
+          <TriangleAlert size={18} aria-hidden="true" />
+        )}
+        Wedding Workspace Lifecycle · Coming soon
+      </button>
     </nav>
   );
 }

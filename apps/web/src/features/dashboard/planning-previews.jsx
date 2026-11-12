@@ -1,17 +1,6 @@
 import Link from 'next/link';
 import { Camera, ShieldCheck } from 'lucide-react';
-import {
-  ComingSoon,
-  FutureButton,
-  PageHeader,
-  ReadOnlyField,
-  SettingsTabs,
-} from './workspace-ui';
-import {
-  weddingDate,
-  traditions,
-  budgetLabel,
-} from '@/features/weddings/form-data';
+import { ComingSoon, PageHeader, SettingsTabs } from './workspace-ui';
 import styles from './workspace-ui.module.css';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
 
@@ -22,7 +11,7 @@ function roleLabel(role) {
       ? 'Family Member'
       : 'Viewer';
 }
-export function SettingsPreview({ session }) {
+export function WeddingSettingsLayout({ session, children }) {
   const { wedding, membership } = session;
   return (
     <div className={styles.stack}>
@@ -36,63 +25,26 @@ export function SettingsPreview({ session }) {
         </span>
       </PageHeader>
       <SettingsTabs active="/settings" />
-      <div className={styles.note}>
-        <ShieldCheck size={20} />
-        <p>
-          <strong>Workspace Settings</strong>
-          <br />
-          Your saved wedding details are shown below. Editing these details is
-          coming soon.
-        </p>
+      <div className="flex items-start justify-between gap-4 rounded-lg bg-[#f9f2f6] p-4 shadow-xs sm:items-center">
+        <div className="flex min-w-0 items-center gap-4">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#ffd5dd] text-[#7a5a61]">
+            <ShieldCheck size={20} aria-hidden="true" />
+          </span>
+          <div>
+            <p className="text-base font-semibold">Workspace Settings</p>
+            <p className="text-sm text-[#514348]">
+              {membership.role === 'ADMIN'
+                ? `Manage high-level wedding details and ceremonial traditions for ${wedding.name}.`
+                : 'You can view wedding details. Only Admins can edit these settings.'}
+            </p>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-xl bg-[#e8e0e4] px-2 py-1 text-xs font-semibold">
+          {roleLabel(membership.role)}
+        </span>
       </div>
-      <div className={styles.settingsGrid}>
-        <section className={styles.card}>
-          <div className={`${styles.row} mb-7`}>
-            <h2>Wedding Details</h2>
-            <ComingSoon />
-          </div>
-          <div className={styles.fields}>
-            <ReadOnlyField
-              label="Wedding Workspace Title"
-              value={wedding.name}
-              full
-            />
-            <ReadOnlyField label="Bride Name" value={wedding.brideName} />
-            <ReadOnlyField label="Groom Name" value={wedding.groomName} />
-            <ReadOnlyField
-              label="Main Wedding Date"
-              value={weddingDate(wedding.mainDate)}
-            />
-            <ReadOnlyField
-              label="Ceremonial Tradition"
-              value={
-                traditions.find(([k]) => k === wedding.tradition)?.[1] ||
-                wedding.tradition
-              }
-            />
-            <ReadOnlyField label="City" value={wedding.location.city} />
-            <ReadOnlyField label="State" value={wedding.location.state} />
-            <ReadOnlyField label="Country" value="India" />
-            <ReadOnlyField
-              label="Workspace Timezone"
-              value="Asia/Kolkata (IST, UTC+5:30)"
-            />
-            {membership.financeAccess && (
-              <ReadOnlyField
-                label="Estimated Overall Budget (Optional)"
-                value={
-                  wedding.estimatedBudget
-                    ? budgetLabel(wedding.estimatedBudget.amountMinor)
-                    : 'Not specified'
-                }
-                full
-              />
-            )}
-          </div>
-          <div className={`${styles.actions} mt-7`}>
-            <FutureButton primary>Save Wedding Settings</FutureButton>
-          </div>
-        </section>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        {children}
         <div className={styles.stack}>
           <section className={styles.card}>
             <h2>Cover Presentation</h2>

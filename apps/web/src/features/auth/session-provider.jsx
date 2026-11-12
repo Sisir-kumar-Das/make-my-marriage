@@ -164,7 +164,11 @@ export function SessionProvider({
     if (channel)
       channel.onmessage = (event) => {
         if (event.data === 'logout') leave();
-        else if (['membership-changed', 'profile-changed'].includes(event.data))
+        else if (
+          ['membership-changed', 'profile-changed', 'wedding-changed'].includes(
+            event.data,
+          )
+        )
           void check();
       };
     const timer = setInterval(check, 60000);
@@ -204,6 +208,23 @@ export function SessionProvider({
       channel.close();
     }
   }
+  function applySavedWedding(accountId, data) {
+    sessionCheck.current++;
+    setSession((current) =>
+      current?.user.id === accountId &&
+      current.wedding?.id === data.wedding.id &&
+      current.membership?.role === 'ADMIN' &&
+      data.membership.role === 'ADMIN'
+        ? { ...current, wedding: data.wedding, membership: data.membership }
+        : current,
+    );
+    setAttempt((value) => value + 1);
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('mmm-session');
+      channel.postMessage('wedding-changed');
+      channel.close();
+    }
+  }
   async function logout() {
     setPending(true);
     setError('');
@@ -232,9 +253,14 @@ export function SessionProvider({
     (preserveSetupState && pathname === '/wedding-setup') ||
     (preserveEventState && pathname === '/events') ||
     (preserveTaskState &&
-      ['/tasks', '/recovery', '/checklist', '/members', '/profile'].includes(
-        pathname,
-      ));
+      [
+        '/tasks',
+        '/recovery',
+        '/checklist',
+        '/members',
+        '/profile',
+        '/settings',
+      ].includes(pathname));
   if (
     !session ||
     (error && !preserveDraft) ||
@@ -254,6 +280,7 @@ export function SessionProvider({
         membership: session.membership,
         logout,
         applySavedProfile,
+        applySavedWedding,
         pending,
         connectionError: error,
         retrySession: () => setAttempt((value) => value + 1),

@@ -257,6 +257,7 @@ test('wedding HTTP writes require a verified session, trusted Origin, JSON and s
     authRateLimitMax: 100,
   };
   let calls = 0;
+  let settingCalls = 0;
   const identity = {
     user: { id: '012345678901234567890123', emailVerified: true },
     wedding: null,
@@ -270,6 +271,18 @@ test('wedding HTTP writes require a verified session, trusted Origin, JSON and s
     },
   };
   const weddings = {
+    async update(id, weddingId, input, match, key) {
+      settingCalls++;
+      assert.equal(id, identity.user.id);
+      assert.equal(weddingId, '123456789012345678901234');
+      assert.deepEqual(input, { name: 'Updated wedding' });
+      assert.equal(match, '"0"');
+      assert.equal(key, 'test-key-123456789');
+      return {
+        wedding: { id: weddingId, version: 1 },
+        membership: { role: 'ADMIN' },
+      };
+    },
     async create(id, input, key) {
       calls++;
       assert.equal(id, identity.user.id);
@@ -329,6 +342,25 @@ test('wedding HTTP writes require a verified session, trusted Origin, JSON and s
     assert.equal(created.headers.getSetCookie().length, 0);
     assert.match(created.headers.get('cache-control'), /no-store/);
     assert.equal(calls, 1);
+    const patch = (changes) =>
+      fetch(base + '/weddings/123456789012345678901234', {
+        method: 'PATCH',
+        headers: { ...headers, 'If-Match': '"0"', ...changes },
+        body: JSON.stringify({ name: 'Updated wedding' }),
+      });
+    assert.equal(
+      (await patch({ Origin: 'https://untrusted.example' })).status,
+      403,
+    );
+    assert.equal((await patch({ 'Content-Type': 'text/plain' })).status, 415);
+    assert.equal((await patch({ Cookie: '' })).status, 401);
+    assert.equal((await patch({ 'X-CSRF-Token': '' })).status, 403);
+    assert.equal(settingCalls, 0);
+    const updated = await patch({});
+    assert.equal(updated.status, 200);
+    assert.equal(updated.headers.get('etag'), '"1"');
+    assert.match(updated.headers.get('cache-control'), /no-store/);
+    assert.equal(settingCalls, 1);
     assert.equal(
       (
         await fetch(base + '/weddings/123456789012345678901234', {

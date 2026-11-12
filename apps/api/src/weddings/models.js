@@ -54,6 +54,8 @@ const memberSchema = new Schema(
       required: true,
     },
     financeAccess: { type: Boolean, default: false },
+    // A real write lock without invalidating role/removal preview versions.
+    settingsLockVersion: { type: Number, default: 0, select: false },
     // Legacy rows stay readable. Future invitation acceptance requires this for non-creators.
     relationship: { type: String, trim: true, maxlength: 80, default: null },
     status: { type: String, enum: ['ACTIVE', 'REMOVED'], default: 'ACTIVE' },
@@ -86,6 +88,23 @@ const requestSchema = new Schema(
 requestSchema.index({ userId: 1, keyHash: 1 }, { unique: true });
 requestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+const settingsRequestSchema = new Schema(
+  {
+    weddingId: { type: Schema.Types.ObjectId, required: true },
+    userId: { type: Schema.Types.ObjectId, required: true },
+    keyHash: { type: String, required: true },
+    requestHash: { type: String, required: true },
+    unchanged: { type: Boolean, default: false },
+    expiresAt: { type: Date, required: true },
+  },
+  { collection: 'weddingSettingsRequests' },
+);
+settingsRequestSchema.index(
+  { weddingId: 1, userId: 1, keyHash: 1 },
+  { unique: true },
+);
+settingsRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 export function weddingModels(connection) {
   return {
     Wedding:
@@ -96,5 +115,8 @@ export function weddingModels(connection) {
     WeddingCreationRequest:
       connection.models.WeddingCreationRequest ||
       connection.model('WeddingCreationRequest', requestSchema),
+    WeddingSettingsRequest:
+      connection.models.WeddingSettingsRequest ||
+      connection.model('WeddingSettingsRequest', settingsRequestSchema),
   };
 }

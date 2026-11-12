@@ -5,6 +5,7 @@ import { weddingModels } from './models.js';
 import { config } from '../config.js';
 import { attachCover, detachCover } from '../media/references.js';
 import { defaultCoverFrame, saveCoverSchema } from '../media/validation.js';
+import { updateWeddingSettings } from './settings.js';
 import {
   createWeddingSchema,
   idempotencyKeySchema,
@@ -401,5 +402,8 @@ export function createWeddingService({
     read: safe(read),
     create: safe(create),
     setCover: safe(setCover),
+    update: safe((...args) =>
+      updateWeddingSettings({ database, now, context }, ...args),
+    ),
   };
 }

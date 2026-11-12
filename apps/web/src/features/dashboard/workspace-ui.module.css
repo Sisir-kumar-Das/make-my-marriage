@@ -223,6 +223,16 @@
 .profileTabs > * {
   flex-shrink: 0;
 }
+.tabs[data-wedding-settings] a,
+.tabs[data-wedding-settings] button {
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 1px 3px #00000008;
+}
+.tabs[data-wedding-settings] [aria-current='page'] {
+  background: #6e334e;
+  color: white;
+}
 .tableWrap {
   overflow: auto;
   border-radius: 0.5rem;

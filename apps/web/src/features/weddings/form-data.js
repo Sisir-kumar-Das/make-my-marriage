@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visibleText } from '../../../../../lib/visible-text.js';
 
 export const traditions = [
   ['ODIA', 'Odia'],
@@ -16,12 +17,8 @@ const text = (max) =>
     .min(2, 'Enter at least 2 characters.')
     .max(max)
     .refine(
-      (value) =>
-        [...value].every(
-          (letter) =>
-            letter.charCodeAt(0) >= 32 && letter.charCodeAt(0) !== 127,
-        ),
-      'Use a single line of text.',
+      visibleText,
+      'Use visible characters and remove hidden formatting.',
     );
 const validDate = (value) => {
   const date = new Date(value + 'T12:00:00Z');

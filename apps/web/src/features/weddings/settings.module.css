@@ -1,0 +1,213 @@
+.card {
+  min-width: 0;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 8px #00000008;
+}
+.head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.head h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.head p,
+.help {
+  color: #514348;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.head > svg {
+  flex-shrink: 0;
+  color: #837378;
+}
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+.full {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  border-radius: 0.5rem;
+  background: white;
+  padding: 0.625rem 1rem;
+  box-shadow: 0 1px 3px #00000015;
+}
+.field input:read-only {
+  background: #f3ecf0;
+  color: #514348;
+}
+.field input:focus-visible,
+.field select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.inputIcon {
+  position: relative;
+}
+.inputIcon input {
+  padding-right: 2.5rem;
+}
+.inputIcon svg {
+  position: absolute;
+  right: 0.75rem;
+  top: 0.8rem;
+  color: #837378;
+  pointer-events: none;
+}
+.generate {
+  color: var(--primary);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  align-self: flex-start;
+  min-height: 2.75rem;
+}
+.location {
+  display: grid;
+  gap: 0.5rem;
+}
+.timezone {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f9f2f6;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+.timezone svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.budget {
+  background: #f3ecf0;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.budgetHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.5rem;
+}
+.budgetHead label {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.budgetHead label svg {
+  flex-shrink: 0;
+}
+.badge {
+  white-space: nowrap;
+  border-radius: 1rem;
+  padding: 0.125rem 0.5rem;
+  background: #f9dfb0;
+  color: #3d2e0d;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+.actions button,
+.notice button {
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.actions .save svg {
+  flex-shrink: 0;
+}
+.save {
+  color: white;
+  background: #6e334e;
+  box-shadow: 0 1px 3px #00000015;
+}
+.card button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.notice {
+  margin-top: 1rem;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: #f9f2f6;
+  color: var(--primary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.error {
+  color: #ba1a1a;
+  background: #fff1f2;
+}
+.notice button {
+  text-decoration: underline;
+}
+.fieldError {
+  color: #ba1a1a;
+  font-size: 0.75rem;
+}
+@media (min-width: 640px) {
+  .location {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.head p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.field input,
+.field select {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+@media (max-width: 639px) {
+  .field input.longBudget {
+    padding-inline: 0.5rem;
+    font-size: 0.8125rem;
+  }
+}

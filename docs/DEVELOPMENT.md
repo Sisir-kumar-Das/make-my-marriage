@@ -4,6 +4,10 @@
 
 Run commands from the repository root with Node.js 24 and npm. `npm ci` installs the versions in the single root lockfile. `npm run dev` starts both applications and stops the other process if either exits. Ctrl+C stops the combined session.
 
+For authenticated testing on separate local ports, also use a dedicated fresh browser profile/context. Different ports on the same hostname share cookie scope. Never clear or replace the owner's cookies as a test cleanup step. A controlled second-port cookie overwrite reproduced refresh failure in an isolated test; it is not proof of the cause of an earlier reported sign-out. See AGENT_HANDOFF and PROJECT_STATUS for the actual investigation scope.
+
+API packaging readiness remains pending. Include the root `lib/visible-text.js` alongside `apps/api/src/` in the approved deployment artifact, or bundle that dependency. An artifact containing only `apps/api/` omits a required import. Verify the produced artifact's imports/startup in clean Node.js 24 with production dependencies before deployment; local workspace checks alone do not establish this. See ADR-049.
+
 | Command                    | Purpose                                                                          |
 | -------------------------- | -------------------------------------------------------------------------------- |
 | `npm run dev:web`          | Next.js watch/development server, port 3000                                      |

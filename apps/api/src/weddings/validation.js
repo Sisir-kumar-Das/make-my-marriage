@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visibleText } from '../../../../lib/visible-text.js';
 import { mediaIdSchema, coverFrameSchema } from '../media/validation.js';
 
 export function weddingToday(now = new Date()) {
@@ -17,17 +18,13 @@ export function weddingToday(now = new Date()) {
 
 const text = (max) =>
   z
-    .string()
+    .string('Enter text for this field.')
     .trim()
-    .min(2)
-    .max(max)
+    .min(2, 'Enter at least 2 characters.')
+    .max(max, `Use ${max} characters or fewer.`)
     .refine(
-      (value) =>
-        [...value].every(
-          (letter) =>
-            letter.charCodeAt(0) >= 32 && letter.charCodeAt(0) !== 127,
-        ),
-      'Use a single line of text.',
+      visibleText,
+      'Use visible characters and remove hidden formatting.',
     );
 const calendarDate = z
   .string()
@@ -83,3 +80,26 @@ export const createWeddingSchema = z
 export const idempotencyKeySchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{16,128}$/, 'Provide a valid Idempotency-Key.');
+
+// Settings deliberately exclude date, country, timezone, permissions and media.
+export const weddingSettingsSchema = z
+  .object({
+    name: createWeddingSchema.shape.name,
+    brideName: createWeddingSchema.shape.brideName,
+    groomName: createWeddingSchema.shape.groomName,
+    tradition: createWeddingSchema.shape.tradition,
+    location: z.object({ city: text(100), state: text(100) }).strict(),
+    estimatedBudget: z
+      .object({
+        amountMinor: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+        currency: z.literal('INR'),
+      })
+      .strict()
+      .nullable(),
+  })
+  .partial()
+  .strict()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    'Choose an editable wedding detail to update.',
+  );

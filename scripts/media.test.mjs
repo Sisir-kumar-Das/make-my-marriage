@@ -302,6 +302,7 @@ test('avatar saves claim only the owner’s staged avatar and version removals a
         filter.status === 'ACTIVE',
     },
     WeddingCreationRequest: {},
+    WeddingSettingsRequest: {},
     MediaAsset: {
       findOne: (filter) => {
         const row = assets.get(filter._id);

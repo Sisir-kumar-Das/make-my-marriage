@@ -57,5 +57,16 @@ export function createWeddingRouter({ service, weddings, settings }) {
       data: result,
     });
   });
+  router.patch('/:weddingId', cookies.protect, async (req, res) => {
+    const result = await weddings.update(
+      req.identity.user.id,
+      req.params.weddingId,
+      req.body,
+      req.get('if-match'),
+      req.get('idempotency-key'),
+    );
+    res.setHeader('ETag', '"' + result.wedding.version + '"');
+    res.json({ success: true, data: result });
+  });
   return router;
 }
