@@ -1,0 +1,387 @@
+'use client';
+
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { apiRequest } from '@/lib/api-client';
+
+const SessionContext = createContext(null);
+export const useSession = () => useContext(SessionContext);
+
+export function SessionRestore({ embedded = false }) {
+  const router = useRouter();
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    apiRequest('/auth/session')
+      .then(() => {
+        if (active) router.refresh();
+      })
+      .catch((failure) => {
+        if (!active) return;
+        if (failure.code === 'SESSION_EXPIRED') {
+          router.replace('/login');
+          router.refresh();
+        } else setError(failure.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [router, attempt]);
+  return (
+    <SessionNotice
+      embedded={embedded}
+      error={error}
+      onRetry={() => {
+        setError('');
+        setAttempt((value) => value + 1);
+      }}
+    />
+  );
+}
+
+export function SessionNotice({
+  error,
+  onRetry,
+  embedded = false,
+  title,
+  description,
+  showRetry = !!error,
+  retryLabel = 'Retry session check',
+  continueHref,
+  continueLabel,
+}) {
+  const Container = embedded ? 'section' : 'main';
+  return (
+    <Container
+      id={embedded ? undefined : 'main-content'}
+      className={`flex ${embedded ? 'min-h-[50vh]' : 'min-h-screen'} items-center justify-center bg-background px-5 text-foreground`}
+    >
+      <section className="w-full max-w-md rounded-lg border bg-card p-8 text-center shadow-sm">
+        <h1 className="font-serif text-2xl text-primary">
+          {title ||
+            (error
+              ? 'We could not check your session.'
+              : 'Checking your session…')}
+        </h1>
+        <p
+          role={error || showRetry ? 'alert' : 'status'}
+          className="mt-4 text-sm text-muted-foreground"
+        >
+          {error ||
+            description ||
+            'Please wait while we securely restore your sign-in.'}
+        </p>
+        {showRetry && (
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="min-h-11 rounded bg-primary px-6 py-3 text-sm font-semibold text-white"
+            >
+              {retryLabel}
+            </button>
+            {continueHref && (
+              <a
+                href={continueHref}
+                className="inline-flex min-h-11 items-center justify-center rounded border border-primary px-5 py-3 text-sm font-semibold text-primary"
+              >
+                {continueLabel}
+              </a>
+            )}
+          </div>
+        )}
+      </section>
+    </Container>
+  );
+}
+
+export function SessionProvider({
+  initialSession,
+  children,
+  preserveSetupState = false,
+  preserveEventState = false,
+  preserveTaskState = false,
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [session, setSession] = useState(initialSession);
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const revoked = useRef(false);
+  const sessionCheck = useRef(0);
+  const connectionErrorFocus = useRef(null);
+  const preservedContent = useRef(null);
+  const displacedFocus = useRef(null);
+  const contextKey = useRef(
+    JSON.stringify([
+      initialSession.user.id,
+      initialSession.wedding,
+      initialSession.membership,
+    ]),
+  );
+  useEffect(() => {
+    let active = true;
+    const leave = () => {
+      if (!active) return;
+      revoked.current = true;
+      setSession(null);
+      router.replace('/login');
+      router.refresh();
+    };
+    async function check() {
+      if (revoked.current || document.visibilityState === 'hidden') return;
+      const checkId = ++sessionCheck.current;
+      try {
+        const result = await apiRequest('/auth/session');
+        if (active && !revoked.current && checkId === sessionCheck.current) {
+          setSession(result.data);
+          setError('');
+          if (result.data.recovery) {
+            router.replace('/wedding-recovery');
+            router.refresh();
+            return;
+          }
+          const key = JSON.stringify([
+            result.data.user.id,
+            result.data.wedding,
+            result.data.membership,
+          ]);
+          if (contextKey.current !== key) {
+            contextKey.current = key;
+            // Recheck server-rendered content when membership/permissions change.
+            if (pathname !== '/wedding-setup') router.refresh();
+          }
+          if (!result.data.wedding && pathname !== '/wedding-setup') {
+            router.replace('/wedding-setup');
+            router.refresh();
+          }
+        }
+      } catch (failure) {
+        if (!active || revoked.current || checkId !== sessionCheck.current)
+          return;
+        if (failure.code === 'SESSION_EXPIRED') leave();
+        else {
+          // Capture before React makes the preserved draft inert and the browser
+          // drops its focused descendant to the body.
+          displacedFocus.current = preservedContent.current?.contains(
+            document.activeElement,
+          )
+            ? document.activeElement
+            : null;
+          setError(failure.message);
+        }
+      }
+    }
+    const channel =
+      typeof BroadcastChannel !== 'undefined'
+        ? new BroadcastChannel('mmm-session')
+        : null;
+    if (channel)
+      channel.onmessage = (event) => {
+        if (event.data === 'logout') leave();
+        else if (
+          ['membership-changed', 'profile-changed', 'wedding-changed'].includes(
+            event.data,
+          )
+        )
+          void check();
+      };
+    const timer = setInterval(check, 60000);
+    void check();
+    window.addEventListener('focus', check);
+    window.addEventListener('pageshow', check);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('mmm:session-expired', leave);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      channel?.close();
+      window.removeEventListener('focus', check);
+      window.removeEventListener('pageshow', check);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('mmm:session-expired', leave);
+    };
+  }, [router, attempt, pathname]);
+  useEffect(() => {
+    const previous = displacedFocus.current;
+    displacedFocus.current = null;
+    if (!error || !previous) return;
+    const active = document.activeElement;
+    const target = connectionErrorFocus.current;
+    if (
+      (active === document.body ||
+        preservedContent.current?.contains(active)) &&
+      target?.isConnected &&
+      !target.closest('[inert]')
+    )
+      target.focus();
+  }, [error]);
+  function applySavedProfile({ id, displayName, avatar, avatarVersion }) {
+    sessionCheck.current++;
+    setSession((current) =>
+      current?.user.id === id
+        ? {
+            ...current,
+            user: {
+              ...current.user,
+              ...(displayName !== undefined && { displayName }),
+              ...(avatar !== undefined && { avatar, avatarVersion }),
+            },
+          }
+        : current,
+    );
+    setAttempt((value) => value + 1);
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('mmm-session');
+      channel.postMessage('profile-changed');
+      channel.close();
+    }
+  }
+  function applySavedWedding(accountId, data) {
+    sessionCheck.current++;
+    setSession((current) =>
+      current?.user.id === accountId &&
+      current.wedding?.id === data.wedding.id &&
+      current.membership?.role === 'ADMIN' &&
+      data.membership.role === 'ADMIN'
+        ? { ...current, wedding: data.wedding, membership: data.membership }
+        : current,
+    );
+    setAttempt((value) => value + 1);
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('mmm-session');
+      channel.postMessage('wedding-changed');
+      channel.close();
+    }
+  }
+  async function logout() {
+    setPending(true);
+    setError('');
+    try {
+      await apiRequest('/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      revoked.current = true;
+      setSession(null);
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel('mmm-session');
+        channel.postMessage('logout');
+        channel.close();
+      }
+      router.replace('/login');
+      router.refresh();
+    } catch (failure) {
+      displacedFocus.current = preservedContent.current?.contains(
+        document.activeElement,
+      )
+        ? document.activeElement
+        : null;
+      setError(failure.message);
+    } finally {
+      setPending(false);
+    }
+  }
+  const preserveDraft =
+    (preserveSetupState && pathname === '/wedding-setup') ||
+    (preserveEventState && pathname === '/events') ||
+    (preserveTaskState &&
+      [
+        '/tasks',
+        '/recovery',
+        '/checklist',
+        '/members',
+        '/profile',
+        '/settings',
+        '/settings/lifecycle',
+      ].includes(pathname));
+  if (
+    !session ||
+    (error && !preserveDraft) ||
+    (!session.wedding && pathname !== '/wedding-setup')
+  )
+    return (
+      <SessionNotice
+        error={error}
+        onRetry={() => setAttempt((value) => value + 1)}
+      />
+    );
+  return (
+    <SessionContext.Provider
+      value={{
+        user: session.user,
+        wedding: session.wedding,
+        membership: session.membership,
+        logout,
+        applySavedProfile,
+        applySavedWedding,
+        pending,
+        connectionError: error,
+        connectionErrorFocus,
+        retrySession: () => setAttempt((value) => value + 1),
+      }}
+    >
+      {preserveDraft ? (
+        <>
+          {error && (
+            <section
+              id="session-connection-error"
+              ref={connectionErrorFocus}
+              tabIndex={-1}
+              role="alert"
+              aria-labelledby="setup-connection-heading"
+              className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-5 py-5 text-[#242124] shadow-sm"
+            >
+              <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 id="setup-connection-heading" className="font-semibold">
+                    We could not check your session.
+                  </h2>
+                  <p className="mt-1 text-sm">
+                    Your unsaved details are kept in this tab. Reconnect and
+                    retry to continue.
+                  </p>
+                  <p className="mt-1 text-sm text-[#5C5457]">{error}</p>
+                </div>
+                <button
+                  type="button"
+                  className="min-h-11 rounded border border-[#6E334E] px-4 text-sm font-medium text-[#6E334E]"
+                  onClick={() => setAttempt((value) => value + 1)}
+                >
+                  Retry session check
+                </button>
+              </div>
+            </section>
+          )}
+          {/* Keep the same subtree mounted while preventing interaction until revalidation. */}
+          <div
+            ref={preservedContent}
+            inert={error ? true : undefined}
+            className={error ? 'opacity-60' : undefined}
+          >
+            {children}
+          </div>
+        </>
+      ) : (
+        children
+      )}
+    </SessionContext.Provider>
+  );
+}
+
+export function LogoutButton() {
+  const { logout, pending } = useSession();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={logout}
+      className="min-h-11 rounded-lg border px-3 text-xs font-medium hover:bg-muted disabled:opacity-60"
+    >
+      {pending ? 'Signing out…' : 'Log out'}
+    </button>
+  );
+}

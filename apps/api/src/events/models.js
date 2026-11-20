@@ -1,0 +1,163 @@
+import mongoose from 'mongoose';
+
+const { Schema } = mongoose;
+export const ceremonyTypes = [
+  'ENGAGEMENT',
+  'HALDI',
+  'MEHENDI',
+  'SANGEET',
+  'BARAJATRI',
+  'WEDDING',
+  'RECEPTION',
+  'PRE_WEDDING_PHOTOSHOOT',
+  'WELCOME_DINNER',
+  'COCKTAIL_NIGHT',
+  'DIYA_MANGULA_PUJA',
+  'JAI_RAGADA',
+  'ASTHAMANGALA',
+  'CUSTOM',
+];
+const ceremonyActivitySchema = new Schema({
+  name: { type: String, required: true, maxlength: 160 },
+  startAt: { type: Date, required: true },
+  endAt: { type: Date, default: null },
+  description: { type: String, maxlength: 1000, default: '' },
+});
+const eventSchema = new Schema(
+  {
+    weddingId: { type: Schema.Types.ObjectId, required: true },
+    name: { type: String, required: true, maxlength: 160 },
+    type: {
+      type: String,
+      required: true,
+      enum: ceremonyTypes,
+    },
+    description: { type: String, maxlength: 2000, default: '' },
+    startAt: { type: Date, required: true },
+    endAt: { type: Date, required: true },
+    activities: {
+      type: [ceremonyActivitySchema],
+      default: [],
+      validate: (rows) => rows.length <= 50,
+    },
+    venue: {
+      type: new Schema(
+        {
+          source: { type: String, enum: ['MANUAL', 'GOOGLE'] },
+          googlePlaceId: { type: String, maxlength: 512 },
+          name: String,
+          formattedAddress: String,
+          city: String,
+          state: String,
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ['PLANNED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'],
+      default: 'PLANNED',
+    },
+    createdBy: { type: Schema.Types.ObjectId, required: true },
+    updatedBy: { type: Schema.Types.ObjectId, required: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: Schema.Types.ObjectId, default: null },
+  },
+  { collection: 'events', timestamps: true, optimisticConcurrency: true },
+);
+eventSchema.index({ weddingId: 1, deletedAt: 1, startAt: 1, _id: 1 });
+eventSchema.index({
+  weddingId: 1,
+  deletedAt: 1,
+  status: 1,
+  startAt: 1,
+  _id: 1,
+});
+eventSchema.index({ weddingId: 1, deletedAt: -1, _id: -1 });
+const requestSchema = new Schema(
+  {
+    weddingId: { type: Schema.Types.ObjectId, required: true },
+    userId: { type: Schema.Types.ObjectId, required: true },
+    keyHash: { type: String, required: true },
+    requestHash: { type: String, required: true },
+    eventId: { type: Schema.Types.ObjectId, required: true },
+    expiresAt: { type: Date, required: true },
+  },
+  { collection: 'eventWriteRequests', timestamps: true },
+);
+requestSchema.index({ weddingId: 1, userId: 1, keyHash: 1 }, { unique: true });
+requestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+const activitySchema = new Schema(
+  {
+    weddingId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+    actorId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+    action: { type: String, required: true, immutable: true },
+    feedHidden: { type: Boolean, immutable: true },
+    entityType: { type: String, required: true, immutable: true },
+    entityId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+    parentEventId: { type: Schema.Types.ObjectId, immutable: true },
+    displaySnapshot: {
+      label: { type: String, maxlength: 160, immutable: true },
+      role: {
+        type: String,
+        enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'],
+        immutable: true,
+      },
+    },
+    memberChange: {
+      type: new Schema(
+        {
+          fromRole: {
+            type: String,
+            enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'],
+          },
+          toRole: { type: String, enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'] },
+          fromRelationship: { type: String, maxlength: 80, default: null },
+          toRelationship: { type: String, maxlength: 80, default: null },
+          repeatManagerId: { type: Schema.Types.ObjectId, default: null },
+          transferredRepeats: { type: Number, min: 0, default: 0 },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+      immutable: true,
+    },
+    memberRemoval: {
+      type: new Schema(
+        {
+          role: { type: String, enum: ['ADMIN', 'FAMILY_MEMBER', 'VIEWER'] },
+          relationship: { type: String, maxlength: 80, default: null },
+          policy: {
+            type: String,
+            enum: ['REASSIGN', 'UNASSIGN'],
+            default: null,
+          },
+          replacementUserId: { type: Schema.Types.ObjectId, default: null },
+          repeatManagerId: { type: Schema.Types.ObjectId, default: null },
+          changedTasks: { type: Number, min: 0 },
+          assignmentRules: { type: Number, min: 0 },
+          managedRules: { type: Number, min: 0 },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+      immutable: true,
+    },
+    createdAt: { type: Date, required: true, immutable: true },
+  },
+  { collection: 'activities', versionKey: false },
+);
+activitySchema.index({ weddingId: 1, createdAt: -1, _id: -1 });
+export function eventModels(connection) {
+  return {
+    Event: connection.models.Event || connection.model('Event', eventSchema),
+    EventWriteRequest:
+      connection.models.EventWriteRequest ||
+      connection.model('EventWriteRequest', requestSchema),
+    Activity:
+      connection.models.Activity ||
+      connection.model('Activity', activitySchema),
+  };
+}

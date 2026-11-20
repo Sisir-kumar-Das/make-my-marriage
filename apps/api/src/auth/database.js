@@ -1,0 +1,97 @@
+import mongoose from 'mongoose';
+import { ApiError } from '../lib/api-error.js';
+import { authModels } from './models.js';
+import {
+  weddingModels,
+  weddingLifecycleRequestModel,
+} from '../weddings/models.js';
+import { mediaModel } from '../media/models.js';
+import { eventModels } from '../events/models.js';
+import { taskModels } from '../tasks/models.js';
+import { checklistModels } from '../checklist/models.js';
+import { invitationModels } from '../invitations/models.js';
+import { memberModels } from '../members/models.js';
+
+export function createAuthDatabase(settings) {
+  let connection;
+  let pending;
+  let closing;
+
+  async function connect() {
+    if (!settings.mongodbUri || closing) {
+      throw new ApiError(
+        503,
+        'AUTH_UNAVAILABLE',
+        'Registration is temporarily unavailable. Please try again later.',
+      );
+    }
+    // A disconnected or stale-heartbeat client still owns its pools and retries
+    // recovery. Keep it until close() releases it instead of leaking replacements.
+    if (connection) return connection;
+    if (!pending) {
+      pending = (async () => {
+        const candidate = mongoose.createConnection(settings.mongodbUri, {
+          dbName: settings.mongodbDbName,
+          serverSelectionTimeoutMS: 4000,
+          maxPoolSize: 5,
+          bufferCommands: false,
+        });
+        // Never log driver errors: connection messages can contain URI details.
+        candidate.on('error', () => {});
+        try {
+          await candidate.asPromise();
+          const { User, AuthToken, Session } = authModels(candidate);
+          await User.init();
+          await AuthToken.init();
+          await Session.init();
+          await mediaModel(candidate).init();
+          for (const model of Object.values(eventModels(candidate)))
+            await model.init();
+          for (const model of Object.values(taskModels(candidate)))
+            await model.init();
+          for (const model of Object.values(checklistModels(candidate)))
+            await model.init();
+          for (const model of Object.values(invitationModels(candidate)))
+            await model.init();
+          for (const model of Object.values(memberModels(candidate)))
+            await model.init();
+          await Promise.all(
+            [
+              ...Object.values(weddingModels(candidate)),
+              weddingLifecycleRequestModel(candidate),
+            ].map((model) => model.init()),
+          );
+          connection = candidate;
+          return candidate;
+        } catch {
+          await candidate.close().catch(() => {});
+          throw new ApiError(
+            503,
+            'AUTH_UNAVAILABLE',
+            'Registration is temporarily unavailable. Please try again later.',
+          );
+        }
+      })().finally(() => {
+        pending = undefined;
+      });
+    }
+    return pending;
+  }
+
+  function close() {
+    // Publish the shutdown promise before invoking the driver, which can emit
+    // connection events synchronously as it begins closing the client.
+    closing ??= Promise.resolve()
+      .then(async () => {
+        if (pending) await pending.catch(() => {});
+        if (connection) await connection.close();
+        connection = undefined;
+      })
+      .finally(() => {
+        closing = undefined;
+      });
+    return closing;
+  }
+
+  return { connect, close };
+}

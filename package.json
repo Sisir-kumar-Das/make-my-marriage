@@ -1,0 +1,58 @@
+{
+  "name": "make-my-marriage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  },
+  "packageManager": "npm@11.19.0",
+  "scripts": {
+    "dev": "concurrently --kill-others --names web,api \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace=@make-my-marriage/web --",
+    "dev:api": "npm run dev --workspace=@make-my-marriage/api",
+    "build": "npm run build --workspace=@make-my-marriage/web --",
+    "start:web": "npm run start --workspace=@make-my-marriage/web --",
+    "start:api": "npm run start --workspace=@make-my-marriage/api",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "test": "node --test scripts/api-client.test.mjs scripts/auth.test.mjs scripts/sessions.test.mjs scripts/password-recovery.test.mjs scripts/weddings.test.mjs scripts/email.test.mjs scripts/media.test.mjs scripts/events.test.mjs scripts/places.test.mjs scripts/tasks.test.mjs scripts/recurrence.test.mjs scripts/checklist.test.mjs scripts/home-entry.test.mjs scripts/members.test.mjs scripts/invitations.test.mjs scripts/invitation-review.test.mjs scripts/member-changes.test.mjs scripts/member-removal.test.mjs scripts/member-editor.test.mjs scripts/idempotency-key.test.mjs scripts/dashboard.test.mjs scripts/dashboard-routes.test.mjs scripts/dashboard-provider.test.mjs scripts/dashboard-cover.test.mjs scripts/database.test.mjs scripts/activity.test.mjs scripts/profile.test.mjs scripts/wedding-settings.test.mjs scripts/wedding-settings-client.test.mjs scripts/wedding-lifecycle.test.mjs",
+    "test:auth:db": "node --env-file-if-exists=apps/api/.env --test scripts/auth-db.test.mjs",
+    "test:sessions:db": "node --env-file-if-exists=apps/api/.env --test scripts/sessions-db.test.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "test:recovery:db": "node --env-file-if-exists=apps/api/.env --test scripts/password-recovery-db.test.mjs",
+    "test:weddings:db": "node --env-file-if-exists=apps/api/.env --test scripts/weddings-db.test.mjs",
+    "test:media:db": "node --env-file-if-exists=apps/api/.env --test scripts/media-db.test.mjs",
+    "test:media:r2": "node --env-file-if-exists=apps/api/.env --test scripts/media-r2.test.mjs",
+    "media:cleanup": "node --env-file-if-exists=apps/api/.env scripts/media-cleanup.mjs",
+    "test:events:db": "node --env-file-if-exists=apps/api/.env --test scripts/events-db.test.mjs",
+    "test:recurrence:db": "node --env-file-if-exists=apps/api/.env --test scripts/recurrence-db.test.mjs",
+    "test:tasks:lifecycle:db": "node --env-file-if-exists=apps/api/.env --test scripts/task-lifecycle-db.test.mjs",
+    "test:checklist:db": "node --env-file-if-exists=apps/api/.env --test scripts/checklist-db.test.mjs",
+    "test:members:db": "node --env-file-if-exists=apps/api/.env --test scripts/members-db.test.mjs",
+    "test:tasks:db": "node --env-file-if-exists=apps/api/.env --test scripts/tasks-db.test.mjs",
+    "test:invitations:db": "node --env-file-if-exists=apps/api/.env --test scripts/invitations-db.test.mjs",
+    "test:members:removal:db": "node --env-file-if-exists=apps/api/.env --test scripts/member-removal-db.test.mjs",
+    "test:members:changes:db": "node --env-file-if-exists=apps/api/.env --test scripts/member-changes-db.test.mjs",
+    "test:dashboard:db": "node --env-file-if-exists=apps/api/.env --test scripts/dashboard-db.test.mjs",
+    "test:weddings:settings:db": "node --test scripts/wedding-settings-db.test.mjs",
+    "test:avatar:db": "node --test scripts/avatar-db.test.mjs",
+    "test:weddings:overview:db": "node --test scripts/wedding-overview-db.test.mjs",
+    "weddings:purge": "node --env-file-if-exists=apps/api/.env scripts/wedding-purge.mjs",
+    "test:weddings:lifecycle:db": "node --test scripts/wedding-lifecycle-db.test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "concurrently": "^9.0.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.5",
+    "eslint-config-prettier": "^10.0.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.0.0"
+  }
+}

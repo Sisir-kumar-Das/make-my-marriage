@@ -1,0 +1,63 @@
+.page {
+  background: #fbf7f2;
+  color: #242124;
+  font-family: var(--font-landing-sans), Arial, sans-serif;
+}
+
+.page :global(.font-sans) {
+  font-family: var(--font-landing-sans), Arial, sans-serif;
+}
+
+.page :global(.font-serif) {
+  font-family: var(--font-landing-serif), Georgia, serif;
+}
+
+.page :global(section[id]) {
+  scroll-margin-top: 6.5rem;
+}
+
+.page :global(.grid > *) {
+  min-width: 0;
+}
+
+.page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  box-shadow: none;
+}
+
+.page button:disabled:hover {
+  filter: none;
+}
+
+.page :global(.preview-note) {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #5c5457;
+}
+
+.page :global(.planned-badge) {
+  display: inline-flex;
+  width: fit-content;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid #d6be91;
+  border-radius: 999px;
+  background: #fbf7f2;
+  padding: 0.2rem 0.5rem;
+  color: #684a1c;
+  font-family: var(--font-landing-sans), Arial, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.025em;
+}
+
+/* Keep dense sample cards readable when the hero stacks on narrow screens. */
+@media (max-width: 639px) {
+  .page :global(.hero-photo) {
+    max-height: 26rem;
+    aspect-ratio: 4 / 3;
+  }
+}

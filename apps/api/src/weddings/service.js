@@ -1,0 +1,449 @@
+import { createHash, randomBytes } from 'node:crypto';
+import { ApiError } from '../lib/api-error.js';
+import { authModels } from '../auth/models.js';
+import { weddingModels } from './models.js';
+import { config } from '../config.js';
+import { attachCover, detachCover } from '../media/references.js';
+import { defaultCoverFrame, saveCoverSchema } from '../media/validation.js';
+import { updateWeddingSettings } from './settings.js';
+import { readWeddingOverview } from './overview.js';
+import {
+  recoverySummary,
+  readLifecycleResult,
+  readLifecycle,
+  changeLifecycle,
+} from './lifecycle.js';
+import { createWeddingPurger } from './purge.js';
+import { createCoverStorage } from '../media/storage.js';
+import {
+  createWeddingSchema,
+  idempotencyKeySchema,
+  weddingToday,
+} from './validation.js';
+
+const hash = (value) => createHash('sha256').update(value).digest('hex');
+const absent = () =>
+  new ApiError(404, 'WEDDING_NOT_FOUND', 'This wedding is not available.');
+
+function context(wedding, member) {
+  const budgetAllowed =
+    member.role === 'ADMIN' ||
+    (member.role === 'FAMILY_MEMBER' && member.financeAccess);
+  return {
+    wedding: {
+      id: String(wedding._id),
+      name: wedding.name,
+      brideName: wedding.brideName,
+      groomName: wedding.groomName,
+      mainDate: wedding.mainDate,
+      timezone: wedding.timezone,
+      tradition: wedding.tradition,
+      location: wedding.location,
+      cover: wedding.coverMediaId ? 'CUSTOM' : 'DEFAULT',
+      ...(wedding.coverMediaId
+        ? {
+            coverMediaId: String(wedding.coverMediaId),
+            coverFrame: wedding.coverFrame || defaultCoverFrame,
+          }
+        : {}),
+      mode: wedding.mode,
+      version: wedding.__v,
+      ...(budgetAllowed && wedding.estimatedBudget
+        ? {
+            estimatedBudget: {
+              amountMinor: Number(wedding.estimatedBudget.amountMinor),
+              currency: 'INR',
+            },
+          }
+        : {}),
+    },
+    membership: { role: member.role, financeAccess: !!budgetAllowed },
+  };
+}
+
+export function createWeddingService({
+  database,
+  settings = config,
+  now = () => new Date(),
+  storage = createCoverStorage(settings),
+}) {
+  const purger = createWeddingPurger({ database, storage, now });
+  async function current(userId) {
+    const { Wedding, WeddingMember } = weddingModels(await database.connect());
+    const member = await WeddingMember.findOne({
+      userId,
+      status: 'ACTIVE',
+    }).lean();
+    if (!member) return { wedding: null, membership: null };
+    const wedding = await Wedding.findOne({ _id: member.weddingId }).lean();
+    if (!wedding)
+      throw new ApiError(
+        409,
+        'WEDDING_UNAVAILABLE',
+        'Your wedding is currently unavailable. Please try again later.',
+      );
+    if (wedding.deletedAt)
+      return {
+        wedding: null,
+        membership: null,
+        recovery: recoverySummary(wedding, member, now()),
+      };
+    return context(wedding, member);
+  }
+  async function read(userId, weddingId) {
+    if (!/^[a-f\d]{24}$/.test(weddingId)) throw absent();
+    const { Wedding, WeddingMember } = weddingModels(await database.connect());
+    const member = await WeddingMember.findOne({
+      userId,
+      weddingId,
+      status: 'ACTIVE',
+    }).lean();
+    if (!member) throw absent();
+    const wedding = await Wedding.findOne({
+      _id: weddingId,
+      deletedAt: null,
+    }).lean();
+    if (!wedding) throw absent();
+    return context(wedding, member);
+  }
+  async function create(userId, raw, key) {
+    const parsed = createWeddingSchema.safeParse(raw);
+    if (!parsed.success)
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        'Please check your wedding details.',
+        {
+          fields: Object.fromEntries(
+            parsed.error.issues.map((issue) => [
+              issue.path.join('.'),
+              issue.message,
+            ]),
+          ),
+        },
+      );
+    if (!idempotencyKeySchema.safeParse(key).success)
+      throw new ApiError(
+        400,
+        'IDEMPOTENCY_KEY_REQUIRED',
+        'Please retry creating your wedding.',
+      );
+    const input = parsed.data;
+    const connection = await database.connect();
+    const { User } = authModels(connection);
+    const { Wedding, WeddingMember, WeddingCreationRequest } =
+      weddingModels(connection);
+    const keyHash = hash(key),
+      requestHash = hash(JSON.stringify(input));
+    async function existing(transaction) {
+      const request = await WeddingCreationRequest.findOne({
+        userId,
+        keyHash,
+        expiresAt: { $gt: now() },
+      })
+        .session(transaction || null)
+        .lean();
+      if (request) {
+        if (request.requestHash !== requestHash)
+          throw new ApiError(
+            409,
+            'IDEMPOTENCY_CONFLICT',
+            'Those details changed after a previous submission. Check your existing wedding before trying again.',
+          );
+        // Recheck membership instead of replaying a stored privileged response.
+        const member = await WeddingMember.findOne({
+          userId,
+          weddingId: request.weddingId,
+          status: 'ACTIVE',
+        })
+          .session(transaction || null)
+          .lean();
+        const wedding = await Wedding.findOne({
+          _id: request.weddingId,
+          deletedAt: null,
+        })
+          .session(transaction || null)
+          .lean();
+        if (!member || !wedding) throw absent();
+        return context(wedding, member);
+      }
+      const reserved = await WeddingMember.findOne({ userId, status: 'ACTIVE' })
+        .session(transaction || null)
+        .lean();
+      if (reserved) {
+        const root = await Wedding.findById(reserved.weddingId)
+          .select('deletedAt')
+          .session(transaction || null)
+          .lean();
+        const recoveryRequired = !!root?.deletedAt;
+        throw new ApiError(
+          409,
+          'WEDDING_ALREADY_EXISTS',
+          recoveryRequired
+            ? 'Your wedding is scheduled for deletion. Open wedding recovery before creating another wedding.'
+            : 'You already belong to a wedding. Open your existing workspace.',
+          { recoveryRequired },
+        );
+      }
+      return null;
+    }
+    // A retry must see its request record and membership from the same moment.
+    // Otherwise a concurrent commit between those reads looks like a different wedding.
+    const transactionOptions = {
+      readConcern: { level: 'snapshot' },
+      maxCommitTimeMS: 5000,
+    };
+    async function existingSnapshot() {
+      let previous;
+      await connection.transaction(async (transaction) => {
+        previous = await existing(transaction);
+      }, transactionOptions);
+      return previous;
+    }
+    const replay = await existingSnapshot();
+    if (replay) return replay;
+    let result;
+    try {
+      await connection.transaction(async (transaction) => {
+        // Serialize creation with account/session-changing writes. Membership's
+        // partial unique index is the final guard against concurrent creators.
+        const eligible = await User.updateOne(
+          { _id: userId, status: 'ACTIVE', emailVerifiedAt: { $ne: null } },
+          { $inc: { __v: 1 } },
+          { session: transaction },
+        );
+        if (eligible.matchedCount !== 1)
+          throw new ApiError(
+            401,
+            'SESSION_EXPIRED',
+            'Please sign in to continue.',
+          );
+        const previous = await existing(transaction);
+        if (previous) {
+          result = previous;
+          return;
+        }
+        const instant = now();
+        // Apply this only to new creation. An earlier successful request can
+        // still be replayed after midnight, and existing weddings remain readable.
+        if (input.mainDate < weddingToday(instant))
+          throw new ApiError(
+            400,
+            'VALIDATION_ERROR',
+            'Please check your wedding details.',
+            {
+              fields: {
+                mainDate: 'Choose today or a future date (India time).',
+              },
+            },
+          );
+        const prefix =
+          input.name
+            .normalize('NFKD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+            .slice(0, 65) || 'wedding';
+        const [wedding] = await Wedding.create(
+          [
+            {
+              ...input,
+              slug: prefix + '-' + randomBytes(6).toString('hex'),
+              createdBy: userId,
+            },
+          ],
+          { session: transaction },
+        );
+        const [member] = await WeddingMember.create(
+          [
+            {
+              weddingId: wedding._id,
+              userId,
+              role: 'ADMIN',
+              status: 'ACTIVE',
+              createdBy: userId,
+              joinedAt: instant,
+            },
+          ],
+          { session: transaction },
+        );
+        await attachCover(connection, transaction, {
+          mediaId: input.coverMediaId,
+          userId,
+          weddingId: wedding._id,
+          setup: true,
+          settings,
+          instant,
+        });
+        // Keep only hashes/resource identity, never form details or a response
+        // containing role-restricted data. Expired keys are replaced atomically.
+        await WeddingCreationRequest.findOneAndUpdate(
+          { userId, keyHash },
+          {
+            $set: {
+              requestHash,
+              weddingId: wedding._id,
+              expiresAt: new Date(instant.getTime() + 86400000),
+            },
+          },
+          { session: transaction, upsert: true },
+        );
+        result = context(wedding.toObject(), member.toObject());
+      }, transactionOptions);
+    } catch (error) {
+      if (error.code === 11000) {
+        const winner = await existingSnapshot();
+        if (winner) return winner;
+      }
+      throw error;
+    }
+    return result;
+  }
+  async function setCover(userId, weddingId, raw) {
+    if (!/^[a-f\d]{24}$/.test(weddingId)) throw absent();
+    const parsed = saveCoverSchema.safeParse(raw);
+    if (!parsed.success)
+      throw new ApiError(
+        400,
+        'INVALID_COVER',
+        'Check your photo selection and position.',
+      );
+    const { mediaId, frame, version } = parsed.data;
+    const connection = await database.connect();
+    const { User } = authModels(connection);
+    const { Wedding, WeddingMember } = weddingModels(connection);
+    let result;
+    await connection.transaction(async (transaction) => {
+      const eligible = await User.updateOne(
+        { _id: userId, status: 'ACTIVE', emailVerifiedAt: { $ne: null } },
+        { $inc: { __v: 1 } },
+        { session: transaction },
+      );
+      if (eligible.matchedCount !== 1)
+        throw new ApiError(
+          401,
+          'SESSION_EXPIRED',
+          'Please sign in to continue.',
+        );
+      const member = await WeddingMember.findOne({
+        userId,
+        weddingId,
+        status: 'ACTIVE',
+      })
+        .session(transaction)
+        .lean();
+      const wedding =
+        member &&
+        (await Wedding.findOne({ _id: weddingId, deletedAt: null })
+          .session(transaction)
+          .lean());
+      if (!wedding) throw absent();
+      if (member.role !== 'ADMIN')
+        throw new ApiError(
+          403,
+          'ADMIN_REQUIRED',
+          'Only an Admin can change the wedding cover.',
+        );
+      const sameId = String(wedding.coverMediaId || '') === (mediaId || '');
+      const previousFrame = wedding.coverFrame || defaultCoverFrame;
+      if (
+        sameId &&
+        (!mediaId ||
+          ['x', 'y', 'zoom'].every((key) => previousFrame[key] === frame[key]))
+      ) {
+        result = context(wedding, member);
+        return;
+      }
+      if (wedding.__v !== version)
+        throw new ApiError(
+          409,
+          'VERSION_CONFLICT',
+          'Wedding details or the cover changed. Reload the current cover before saving again.',
+        );
+      await WeddingMember.updateOne(
+        { _id: member._id, role: 'ADMIN', status: 'ACTIVE' },
+        { $inc: { __v: 1 } },
+        { session: transaction },
+      );
+      const instant = now();
+      if (!sameId) {
+        await attachCover(connection, transaction, {
+          mediaId,
+          userId,
+          weddingId,
+          setup: false,
+          settings,
+          instant,
+        });
+        await detachCover(
+          connection,
+          transaction,
+          wedding.coverMediaId,
+          instant,
+        );
+      }
+      const updated = await Wedding.findOneAndUpdate(
+        { _id: weddingId, __v: version },
+        {
+          $set: {
+            coverMediaId: mediaId,
+            coverFrame: mediaId ? frame : defaultCoverFrame,
+          },
+          $inc: { __v: 1 },
+        },
+        { session: transaction, returnDocument: 'after' },
+      ).lean();
+      if (!updated)
+        throw new ApiError(
+          409,
+          'VERSION_CONFLICT',
+          'Wedding details or the cover changed. Reload the current cover before saving again.',
+        );
+      result = context(updated, member);
+    });
+    return result;
+  }
+  const safe =
+    (operation) =>
+    async (...args) => {
+      try {
+        return await operation(...args);
+      } catch (error) {
+        if (error instanceof ApiError) throw error;
+        console.error('Wedding operation failed.');
+        throw new ApiError(
+          503,
+          'WEDDING_UNAVAILABLE',
+          'We could not load or save your wedding. Please try again.',
+        );
+      }
+    };
+  return {
+    lifecycle: safe((...args) => readLifecycle({ database, now }, ...args)),
+    lifecycleResult: safe((...args) =>
+      readLifecycleResult({ database, now }, ...args),
+    ),
+    delete: safe((...args) =>
+      changeLifecycle({ database, now }, 'DELETE', ...args),
+    ),
+    restore: safe((...args) =>
+      changeLifecycle({ database, now }, 'RESTORE', ...args),
+    ),
+    purge: purger.pump,
+    async close() {
+      await purger.close();
+      storage.close();
+    },
+    current: safe(current),
+    read: safe(read),
+    create: safe(create),
+    setCover: safe(setCover),
+    overview: safe((...args) =>
+      readWeddingOverview({ database, now }, ...args),
+    ),
+    update: safe((...args) =>
+      updateWeddingSettings({ database, now, context }, ...args),
+    ),
+  };
+}
