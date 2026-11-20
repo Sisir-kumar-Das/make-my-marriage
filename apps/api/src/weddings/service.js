@@ -6,6 +6,15 @@ import { config } from '../config.js';
 import { attachCover, detachCover } from '../media/references.js';
 import { defaultCoverFrame, saveCoverSchema } from '../media/validation.js';
 import { updateWeddingSettings } from './settings.js';
+import { readWeddingOverview } from './overview.js';
+import {
+  recoverySummary,
+  readLifecycleResult,
+  readLifecycle,
+  changeLifecycle,
+} from './lifecycle.js';
+import { createWeddingPurger } from './purge.js';
+import { createCoverStorage } from '../media/storage.js';
 import {
   createWeddingSchema,
   idempotencyKeySchema,
@@ -56,7 +65,9 @@ export function createWeddingService({
   database,
   settings = config,
   now = () => new Date(),
+  storage = createCoverStorage(settings),
 }) {
+  const purger = createWeddingPurger({ database, storage, now });
   async function current(userId) {
     const { Wedding, WeddingMember } = weddingModels(await database.connect());
     const member = await WeddingMember.findOne({
@@ -64,16 +75,19 @@ export function createWeddingService({
       status: 'ACTIVE',
     }).lean();
     if (!member) return { wedding: null, membership: null };
-    const wedding = await Wedding.findOne({
-      _id: member.weddingId,
-      deletedAt: null,
-    }).lean();
+    const wedding = await Wedding.findOne({ _id: member.weddingId }).lean();
     if (!wedding)
       throw new ApiError(
         409,
         'WEDDING_UNAVAILABLE',
         'Your wedding is currently unavailable. Please try again later.',
       );
+    if (wedding.deletedAt)
+      return {
+        wedding: null,
+        membership: null,
+        recovery: recoverySummary(wedding, member, now()),
+      };
     return context(wedding, member);
   }
   async function read(userId, weddingId) {
@@ -153,16 +167,24 @@ export function createWeddingService({
         if (!member || !wedding) throw absent();
         return context(wedding, member);
       }
-      if (
-        await WeddingMember.exists({ userId, status: 'ACTIVE' }).session(
-          transaction || null,
-        )
-      )
+      const reserved = await WeddingMember.findOne({ userId, status: 'ACTIVE' })
+        .session(transaction || null)
+        .lean();
+      if (reserved) {
+        const root = await Wedding.findById(reserved.weddingId)
+          .select('deletedAt')
+          .session(transaction || null)
+          .lean();
+        const recoveryRequired = !!root?.deletedAt;
         throw new ApiError(
           409,
           'WEDDING_ALREADY_EXISTS',
-          'You already belong to a wedding. Open your existing workspace.',
+          recoveryRequired
+            ? 'Your wedding is scheduled for deletion. Open wedding recovery before creating another wedding.'
+            : 'You already belong to a wedding. Open your existing workspace.',
+          { recoveryRequired },
         );
+      }
       return null;
     }
     // A retry must see its request record and membership from the same moment.
@@ -337,7 +359,7 @@ export function createWeddingService({
         throw new ApiError(
           409,
           'VERSION_CONFLICT',
-          'The cover changed in another tab. Reload the current cover before saving again.',
+          'Wedding details or the cover changed. Reload the current cover before saving again.',
         );
       await WeddingMember.updateOne(
         { _id: member._id, role: 'ADMIN', status: 'ACTIVE' },
@@ -376,7 +398,7 @@ export function createWeddingService({
         throw new ApiError(
           409,
           'VERSION_CONFLICT',
-          'The cover changed. Please reload and retry.',
+          'Wedding details or the cover changed. Reload the current cover before saving again.',
         );
       result = context(updated, member);
     });
@@ -398,10 +420,28 @@ export function createWeddingService({
       }
     };
   return {
+    lifecycle: safe((...args) => readLifecycle({ database, now }, ...args)),
+    lifecycleResult: safe((...args) =>
+      readLifecycleResult({ database, now }, ...args),
+    ),
+    delete: safe((...args) =>
+      changeLifecycle({ database, now }, 'DELETE', ...args),
+    ),
+    restore: safe((...args) =>
+      changeLifecycle({ database, now }, 'RESTORE', ...args),
+    ),
+    purge: purger.pump,
+    async close() {
+      await purger.close();
+      storage.close();
+    },
     current: safe(current),
     read: safe(read),
     create: safe(create),
     setCover: safe(setCover),
+    overview: safe((...args) =>
+      readWeddingOverview({ database, now }, ...args),
+    ),
     update: safe((...args) =>
       updateWeddingSettings({ database, now, context }, ...args),
     ),

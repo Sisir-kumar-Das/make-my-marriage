@@ -8,6 +8,7 @@ import {
   settingsFields,
   settingsBudgetMinor,
   settingsBudgetLabel,
+  settingsDateError,
 } from '../apps/web/src/features/weddings/settings-data.js';
 import { createWeddingSchema } from '../apps/api/src/weddings/validation.js';
 import {
@@ -28,6 +29,9 @@ test('settings allow only the approved partial fields and exact optional INR mon
   for (const payload of [
     {},
     { mainDate: '2030-01-01' },
+    { mainDate: '2030-01-01', confirmDateChange: false },
+    { confirmDateChange: true },
+    { mainDate: '2030-02-30', confirmDateChange: true },
     { timezone: 'UTC' },
     { role: 'ADMIN' },
     { coverMediaId: 'b'.repeat(24) },
@@ -52,6 +56,7 @@ test('settings allow only the approved partial fields and exact optional INR mon
     );
   for (const payload of [
     { name: ' Our day ' },
+    { mainDate: '2030-01-01', confirmDateChange: true },
     { estimatedBudget: null },
     {
       estimatedBudget: {
@@ -61,6 +66,35 @@ test('settings allow only the approved partial fields and exact optional INR mon
     },
   ])
     assert.equal(weddingSettingsSchema.safeParse(payload).success, true);
+});
+
+test('date edits keep date-only India boundaries, explicit confirmation and unchanged historical dates', () => {
+  const draft = settingsDraft(wedding);
+  assert.equal(
+    settingsDateError(wedding, draft, new Date('2026-11-12T18:30:00Z')),
+    '',
+  );
+  const changed = { ...draft, mainDate: '2026-11-12' };
+  assert.equal(
+    settingsDateError(wedding, changed, new Date('2026-11-12T18:29:59Z')),
+    '',
+  );
+  assert.match(
+    settingsDateError(wedding, changed, new Date('2026-11-12T18:30:00Z')),
+    /today or a future date/,
+  );
+  assert.deepEqual(settingsChanges(wedding, changed), {
+    mainDate: '2026-11-12',
+    confirmDateChange: true,
+  });
+  assert.equal(
+    settingsFields.safeParse({ ...draft, mainDate: '2028-02-29' }).success,
+    true,
+  );
+  assert.equal(
+    settingsFields.safeParse({ ...draft, mainDate: '2027-02-29' }).success,
+    false,
+  );
 });
 test('settings retain custom titles, accept existing past weddings and round-trip every paisa', () => {
   for (const amountMinor of [
@@ -138,6 +172,56 @@ test('settings reject malformed writes and missing versions or keys before datab
       key,
     ),
     { status: 400 },
+  );
+});
+
+test('unknown Settings keys retain the actionable detailed error instead of empty-input wording', async () => {
+  const service = createWeddingService({
+    database: {
+      connect: () => assert.fail('Validation must not contact the database'),
+    },
+  });
+  for (const input of [
+    { timezone: 'UTC' },
+    { country: 'US' },
+    { name: 'Our wedding', timezone: 'UTC' },
+    { location: { city: 'Puri', state: 'Odisha', country: 'US' } },
+  ]) {
+    await assert.rejects(
+      service.update(
+        'b'.repeat(24),
+        wedding.id,
+        input,
+        '"0"',
+        'settings-field-error-key',
+      ),
+      (error) => {
+        assert.equal(error.status, 400);
+        assert.match(error.message, /Only the wedding title/);
+        const path = input.location ? 'location' : '';
+        assert.equal(
+          error.details.fields[path],
+          'Remove fields that cannot be edited here.',
+        );
+        return true;
+      },
+    );
+  }
+  await assert.rejects(
+    service.update(
+      'b'.repeat(24),
+      wedding.id,
+      {},
+      '"0"',
+      'settings-field-error-key',
+    ),
+    (error) => {
+      assert.equal(
+        error.details.fields[''],
+        'Choose an editable wedding detail to update.',
+      );
+      return true;
+    },
   );
 });
 

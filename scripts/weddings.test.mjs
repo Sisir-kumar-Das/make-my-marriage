@@ -373,3 +373,162 @@ test('wedding HTTP writes require a verified session, trusted Origin, JSON and s
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('cover version conflicts name wedding details as well as the cover', async () => {
+  const chain = (value) => ({
+    session() {
+      return this;
+    },
+    lean: async () => value,
+  });
+  const models = new Proxy(
+    {
+      User: { updateOne: async () => ({ matchedCount: 1 }) },
+      WeddingMember: { findOne: () => chain({ _id: 'member', role: 'ADMIN' }) },
+      Wedding: { findOne: () => chain({ __v: 4, coverMediaId: null }) },
+    },
+    { get: (models, name) => models[name] || {} },
+  );
+  const connection = { models, transaction: async (fn) => fn({}) };
+  const service = createWeddingService({
+    database: { connect: async () => connection },
+  });
+  await assert.rejects(
+    service.setCover('actor', 'a'.repeat(24), {
+      mediaId: 'b'.repeat(24),
+      version: 3,
+    }),
+    {
+      status: 409,
+      code: 'VERSION_CONFLICT',
+      message:
+        'Wedding details or the cover changed. Reload the current cover before saving again.',
+    },
+  );
+});
+
+test('reserved wedding creation conflicts distinguish recovery without changing membership', async () => {
+  for (const recoveryRequired of [false, true]) {
+    const chain = (value) => ({
+      session() {
+        return this;
+      },
+      select() {
+        return this;
+      },
+      lean: async () => value,
+    });
+    const models = new Proxy(
+      {
+        User: {},
+        WeddingCreationRequest: { findOne: () => chain(null) },
+        WeddingMember: { findOne: () => chain({ weddingId: 'reserved' }) },
+        Wedding: {
+          findById: () =>
+            chain({ deletedAt: recoveryRequired ? new Date() : null }),
+        },
+      },
+      { get: (models, name) => models[name] || {} },
+    );
+    const connection = { models, transaction: async (fn) => fn({}) };
+    const weddings = createWeddingService({
+      database: { connect: async () => connection },
+    });
+    await assert.rejects(
+      weddings.create('actor', valid, 'reserved-wedding-key'),
+      {
+        code: 'WEDDING_ALREADY_EXISTS',
+        message: recoveryRequired
+          ? 'Your wedding is scheduled for deletion. Open wedding recovery before creating another wedding.'
+          : 'You already belong to a wedding. Open your existing workspace.',
+        details: { recoveryRequired },
+      },
+    );
+  }
+});
+
+test('Create, Delete and Restore have independent bounded per-account request allowances, including retries', async () => {
+  const settings = {
+    ...config,
+    jwtSecret: 'rate-limit-test-secret-'.repeat(4),
+  };
+  const service = {
+    async session({ accessToken }) {
+      if (!['account-one', 'account-two'].includes(accessToken))
+        throw new ApiError(401, 'SESSION_EXPIRED', 'Please sign in.');
+      return { user: { id: accessToken, emailVerified: true } };
+    },
+  };
+  const calls = { create: 0, delete: 0, restore: 0 };
+  const weddings = Object.fromEntries(
+    Object.keys(calls).map((action) => [
+      action,
+      async () => {
+        calls[action]++;
+        return {
+          wedding: { version: 0 },
+          lifecycle: { state: 'ACTIVE' },
+          replayed: true,
+        };
+      },
+    ]),
+  );
+  const app = createApp({ settings, service, weddings });
+  const server = await new Promise((resolve) => {
+    const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
+  });
+  const base = 'http://127.0.0.1:' + server.address().port + '/api/v1';
+  try {
+    const csrf = await fetch(base + '/auth/csrf');
+    const token = (await csrf.json()).data.csrfToken;
+    const cookies = csrf.headers
+      .getSetCookie()
+      .map((entry) => entry.split(';')[0])
+      .join('; ');
+    const request = (action, user = 'account-one') =>
+      fetch(
+        base +
+          '/weddings' +
+          (action === 'create'
+            ? ''
+            : '/123456789012345678901234' +
+              (action === 'restore' ? '/restore' : '')),
+        {
+          method: action === 'delete' ? 'DELETE' : 'POST',
+          headers: {
+            Origin: settings.webOrigin,
+            'Content-Type': 'application/json',
+            Cookie: cookies + '; mmm_access=' + user,
+            'X-CSRF-Token': token,
+            'Idempotency-Key': 'same-retained-operation-key',
+            'If-Match': '"0"',
+          },
+          body: JSON.stringify(
+            action === 'create'
+              ? valid
+              : action === 'delete'
+                ? { confirmation: 'DELETE' }
+                : {},
+          ),
+        },
+      );
+    for (const action of ['create', 'delete', 'restore']) {
+      for (let i = 0; i < 20; i++) {
+        const response = await request(action);
+        assert.equal(response.status, action === 'create' ? 201 : 200, action);
+        await response.json();
+      }
+      const limited = await request(action);
+      assert.equal(limited.status, 429, action);
+      assert.ok(Number(limited.headers.get('retry-after')) > 0);
+      assert.equal((await limited.json()).error.code, 'RATE_LIMITED');
+      assert.equal(calls[action], 20);
+      const otherUser = await request(action, 'account-two');
+      assert.equal(otherUser.status, action === 'create' ? 201 : 200);
+      await otherUser.json();
+      assert.equal(calls[action], 21);
+    }
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

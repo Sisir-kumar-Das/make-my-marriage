@@ -26,18 +26,21 @@ export function createWeddingRouter({ service, weddings, settings }) {
     req.identity = await service.session(cookies.input(req));
     next();
   });
-  const createLimit = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 20,
-    keyGenerator: (req) => req.identity.user.id,
-    standardHeaders: 'draft-8',
-    legacyHeaders: false,
-    handler: (_req, _res, next) =>
-      next(
-        new ApiError(429, 'RATE_LIMITED', 'Please wait before trying again.'),
-      ),
-  });
-  router.post('/', cookies.protect, createLimit, async (req, res) => {
+  // Separate per-action budgets: creation/deletion traffic must not consume
+  // restoration capacity. Exact retries remain bounded by their action limit.
+  const writeLimit = (limit = 20) =>
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit,
+      keyGenerator: (req) => req.identity.user.id,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      handler: (_req, _res, next) =>
+        next(
+          new ApiError(429, 'RATE_LIMITED', 'Please wait before trying again.'),
+        ),
+    });
+  router.post('/', cookies.protect, writeLimit(), async (req, res) => {
     const result = await weddings.create(
       req.identity.user.id,
       req.body,
@@ -46,6 +49,54 @@ export function createWeddingRouter({ service, weddings, settings }) {
     res.setHeader('ETag', '"' + result.wedding.version + '"');
     res.status(201).json({ success: true, data: result });
   });
+  router.get('/:weddingId/overview', async (req, res) => {
+    const result = await weddings.overview(
+      req.identity.user.id,
+      req.params.weddingId,
+    );
+    res.json({ success: true, data: result });
+  });
+  router.get('/:weddingId/lifecycle', async (req, res) => {
+    const result = await weddings.lifecycle(
+      req.identity.user.id,
+      req.params.weddingId,
+    );
+    res.json({ success: true, data: result });
+  });
+  router.post(
+    '/:weddingId/lifecycle/result',
+    cookies.protect,
+    writeLimit(60),
+    async (req, res) => {
+      const result = await weddings.lifecycleResult(
+        req.identity.user.id,
+        req.params.weddingId,
+        req.body,
+        req.get('if-match'),
+        req.get('idempotency-key'),
+      );
+      res.json({ success: true, data: result });
+    },
+  );
+  for (const [method, suffix, operation] of [
+    ['delete', '', 'delete'],
+    ['post', '/restore', 'restore'],
+  ])
+    router[method](
+      '/:weddingId' + suffix,
+      cookies.protect,
+      writeLimit(),
+      async (req, res) => {
+        const result = await weddings[operation](
+          req.identity.user.id,
+          req.params.weddingId,
+          req.body,
+          req.get('if-match'),
+          req.get('idempotency-key'),
+        );
+        res.json({ success: true, data: result });
+      },
+    );
   router.get('/:weddingId', async (req, res) => {
     const result = await weddings.read(
       req.identity.user.id,

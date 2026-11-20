@@ -1,7 +1,10 @@
 import mongoose from 'mongoose';
 import { ApiError } from '../lib/api-error.js';
 import { authModels } from './models.js';
-import { weddingModels } from '../weddings/models.js';
+import {
+  weddingModels,
+  weddingLifecycleRequestModel,
+} from '../weddings/models.js';
 import { mediaModel } from '../media/models.js';
 import { eventModels } from '../events/models.js';
 import { taskModels } from '../tasks/models.js';
@@ -53,9 +56,10 @@ export function createAuthDatabase(settings) {
           for (const model of Object.values(memberModels(candidate)))
             await model.init();
           await Promise.all(
-            Object.values(weddingModels(candidate)).map((model) =>
-              model.init(),
-            ),
+            [
+              ...Object.values(weddingModels(candidate)),
+              weddingLifecycleRequestModel(candidate),
+            ].map((model) => model.init()),
           );
           connection = candidate;
           return candidate;

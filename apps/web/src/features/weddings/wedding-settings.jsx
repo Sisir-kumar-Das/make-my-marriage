@@ -13,7 +13,13 @@ import { useSession } from '@/features/auth/session-provider';
 import { WeddingSettingsLayout } from '@/features/dashboard/planning-previews';
 import { apiRequest } from '@/lib/api-client';
 import { newIdempotencyKey } from '@/lib/idempotency-key';
-import { suggestedWeddingName, traditions, weddingDate } from './form-data';
+import {
+  suggestedWeddingName,
+  traditions,
+  weddingDate,
+  weddingToday,
+} from './form-data';
+import { DateChangeDialog } from './date-change-dialog';
 import {
   settingsChanges,
   settingsDraft,
@@ -21,6 +27,7 @@ import {
   settingsBudgetMinor,
   settingsBudgetLabel,
   settingsFieldErrors,
+  settingsDateError,
 } from './settings-data';
 import styles from './settings.module.css';
 
@@ -101,10 +108,16 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
   const [feedback, setFeedback] = useState('');
   const [pending, setPending] = useState(false);
   const [retry, setRetry] = useState(null);
+  const [confirmation, setConfirmation] = useState(null);
   const [denied, setDenied] = useState(false);
   const [conflict, setConflict] = useState(false);
   const lifetime = useRef(null);
   const busy = useRef(false);
+  const feedbackFocus = useRef(null);
+  const errorFocus = useRef(null);
+  const recoveryFocus = useRef(null);
+  const retryFocus = useRef(null);
+  const reloadFocus = useRef(null);
   const endpoint = `/weddings/${saved.id}`;
   const dirty = Object.keys(settingsChanges(saved, draft)).length > 0;
   const budgetValue = editable
@@ -113,12 +126,40 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
       ? settingsBudgetLabel(saved.estimatedBudget.amountMinor)
       : 'Not specified';
   const locked =
-    pending || !!retry || !!connectionError || conflict || denied || !editable;
+    pending ||
+    !!confirmation ||
+    !!retry ||
+    !!connectionError ||
+    conflict ||
+    denied ||
+    !editable;
   useEffect(() => {
     const controller = new AbortController();
     lifetime.current = controller.signal;
     return () => controller.abort();
   }, []);
+  useEffect(() => {
+    if (pending || !reloadFocus.current || lifetime.current?.aborted) return;
+    const results =
+      reloadFocus.current === 'feedback'
+        ? [feedbackFocus.current]
+        : reloadFocus.current === 'recovery'
+          ? [recoveryFocus.current, errorFocus.current]
+          : reloadFocus.current === 'retry'
+            ? [retryFocus.current, errorFocus.current]
+            : [errorFocus.current];
+    const target = [...results, session.connectionErrorFocus?.current].find(
+      (element) =>
+        element?.isConnected &&
+        !element.disabled &&
+        !element.matches?.(':disabled') &&
+        !element.closest?.('[inert]'),
+    );
+    if (target) {
+      reloadFocus.current = null;
+      target.focus();
+    }
+  }, [pending, feedback, error, connectionError, session.connectionErrorFocus]);
   // Keep an edited draft/version intact if a background session check discovers
   // another Admin's changes. Clean forms can adopt the latest confirmed record.
   if (!dirty && !pending && !retry && session.wedding.version > saved.version) {
@@ -144,7 +185,7 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
       }));
   }
   function discard() {
-    if (pending || retry) return;
+    if (pending || retry || confirmation) return;
     setDraft(settingsDraft(saved));
     setFields({});
     setFeedback('Unsaved changes discarded.');
@@ -159,6 +200,7 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
       const { data } = await apiRequest(endpoint, { signal });
       if (signal.aborted) return;
       if (data.wedding.id !== saved.id || data.membership.role !== 'ADMIN') {
+        reloadFocus.current = 'error';
         setDenied(true);
         setError({
           message:
@@ -175,10 +217,12 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
       setDenied(false);
       setConflict(false);
       setFeedback('Latest settings loaded. Review them before editing.');
+      reloadFocus.current = 'feedback';
       onAccessRestored?.();
       session.applySavedWedding(user.id, data);
     } catch (failure) {
       if (!signal.aborted) {
+        reloadFocus.current = 'error';
         setError(failure);
         if ([401, 403, 404].includes(failure.status)) {
           setDenied(true);
@@ -196,6 +240,7 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
     const signal = lifetime.current;
     if (
       busy.current ||
+      confirmation ||
       !editable ||
       denied ||
       conflict ||
@@ -218,12 +263,64 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
       }
       const changes = settingsChanges(saved, parsed.data);
       if (!Object.keys(changes).length) return;
+      const dateError = settingsDateError(saved, parsed.data);
+      if (dateError) {
+        setFields({ mainDate: dateError });
+        setError({ message: 'Please check the highlighted wedding date.' });
+        return;
+      }
       operation = {
         body: JSON.stringify(changes),
         version: `"${saved.version}"`,
         key: newIdempotencyKey(),
       };
+      if (changes.mainDate) {
+        setError(null);
+        setConfirmation({
+          operation,
+          oldDate: saved.mainDate,
+          newDate: changes.mainDate,
+        });
+        return;
+      }
     }
+    return submitOperation(operation);
+  }
+  async function confirmSave() {
+    if (
+      !confirmation ||
+      busy.current ||
+      connectionError ||
+      denied ||
+      conflict ||
+      !editable
+    )
+      return;
+    // Midnight before the first dispatch still requires a fresh valid date.
+    // Exact retries below bypass this client rule and let Express replay receipts.
+    const message = settingsDateError(saved, {
+      mainDate: confirmation.newDate,
+    });
+    if (message) {
+      setConfirmation(null);
+      setFields({ mainDate: message });
+      setError({ message });
+      return;
+    }
+    return submitOperation(confirmation.operation);
+  }
+  async function submitOperation(operation) {
+    const signal = lifetime.current;
+    if (
+      busy.current ||
+      !editable ||
+      denied ||
+      conflict ||
+      connectionError ||
+      !signal ||
+      signal.aborted
+    )
+      return;
     busy.current = true;
     setPending(true);
     setFeedback('');
@@ -252,20 +349,27 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
             ? 'These settings are already up to date.'
             : 'Wedding settings saved.',
       );
+      if (!confirmation) reloadFocus.current = 'feedback';
       onAccessRestored?.();
       session.applySavedWedding(user.id, data);
     } catch (failure) {
       if (signal.aborted) return;
       setError(failure);
-      if (
+      const changed =
         [409, 428].includes(failure.status) &&
         [
           'VERSION_CONFLICT',
           'VERSION_REQUIRED',
           'IDEMPOTENCY_CONFLICT',
-        ].includes(failure.code)
-      )
-        setConflict(true);
+        ].includes(failure.code);
+      if (changed) setConflict(true);
+      if (!confirmation)
+        reloadFocus.current =
+          changed || [401, 403, 404].includes(failure.status)
+            ? 'recovery'
+            : ![400, 401, 403, 404, 409, 428].includes(failure.status)
+              ? 'retry'
+              : 'error';
       if (failure.details?.fields)
         setFields(settingsFieldErrors(failure.details.fields));
       if (![400, 401, 403, 404, 409, 428].includes(failure.status))
@@ -280,7 +384,10 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
       }
     } finally {
       busy.current = false;
-      if (!signal.aborted) setPending(false);
+      if (!signal.aborted) {
+        setPending(false);
+        setConfirmation(null);
+      }
     }
   }
   function field(
@@ -375,11 +482,44 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
         </div>
         {field('brideName', 'Bride Name')}
         {field('groomName', 'Groom Name')}
-        {field('date', 'Main Wedding Date', {
-          value: weddingDate(saved.mainDate),
-          readOnly: true,
-          icon: CalendarDays,
-        })}
+        {editable ? (
+          <div>
+            <label className={styles.field} htmlFor="settings-mainDate">
+              Main Wedding Date
+              <input
+                id="settings-mainDate"
+                name="mainDate"
+                type="date"
+                value={draft.mainDate}
+                min={weddingToday()}
+                max="9999-12-31"
+                readOnly={locked}
+                onChange={edit}
+                aria-invalid={!!fields.mainDate}
+                aria-describedby={
+                  fields.mainDate
+                    ? 'settings-mainDate-note settings-mainDate-error'
+                    : 'settings-mainDate-note'
+                }
+              />
+            </label>
+            <p id="settings-mainDate-note" className={styles.help}>
+              Choose today or a future date in India. Date changes need
+              confirmation before saving.
+            </p>
+            {fields.mainDate && (
+              <p id="settings-mainDate-error" className={styles.fieldError}>
+                {fields.mainDate}
+              </p>
+            )}
+          </div>
+        ) : (
+          field('date', 'Main Wedding Date', {
+            value: weddingDate(saved.mainDate),
+            readOnly: true,
+            icon: CalendarDays,
+          })
+        )}
         <div className={styles.field}>
           <label htmlFor="settings-tradition">Ceremonial Tradition</label>
           <select
@@ -467,7 +607,13 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
         )}
       </div>
       {error && (
-        <div role="alert" className={`${styles.notice} ${styles.error}`}>
+        <div
+          id="settings-save-error"
+          ref={errorFocus}
+          tabIndex={-1}
+          role="alert"
+          className={`${styles.notice} ${styles.error}`}
+        >
           <p>{error.message}</p>
           {retry && (
             <p>
@@ -477,6 +623,8 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
           )}
           {(conflict || denied) && (
             <button
+              id="settings-reload-latest"
+              ref={recoveryFocus}
               type="button"
               onClick={reload}
               disabled={pending || !!connectionError}
@@ -487,7 +635,13 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
         </div>
       )}
       {feedback && (
-        <p role="status" className={styles.notice}>
+        <p
+          id="settings-save-feedback"
+          ref={feedbackFocus}
+          tabIndex={-1}
+          role="status"
+          className={styles.notice}
+        >
           {feedback}
         </p>
       )}
@@ -496,15 +650,18 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
           <button
             type="button"
             onClick={discard}
-            disabled={!dirty || pending || !!retry}
+            disabled={!dirty || pending || !!retry || !!confirmation}
           >
             Discard Changes
           </button>
           <button
+            ref={retryFocus}
+            id="settings-save-button"
             className={styles.save}
             type="submit"
             disabled={
               pending ||
+              !!confirmation ||
               (!dirty && !retry) ||
               !!connectionError ||
               conflict ||
@@ -520,6 +677,35 @@ function SettingsForm({ session, onAccessDenied, onAccessRestored }) {
           </button>
         </div>
       )}
+      <DateChangeDialog
+        change={confirmation}
+        pending={pending}
+        connectionError={connectionError}
+        onCancel={() => {
+          if (!busy.current) setConfirmation(null);
+        }}
+        onConfirm={confirmSave}
+        getCloseFocus={() => {
+          const candidates =
+            conflict || denied
+              ? [recoveryFocus.current, errorFocus.current]
+              : retry
+                ? [retryFocus.current, errorFocus.current]
+                : error
+                  ? [errorFocus.current]
+                  : feedback
+                    ? [feedbackFocus.current]
+                    : [];
+          return (
+            [...candidates, session.connectionErrorFocus?.current].find(
+              (target) =>
+                target?.isConnected &&
+                !target.disabled &&
+                !target.closest?.('[inert]'),
+            ) ?? null
+          );
+        }}
+      />
     </form>
   );
 }

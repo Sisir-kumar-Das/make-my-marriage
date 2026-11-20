@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { budgetMinor, traditions } from './form-data.js';
+import {
+  budgetMinor,
+  traditions,
+  setupSchema,
+  weddingToday,
+} from './form-data.js';
 import { visibleText } from '../../../../../lib/visible-text.js';
 import { budgetLabel } from './form-data.js';
 
@@ -17,6 +22,7 @@ export const settingsFields = z.object({
   name: text(160),
   brideName: text(100),
   groomName: text(100),
+  mainDate: setupSchema.shape.mainDate,
   city: text(100),
   state: text(100),
   tradition: z.enum(traditions.map(([key]) => key)),
@@ -28,6 +34,13 @@ export const settingsFields = z.object({
       'Enter a valid INR amount with up to two decimal places.',
     ),
 });
+// Calendar validity is always checked. The relative date rule applies only to
+// new changes; the form sends an exact pending operation directly on retry.
+export function settingsDateError(saved, draft, now = new Date()) {
+  return draft.mainDate !== saved.mainDate && draft.mainDate < weddingToday(now)
+    ? 'Choose today or a future date (India time).'
+    : '';
+}
 export function settingsBudgetMinor(value) {
   let input = value.trim();
   if (!input) return undefined;
@@ -65,6 +78,7 @@ export function settingsFieldErrors(fields = {}) {
     name: ['name'],
     brideName: ['brideName'],
     groomName: ['groomName'],
+    mainDate: ['mainDate'],
     tradition: ['tradition'],
     city: ['city'],
     state: ['state'],
@@ -93,6 +107,7 @@ export function settingsDraft(wedding) {
     name: wedding.name,
     brideName: wedding.brideName,
     groomName: wedding.groomName,
+    mainDate: wedding.mainDate,
     city: wedding.location.city,
     state: wedding.location.state,
     tradition: wedding.tradition,
@@ -104,6 +119,10 @@ export function settingsChanges(saved, draft) {
   for (const field of ['name', 'brideName', 'groomName', 'tradition'])
     if (draft[field].trim() !== saved[field])
       changes[field] = draft[field].trim();
+  if (draft.mainDate !== saved.mainDate) {
+    changes.mainDate = draft.mainDate;
+    changes.confirmDateChange = true;
+  }
   if (
     draft.city.trim() !== saved.location.city ||
     draft.state.trim() !== saved.location.state

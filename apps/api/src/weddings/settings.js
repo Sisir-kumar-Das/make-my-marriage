@@ -3,7 +3,11 @@ import { ApiError } from '../lib/api-error.js';
 import { authModels } from '../auth/models.js';
 import { eventModels } from '../events/models.js';
 import { weddingModels } from './models.js';
-import { idempotencyKeySchema, weddingSettingsSchema } from './validation.js';
+import {
+  idempotencyKeySchema,
+  weddingSettingsSchema,
+  weddingToday,
+} from './validation.js';
 
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const canonical = (value) =>
@@ -30,24 +34,27 @@ export async function updateWeddingSettings(
       'This wedding is not available.',
     );
   const parsed = weddingSettingsSchema.safeParse(raw);
-  if (!parsed.success)
+  if (!parsed.success) {
+    const fields = {};
+    for (const issue of parsed.error.issues) {
+      const path = issue.path.join('.');
+      // Strict unknown-key errors are more useful than the empty-object
+      // refinement at the same path. Never let the latter replace them.
+      if (issue.code === 'unrecognized_keys' || !Object.hasOwn(fields, path))
+        fields[path] =
+          issue.code === 'unrecognized_keys'
+            ? 'Remove fields that cannot be edited here.'
+            : issue.message;
+    }
     throw new ApiError(
       400,
       'VALIDATION_ERROR',
       parsed.error.issues.some((issue) => issue.code === 'unrecognized_keys')
-        ? 'Only the wedding title, names, city, state, tradition and optional INR budget can be edited here.'
+        ? 'Only the wedding title, names, confirmed date, city, state, tradition and optional INR budget can be edited here.'
         : 'Please check your wedding details.',
-      {
-        fields: Object.fromEntries(
-          parsed.error.issues.map((issue) => [
-            issue.path.join('.'),
-            issue.code === 'unrecognized_keys'
-              ? 'Remove fields that cannot be edited here.'
-              : issue.message,
-          ]),
-        ),
-      },
+      { fields },
     );
+  }
   if (
     !/^"(?:0|[1-9]\d*)"$/.test(match || '') ||
     !Number.isSafeInteger(Number(match.slice(1, -1)))
@@ -146,8 +153,27 @@ export async function updateWeddingSettings(
         'VERSION_CONFLICT',
         'Wedding settings changed since you opened them. Another Admin or tab may have saved an update. Load the latest details before saving again.',
       );
+    // Exact authorized receipts above remain recoverable after India midnight.
+    // A fresh change must still satisfy today's rule at transaction time.
+    if (
+      data.mainDate !== undefined &&
+      data.mainDate !== wedding.mainDate &&
+      data.mainDate < weddingToday(instant)
+    )
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        'Choose today or a future wedding date (India time).',
+        { fields: { mainDate: 'Choose today or a future date (India time).' } },
+      );
     const set = {};
-    for (const field of ['name', 'brideName', 'groomName', 'tradition'])
+    for (const field of [
+      'name',
+      'brideName',
+      'groomName',
+      'tradition',
+      'mainDate',
+    ])
       if (data[field] !== undefined && data[field] !== wedding[field])
         set[field] = data[field];
     if (data.location) {

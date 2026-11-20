@@ -14,6 +14,7 @@ export const metadata = {
 export default async function WeddingSetupPage() {
   const session = await getWorkspaceSession();
   if (!session) return <SessionRestore />;
+  if (session.recovery) redirect('/wedding-recovery');
   if (session.wedding) redirect('/dashboard');
   return (
     <SessionProvider initialSession={session} preserveSetupState>

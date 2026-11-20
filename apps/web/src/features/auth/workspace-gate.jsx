@@ -33,6 +33,7 @@ export const getWorkspaceSession = cache(async () => {
 
 export async function getPlanningSession() {
   const session = await getWorkspaceSession();
+  if (session?.recovery) redirect('/wedding-recovery');
   if (session && !session.wedding) redirect('/wedding-setup');
   return session;
 }

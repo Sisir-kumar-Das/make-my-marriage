@@ -1,8 +1,10 @@
-import Link from 'next/link';
-import { Camera, ShieldCheck } from 'lucide-react';
-import { ComingSoon, PageHeader, SettingsTabs } from './workspace-ui';
+'use client';
+
+import { Info, ShieldCheck } from 'lucide-react';
+import { PageHeader, SettingsTabs } from './workspace-ui';
 import styles from './workspace-ui.module.css';
 import { DashboardCover } from '@/features/weddings/dashboard-cover';
+import { SettingsOverview } from '@/features/weddings/settings-overview';
 
 function roleLabel(role) {
   return role === 'ADMIN'
@@ -48,40 +50,32 @@ export function WeddingSettingsLayout({ session, children }) {
         <div className={styles.stack}>
           <section className={styles.card}>
             <h2>Cover Presentation</h2>
-            <div className="mt-5 overflow-hidden rounded-lg">
+            <p className={styles.description}>
+              Featured banner image for your wedding workspace and dashboard.
+            </p>
+            <div className="mt-5">
               <DashboardCover
+                key={`${session.user.id}/${wedding.id}/${membership.role}`}
                 wedding={wedding}
                 membership={membership}
-                readOnly
+                settingsControls
+                disabled={!!session.connectionError}
+                connectionErrorFocus={session.connectionErrorFocus}
+                onSaved={(data) =>
+                  session.applySavedWedding(session.user.id, data)
+                }
               />
             </div>
-            <p className={styles.description}>
-              Your private wedding cover is managed from the dashboard. JPG or
-              PNG up to 15 MB.
+            <p className="mt-4 flex items-center gap-2 rounded-lg bg-[#f9f2f6] p-3 text-xs text-[#514348]">
+              <Info size={18} aria-hidden="true" className="shrink-0" />
+              JPG or PNG up to 15 MB. Position and zoom your photo before
+              saving.
             </p>
-            <Link href="/dashboard" className={`${styles.action} mt-5`}>
-              <Camera size={16} />
-              {membership.role === 'ADMIN'
-                ? 'Manage wedding cover'
-                : 'View wedding cover'}
-            </Link>
           </section>
-          <section className={styles.card}>
-            <h2>Workspace Overview</h2>
-            <div className={`${styles.stack} mt-5`}>
-              {[
-                'Collaborators',
-                'Pending Invites',
-                'Scheduled Ceremonies',
-                'Tasks Progress',
-              ].map((x) => (
-                <div className={`${styles.soft} ${styles.row}`} key={x}>
-                  <span className="text-sm">{x}</span>
-                  <ComingSoon />
-                </div>
-              ))}
-            </div>
-          </section>
+          <SettingsOverview
+            key={`${session.user.id}/${wedding.id}/${membership.role}`}
+            session={session}
+          />
         </div>
       </div>
     </div>

@@ -52,7 +52,9 @@ export function HomeEntry({ children }) {
       continueLabel={
         state.destination === '/wedding-setup'
           ? 'Continue to Wedding Setup'
-          : 'Continue to Dashboard'
+          : state.destination === '/wedding-recovery'
+            ? 'Continue to Wedding Recovery'
+            : 'Continue to Dashboard'
       }
     />
   );

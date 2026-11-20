@@ -10,6 +10,10 @@ import { createMemberManagement } from '../apps/api/src/members/management-servi
 import { createApp } from '../apps/api/src/app.js';
 import { ApiError } from '../apps/api/src/lib/api-error.js';
 import { config } from '../apps/api/src/config.js';
+import { taskModels } from '../apps/api/src/tasks/models.js';
+import { checklistModels } from '../apps/api/src/checklist/models.js';
+import { createTaskService } from '../apps/api/src/tasks/service.js';
+import { readChecklistCatalog } from '../apps/api/src/checklist/catalog.js';
 
 const uri = process.env.MONGODB_SETTINGS_TEST_URI;
 test(
@@ -387,6 +391,270 @@ test(
             server.closeAllConnections();
             await new Promise((resolve) => server.close(resolve));
           }
+        },
+      );
+      await t.test(
+        'confirmed date saves preserve planning records, replay across midnight and use new checklist previews',
+        async () => {
+          let instant = new Date('2026-11-12T18:29:59Z');
+          const dates = createWeddingService({ database, now: () => instant });
+          const tasks = createTaskService({ database, now: () => instant });
+          const { Task, TaskSeries } = taskModels(connection);
+          const { Event } = eventModels(connection);
+          const { ChecklistGeneration } = checklistModels(connection);
+          const packs = readChecklistCatalog().templates;
+          const selection = (pack) => ({
+            templateId: pack.id,
+            templateVersion: pack.version,
+          });
+          const originalPlan = await tasks.previewChecklist(
+            user(0),
+            id,
+            selection(packs[0]),
+          );
+          await tasks.generateChecklist(
+            user(0),
+            id,
+            { ...selection(packs[0]), previewHash: originalPlan.previewHash },
+            randomUUID(),
+          );
+          const untouchedPlan = await tasks.previewChecklist(
+            user(0),
+            id,
+            selection(packs[1]),
+          );
+          await Event.create({
+            weddingId: id,
+            name: 'Date preservation fixture',
+            type: 'WEDDING',
+            startAt: new Date('2026-12-20T10:00:00Z'),
+            endAt: new Date('2026-12-20T11:00:00Z'),
+            createdBy: user(0),
+            updatedBy: user(0),
+          });
+          const series = await TaskSeries.create({
+            weddingId: id,
+            frequency: 'DAILY',
+            interval: 1,
+            startDate: '2026-11-12',
+            endDate: '2030-01-01',
+            nextGenerationDate: '2026-11-14',
+            template: {
+              title: 'Preserved repeating work',
+              priority: 'HIGH',
+              assigneeIds: [user(0)],
+            },
+            createdBy: user(1),
+            updatedBy: user(1),
+          });
+          await Task.create({
+            weddingId: id,
+            title: 'Preserved completed copy',
+            status: 'COMPLETED',
+            source: { type: 'RECURRENCE' },
+            seriesId: series._id,
+            occurrenceDate: '2026-11-12',
+            dueAt: new Date('2026-11-12T04:30:00Z'),
+            createdBy: user(0),
+            updatedBy: user(0),
+          });
+          const snapshot = async () =>
+            JSON.stringify(
+              await Promise.all([
+                Event.find({ weddingId: id }).sort({ _id: 1 }).lean(),
+                Task.find({ weddingId: id }).sort({ _id: 1 }).lean(),
+                TaskSeries.find({ weddingId: id }).sort({ _id: 1 }).lean(),
+                ChecklistGeneration.find({ weddingId: id })
+                  .sort({ _id: 1 })
+                  .lean(),
+              ]),
+            );
+          const original = await snapshot();
+          const before = await dates.read(user(0), id),
+            key = randomUUID();
+          const body = {
+            mainDate: '2026-11-12',
+            confirmDateChange: true,
+            name: 'Date and metadata saved together',
+          };
+          for (const i of [2, 3])
+            await assert.rejects(
+              dates.update(
+                user(i),
+                id,
+                body,
+                `"${before.wedding.version}"`,
+                randomUUID(),
+              ),
+              { status: 403 },
+            );
+          const result = await dates.update(
+            user(0),
+            id,
+            body,
+            `"${before.wedding.version}"`,
+            key,
+          );
+          assert.equal(result.wedding.mainDate, body.mainDate);
+          assert.equal(result.wedding.name, body.name);
+          assert.equal(await snapshot(), original);
+          const samePack = await tasks.previewChecklist(
+            user(0),
+            id,
+            selection(packs[0]),
+          );
+          assert.equal(samePack.counts.toAdd, 0);
+          assert.equal(samePack.counts.kept, 6);
+          const changedPlan = await tasks.previewChecklist(
+            user(0),
+            id,
+            selection(packs[1]),
+          );
+          assert.equal(changedPlan.weddingDate, body.mainDate);
+          assert.notEqual(
+            changedPlan.items[0].dueAt,
+            untouchedPlan.items[0].dueAt,
+          );
+          instant = new Date('2026-11-12T18:30:00Z');
+          const replay = await dates.update(
+            user(0),
+            id,
+            body,
+            `"${before.wedding.version}"`,
+            key,
+          );
+          assert.equal(replay.replayed, true);
+          assert.equal(await snapshot(), original);
+          const count = await Activity.countDocuments({ weddingId: id });
+          await assert.rejects(
+            dates.update(
+              user(0),
+              id,
+              { mainDate: '2026-11-11', confirmDateChange: true },
+              `"${result.wedding.version}"`,
+              randomUUID(),
+            ),
+            { status: 400 },
+          );
+          assert.equal(await Activity.countDocuments({ weddingId: id }), count);
+          const next = await dates.update(
+            user(1),
+            id,
+            { mainDate: '2026-12-20', confirmDateChange: true },
+            `"${result.wedding.version}"`,
+            randomUUID(),
+          );
+          assert.equal(
+            (
+              await dates.update(
+                user(0),
+                id,
+                body,
+                `"${before.wedding.version}"`,
+                key,
+              )
+            ).wedding.mainDate,
+            next.wedding.mainDate,
+          );
+          await assert.rejects(
+            dates.update(
+              user(1),
+              id,
+              { mainDate: '2026-12-21', confirmDateChange: true },
+              `"${result.wedding.version}"`,
+              randomUUID(),
+            ),
+            { code: 'VERSION_CONFLICT' },
+          );
+          const race = await Promise.allSettled(
+            ['2026-12-21', '2026-12-22'].map((mainDate, i) =>
+              dates.update(
+                user(i),
+                id,
+                { mainDate, confirmDateChange: true },
+                `"${next.wedding.version}"`,
+                randomUUID(),
+              ),
+            ),
+          );
+          assert.equal(
+            race.filter((row) => row.status === 'fulfilled').length,
+            1,
+          );
+          assert.equal(
+            race.find((row) => row.status === 'rejected').reason.code,
+            'VERSION_CONFLICT',
+          );
+          assert.equal(await snapshot(), original);
+        },
+      );
+      await t.test(
+        'date and metadata roll back together if the final receipt fails, then exact retry succeeds',
+        async () => {
+          const before = await service.read(user(0), id),
+            key = randomUUID();
+          const count = await Activity.countDocuments({ weddingId: id });
+          const body = {
+            mainDate: '2031-02-03',
+            confirmDateChange: true,
+            name: 'Atomic date correction',
+          };
+          const write = WeddingSettingsRequest.findOneAndUpdate;
+          let rejected;
+          await connection.db.command({
+            collMod: WeddingSettingsRequest.collection.name,
+            validator: { $expr: { $eq: [1, 0] } },
+            validationLevel: 'strict',
+          });
+          WeddingSettingsRequest.findOneAndUpdate = async function (...args) {
+            const changed = await Wedding.findById(id)
+              .session(args[2].session)
+              .lean();
+            assert.equal(changed.mainDate, body.mainDate);
+            assert.equal(changed.name, body.name);
+            try {
+              return await write.apply(this, args);
+            } catch (error) {
+              rejected = error;
+              throw error;
+            }
+          };
+          try {
+            await assert.rejects(
+              service.update(
+                user(0),
+                id,
+                body,
+                `"${before.wedding.version}"`,
+                key,
+              ),
+              { status: 503 },
+            );
+            assert.equal(rejected?.code, 121);
+          } finally {
+            WeddingSettingsRequest.findOneAndUpdate = write;
+            await connection.db.command({
+              collMod: WeddingSettingsRequest.collection.name,
+              validator: {},
+            });
+          }
+          const rolledBack = await service.read(user(0), id);
+          assert.equal(rolledBack.wedding.mainDate, before.wedding.mainDate);
+          assert.equal(rolledBack.wedding.name, before.wedding.name);
+          assert.equal(rolledBack.wedding.version, before.wedding.version);
+          assert.equal(await Activity.countDocuments({ weddingId: id }), count);
+          assert.equal(
+            (
+              await service.update(
+                user(0),
+                id,
+                body,
+                `"${before.wedding.version}"`,
+                key,
+              )
+            ).wedding.mainDate,
+            body.mainDate,
+          );
         },
       );
       await t.test(

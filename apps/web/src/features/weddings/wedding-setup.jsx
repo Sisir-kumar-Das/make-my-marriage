@@ -147,7 +147,9 @@ export function WeddingSetup() {
         failure.code === 'WEDDING_ALREADY_EXISTS' ||
         failure.code === 'IDEMPOTENCY_CONFLICT'
       )
-        setExisting(true);
+        setExisting(
+          failure.details?.recoveryRequired ? 'recovery' : 'workspace',
+        );
       const map = {
         'location.city': 'city',
         'location.state': 'state',
@@ -533,8 +535,17 @@ export function WeddingSetup() {
                       <div className={styles.errorArea}>
                         <FormError message={errors.root.message} />
                         {existing && (
-                          <Link href="/dashboard" className={styles.textButton}>
-                            Open your existing workspace
+                          <Link
+                            href={
+                              existing === 'recovery'
+                                ? '/wedding-recovery'
+                                : '/dashboard'
+                            }
+                            className={styles.textButton}
+                          >
+                            {existing === 'recovery'
+                              ? 'Open wedding recovery'
+                              : 'Open your existing workspace'}
                           </Link>
                         )}
                       </div>

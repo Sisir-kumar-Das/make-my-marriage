@@ -81,12 +81,15 @@ export const idempotencyKeySchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{16,128}$/, 'Provide a valid Idempotency-Key.');
 
-// Settings deliberately exclude date, country, timezone, permissions and media.
+// Date changes require an explicit acknowledgement. Country, timezone,
+// permissions and media remain outside this endpoint.
 export const weddingSettingsSchema = z
   .object({
     name: createWeddingSchema.shape.name,
     brideName: createWeddingSchema.shape.brideName,
     groomName: createWeddingSchema.shape.groomName,
+    mainDate: calendarDate,
+    confirmDateChange: z.literal(true),
     tradition: createWeddingSchema.shape.tradition,
     location: z.object({ city: text(100), state: text(100) }).strict(),
     estimatedBudget: z
@@ -99,6 +102,18 @@ export const weddingSettingsSchema = z
   })
   .partial()
   .strict()
+  .refine(
+    (value) => value.mainDate === undefined || value.confirmDateChange === true,
+    {
+      path: ['mainDate'],
+      message: 'Confirm the wedding date change before saving.',
+    },
+  )
+  .refine(
+    (value) =>
+      value.confirmDateChange === undefined || value.mainDate !== undefined,
+    { path: ['mainDate'], message: 'Choose the wedding date to confirm.' },
+  )
   .refine(
     (value) => Object.keys(value).length > 0,
     'Choose an editable wedding detail to update.',

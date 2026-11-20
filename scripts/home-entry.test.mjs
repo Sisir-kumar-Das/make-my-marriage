@@ -80,6 +80,20 @@ test('verified accounts without a wedding open setup and cannot inject another r
   assert.equal(f.state().destination, '/wedding-setup');
 });
 
+test('a reserved deleted wedding opens fixed recovery instead of setup or an API-provided URL', async (t) => {
+  const f = fixture(t);
+  f.requests[0].resolve({
+    data: {
+      ...session(null).data,
+      recovery: { id: 'reserved', destination: 'https://other.example' },
+    },
+  });
+  await flush();
+  assert.deepEqual(f.navigations, ['/wedding-recovery']);
+  t.mock.timers.tick(WORKSPACE_OPEN_DEADLINE);
+  assert.equal(f.state().destination, '/wedding-recovery');
+});
+
 test('a checking deadline aborts its request and ignores a later success; Retry starts a new check', async (t) => {
   const f = fixture(t);
   t.mock.timers.tick(SESSION_CHECK_DEADLINE);

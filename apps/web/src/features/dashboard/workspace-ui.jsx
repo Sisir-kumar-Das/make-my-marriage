@@ -93,6 +93,7 @@ export function SettingsTabs({ active }) {
         ['/settings', 'Wedding Settings'],
         ['/profile', 'My Profile'],
         ['/recovery', 'Deleted Items Recovery'],
+        ['/settings/lifecycle', 'Wedding Workspace Lifecycle'],
       ].map(([href, label]) => (
         <Link
           href={href}
@@ -102,23 +103,19 @@ export function SettingsTabs({ active }) {
           {active === '/profile' && href === active && (
             <UserRound size={16} aria-hidden="true" />
           )}
-          {active === '/settings' &&
+          {(active === '/settings' || active === '/settings/lifecycle') &&
             (href === '/settings' ? (
               <Heart size={18} aria-hidden="true" />
             ) : href === '/profile' ? (
               <UserRound size={18} aria-hidden="true" />
+            ) : href === '/settings/lifecycle' ? (
+              <TriangleAlert size={18} aria-hidden="true" />
             ) : (
               <History size={18} aria-hidden="true" />
             ))}
           {label}
         </Link>
       ))}
-      <button disabled>
-        {active === '/settings' && (
-          <TriangleAlert size={18} aria-hidden="true" />
-        )}
-        Wedding Workspace Lifecycle · Coming soon
-      </button>
     </nav>
   );
 }

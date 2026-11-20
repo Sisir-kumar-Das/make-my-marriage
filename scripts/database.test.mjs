@@ -35,7 +35,7 @@ function databaseFixture(
       return client;
     });
     t.mock.method(client, 'model', (name) => {
-      client.models[name] = { init: onInitialize };
+      client.models[name] = { init: () => onInitialize(name) };
       return client.models[name];
     });
     t.mock.method(client, 'close', async () => {
@@ -222,5 +222,58 @@ test('shutdown waits for failed opening cleanup before allowing a deliberate reo
   const reopened = await database.connect();
   assert.equal(reopened, clients[1]);
   assert.equal(clients.length, 2);
+  await database.close();
+});
+
+test('connection readiness waits for lifecycle receipt indexes and shares the same initialization', async (t) => {
+  const receiptStarted = Promise.withResolvers(),
+    release = Promise.withResolvers();
+  const initialized = [];
+  const { database, clients } = databaseFixture(t, {
+    onInitialize: async (name) => {
+      initialized.push(name);
+      if (name === 'WeddingLifecycleRequest') {
+        receiptStarted.resolve();
+        await release.promise;
+      }
+    },
+  });
+  let ready = false;
+  const opening = database.connect().then((value) => {
+    ready = true;
+    return value;
+  });
+  try {
+    await receiptStarted.promise;
+    await new Promise(setImmediate);
+    assert.equal(ready, false);
+    const concurrent = database.connect();
+    release.resolve();
+    assert.equal(await opening, await concurrent);
+    assert.equal(clients.length, 1);
+    assert.equal(
+      initialized.filter((n) => n === 'WeddingLifecycleRequest').length,
+      1,
+    );
+  } finally {
+    release.resolve();
+    await opening;
+    await database.close();
+  }
+});
+
+test('receipt initialization failure closes the candidate and a new attempt can prepare it', async (t) => {
+  let fail = true;
+  const { database, clients } = databaseFixture(t, {
+    onInitialize: async (name) => {
+      if (name === 'WeddingLifecycleRequest' && fail) {
+        fail = false;
+        throw new Error('Receipt setup unavailable');
+      }
+    },
+  });
+  await assert.rejects(database.connect(), { code: 'AUTH_UNAVAILABLE' });
+  assert.equal(clients[0].close.mock.callCount(), 1);
+  assert.equal(await database.connect(), clients[1]);
   await database.close();
 });

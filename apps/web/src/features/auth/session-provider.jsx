@@ -111,6 +111,9 @@ export function SessionProvider({
   const [attempt, setAttempt] = useState(0);
   const revoked = useRef(false);
   const sessionCheck = useRef(0);
+  const connectionErrorFocus = useRef(null);
+  const preservedContent = useRef(null);
+  const displacedFocus = useRef(null);
   const contextKey = useRef(
     JSON.stringify([
       initialSession.user.id,
@@ -135,6 +138,11 @@ export function SessionProvider({
         if (active && !revoked.current && checkId === sessionCheck.current) {
           setSession(result.data);
           setError('');
+          if (result.data.recovery) {
+            router.replace('/wedding-recovery');
+            router.refresh();
+            return;
+          }
           const key = JSON.stringify([
             result.data.user.id,
             result.data.wedding,
@@ -154,7 +162,16 @@ export function SessionProvider({
         if (!active || revoked.current || checkId !== sessionCheck.current)
           return;
         if (failure.code === 'SESSION_EXPIRED') leave();
-        else setError(failure.message);
+        else {
+          // Capture before React makes the preserved draft inert and the browser
+          // drops its focused descendant to the body.
+          displacedFocus.current = preservedContent.current?.contains(
+            document.activeElement,
+          )
+            ? document.activeElement
+            : null;
+          setError(failure.message);
+        }
       }
     }
     const channel =
@@ -187,6 +204,20 @@ export function SessionProvider({
       window.removeEventListener('mmm:session-expired', leave);
     };
   }, [router, attempt, pathname]);
+  useEffect(() => {
+    const previous = displacedFocus.current;
+    displacedFocus.current = null;
+    if (!error || !previous) return;
+    const active = document.activeElement;
+    const target = connectionErrorFocus.current;
+    if (
+      (active === document.body ||
+        preservedContent.current?.contains(active)) &&
+      target?.isConnected &&
+      !target.closest('[inert]')
+    )
+      target.focus();
+  }, [error]);
   function applySavedProfile({ id, displayName, avatar, avatarVersion }) {
     sessionCheck.current++;
     setSession((current) =>
@@ -244,6 +275,11 @@ export function SessionProvider({
       router.replace('/login');
       router.refresh();
     } catch (failure) {
+      displacedFocus.current = preservedContent.current?.contains(
+        document.activeElement,
+      )
+        ? document.activeElement
+        : null;
       setError(failure.message);
     } finally {
       setPending(false);
@@ -260,6 +296,7 @@ export function SessionProvider({
         '/members',
         '/profile',
         '/settings',
+        '/settings/lifecycle',
       ].includes(pathname));
   if (
     !session ||
@@ -283,6 +320,7 @@ export function SessionProvider({
         applySavedWedding,
         pending,
         connectionError: error,
+        connectionErrorFocus,
         retrySession: () => setAttempt((value) => value + 1),
       }}
     >
@@ -290,6 +328,9 @@ export function SessionProvider({
         <>
           {error && (
             <section
+              id="session-connection-error"
+              ref={connectionErrorFocus}
+              tabIndex={-1}
               role="alert"
               aria-labelledby="setup-connection-heading"
               className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-5 py-5 text-[#242124] shadow-sm"
@@ -317,6 +358,7 @@ export function SessionProvider({
           )}
           {/* Keep the same subtree mounted while preventing interaction until revalidation. */}
           <div
+            ref={preservedContent}
             inert={error ? true : undefined}
             className={error ? 'opacity-60' : undefined}
           >

@@ -68,9 +68,11 @@ export function LoginForm({ accountExists = false }) {
           window.location.replace(
             invite
               ? invitationHref(invite)
-              : result.data.wedding
-                ? '/dashboard'
-                : '/wedding-setup',
+              : result.data.recovery
+                ? '/wedding-recovery'
+                : result.data.wedding
+                  ? '/dashboard'
+                  : '/wedding-setup',
           );
         }
       })
@@ -106,9 +108,11 @@ export function LoginForm({ accountExists = false }) {
         window.location.replace(
           invite
             ? invitationHref(invite)
-            : result.data.wedding
-              ? '/dashboard'
-              : '/wedding-setup',
+            : result.data.recovery
+              ? '/wedding-recovery'
+              : result.data.wedding
+                ? '/dashboard'
+                : '/wedding-setup',
         );
       },
       onFailure: (failure) => {

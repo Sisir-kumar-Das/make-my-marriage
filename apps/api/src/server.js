@@ -1,4 +1,10 @@
-import { app, authService, mediaService, taskService } from './app.js';
+import {
+  app,
+  authService,
+  mediaService,
+  taskService,
+  weddingService,
+} from './app.js';
 import { config } from './config.js';
 
 const server = app.listen(config.port, '127.0.0.1', () => {
@@ -21,6 +27,14 @@ const firstRepeats = setTimeout(extendRepeats, 5000);
 const repeatTimer = setInterval(extendRepeats, 15 * 60 * 1000);
 firstRepeats.unref();
 repeatTimer.unref();
+const purge = () =>
+  weddingService
+    .purge()
+    .catch(() => console.error('Wedding purge will retry later.'));
+const firstPurge = setTimeout(purge, 45000);
+const purgeTimer = setInterval(purge, 60000);
+firstPurge.unref();
+purgeTimer.unref();
 
 server.on('error', (error) => {
   console.error(`API could not start: ${error.message}`);
@@ -32,9 +46,12 @@ function shutdown() {
   clearTimeout(firstRepeats);
   clearInterval(repeatTimer);
   clearInterval(cleanupTimer);
+  clearTimeout(firstPurge);
+  clearInterval(purgeTimer);
   server.close(async () => {
     mediaService.close();
     await taskService.close().catch(() => {});
+    await weddingService.close().catch(() => {});
     await authService.close().catch(() => {});
     process.exit(0);
   });

@@ -40,9 +40,20 @@ const weddingSchema = new Schema(
       default: undefined,
     },
     deletedAt: { type: Date, default: null },
+    deletedBy: { type: Schema.Types.ObjectId, default: null },
+    purgeAfter: { type: Date, default: null },
+    purgeState: {
+      type: String,
+      enum: ['WAITING', 'PURGING'],
+      default: 'WAITING',
+    },
+    purgeToken: { type: String, default: null, select: false },
+    purgeLeaseUntil: { type: Date, default: null },
+    purgeRetryAt: { type: Date, default: null },
   },
   { timestamps: true, optimisticConcurrency: true, collection: 'weddings' },
 );
+weddingSchema.index({ deletedAt: 1, purgeAfter: 1, purgeRetryAt: 1 });
 
 const memberSchema = new Schema(
   {
@@ -105,6 +116,22 @@ settingsRequestSchema.index(
 );
 settingsRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+const lifecycleRequestSchema = new Schema(
+  {
+    weddingId: { type: Schema.Types.ObjectId, required: true },
+    userId: { type: Schema.Types.ObjectId, required: true },
+    keyHash: { type: String, required: true },
+    requestHash: { type: String, required: true },
+    expiresAt: { type: Date, required: true },
+  },
+  { collection: 'weddingLifecycleRequests' },
+);
+lifecycleRequestSchema.index(
+  { weddingId: 1, userId: 1, keyHash: 1 },
+  { unique: true },
+);
+lifecycleRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 export function weddingModels(connection) {
   return {
     Wedding:
@@ -119,4 +146,11 @@ export function weddingModels(connection) {
       connection.models.WeddingSettingsRequest ||
       connection.model('WeddingSettingsRequest', settingsRequestSchema),
   };
+}
+
+export function weddingLifecycleRequestModel(connection) {
+  return (
+    connection.models.WeddingLifecycleRequest ||
+    connection.model('WeddingLifecycleRequest', lifecycleRequestSchema)
+  );
 }

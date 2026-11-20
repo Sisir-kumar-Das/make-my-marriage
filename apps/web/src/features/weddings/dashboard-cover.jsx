@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Dialog, DropdownMenu } from 'radix-ui';
-import { Camera, Check, Expand, LoaderCircle, X } from 'lucide-react';
+import { Camera, Check, Expand, LoaderCircle, Trash2, X } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { useCoverUpload } from './use-cover-upload';
 import { CoverEditor } from './cover-editor';
@@ -356,6 +356,10 @@ export function DashboardCover({
   membership,
   children,
   readOnly = false,
+  settingsControls = false,
+  disabled = false,
+  onSaved,
+  connectionErrorFocus,
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(null);
@@ -381,6 +385,44 @@ export function DashboardCover({
   // ignored, so it can never change a viewer opened afterwards.
   const viewerAttempt = useRef(0);
   const coverIcon = useRef(null);
+  const errorFocus = useRef(null);
+  const reloadFocus = useRef(null);
+  const actionFocus = useRef(null);
+  const alive = useRef(false);
+  const saving = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  // Wait for React to mount the result and enable the controls/fieldset. A
+  // requestAnimationFrame scheduled from save() can run before that commit.
+  useEffect(() => {
+    if (pending || !actionFocus.current) return;
+    const candidates =
+      actionFocus.current === 'saved'
+        ? [coverIcon.current]
+        : actionFocus.current === 'reloaded'
+          ? [noticeRef.current, errorFocus.current]
+          : actionFocus.current === 'reload-error'
+            ? [errorFocus.current, reloadFocus.current]
+            : [conflict ? reloadFocus.current : null, errorFocus.current];
+    const target = [
+      ...candidates,
+      connectionErrorFocus?.current,
+      coverIcon.current,
+    ].find(
+      (element) =>
+        element?.isConnected &&
+        !element.disabled &&
+        !element.matches?.(':disabled') &&
+        !element.closest?.('[inert]'),
+    );
+    if (!target) return;
+    actionFocus.current = null;
+    target.focus();
+  }, [pending, open, error, conflict, notice, disabled, connectionErrorFocus]);
   const shown =
     saved?.id === wedding.id && saved.version >= wedding.version
       ? saved
@@ -481,13 +523,22 @@ export function DashboardCover({
     }
   }
   async function save(remove = false) {
-    if (pending) return;
+    if (
+      saving.current ||
+      pending ||
+      disabled ||
+      membership.role !== 'ADMIN' ||
+      readOnly
+    )
+      return;
+    saving.current = true;
     setPending(true);
     setError('');
     setNotice('');
     setConflict(false);
     try {
       const id = remove ? null : await cover.upload();
+      if (!alive.current) return;
       if (!remove && !id) throw new Error('Choose a photo before saving.');
       const result = await apiRequest(`/weddings/${wedding.id}/cover-image`, {
         method: remove ? 'DELETE' : 'PUT',
@@ -499,7 +550,10 @@ export function DashboardCover({
           version: shown.version,
         }),
       });
+      if (!alive.current) return;
       setSaved(result.data.wedding);
+      actionFocus.current = 'saved';
+      onSaved?.(result.data);
       setOpen(false);
       cover.reset();
       // Every other toast ends with a non-breaking space (not read aloud), so the same words
@@ -514,22 +568,26 @@ export function DashboardCover({
           : { title: 'Cover saved', text: 'Your wedding cover is updated.' }),
         marker: toastCount.current % 2 ? '' : '\u00a0',
       });
-      // The editor (and the button that had focus) is gone; return focus to the cover icon.
-      window.requestAnimationFrame(() => coverIcon.current?.focus());
       router.refresh();
     } catch (failure) {
+      if (!alive.current) return;
       setError(failure.message);
+      actionFocus.current = 'error';
       setConflict(failure.code === 'VERSION_CONFLICT');
       if (failure.code === 'COVER_NOT_READY') cover.invalidate();
     } finally {
-      setPending(false);
+      saving.current = false;
+      if (alive.current) setPending(false);
     }
   }
   async function reload() {
+    if (pending || disabled) return;
     setPending(true);
     try {
       const result = await apiRequest(`/weddings/${wedding.id}`);
+      if (!alive.current) return;
       setSaved(result.data.wedding);
+      actionFocus.current = 'reloaded';
       setConflict(false);
       setError('');
       setNotice(
@@ -537,9 +595,12 @@ export function DashboardCover({
       );
       router.refresh();
     } catch (failure) {
-      setError(failure.message);
+      if (alive.current) {
+        actionFocus.current = 'reload-error';
+        setError(failure.message);
+      }
     } finally {
-      setPending(false);
+      if (alive.current) setPending(false);
     }
   }
   return (
@@ -612,6 +673,55 @@ export function DashboardCover({
           </div>
         </div>
       </div>
+      {settingsControls && canChange && (
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            type="button"
+            ref={coverIcon}
+            disabled={pending || disabled}
+            className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#e8e0e4] px-3 py-2 text-sm disabled:opacity-50"
+            onClick={() => {
+              setOpen(true);
+              setError('');
+              focusEditor();
+            }}
+          >
+            <Camera size={18} aria-hidden="true" />
+            Change Cover
+          </button>
+          <button
+            type="button"
+            title="Remove Cover"
+            aria-label="Remove Cover"
+            disabled={pending || disabled || conflict || !mediaId}
+            className="grid size-11 shrink-0 place-items-center rounded-lg bg-[#f9f2f6] text-[#514348] hover:bg-[#ffdad6] disabled:opacity-50"
+            onClick={() => save(true)}
+          >
+            <Trash2 size={20} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+      {settingsControls && !open && error && (
+        <p ref={errorFocus} tabIndex={-1} role="alert" className={styles.error}>
+          {error}{' '}
+          {conflict && (
+            <button
+              type="button"
+              ref={reloadFocus}
+              className="underline"
+              disabled={pending || disabled}
+              onClick={reload}
+            >
+              Reload current cover
+            </button>
+          )}
+        </p>
+      )}
+      {settingsControls && !open && notice && (
+        <p ref={noticeRef} tabIndex={-1} role="status" className={styles.hint}>
+          {notice}
+        </p>
+      )}
       {mediaId && currentLink?.error && (
         <p role="alert" className={styles.error}>
           Your saved photo is temporarily unavailable.{' '}
@@ -655,11 +765,12 @@ export function DashboardCover({
               Only wedding members can view your photo.
             </span>
           </div>
-          <fieldset disabled={pending}>
-            <CoverEditor cover={cover} disabled={pending} />
+          <fieldset disabled={pending || disabled}>
+            <CoverEditor cover={cover} disabled={pending || disabled} />
             {notice && (
               <p
                 ref={noticeRef}
+                tabIndex={-1}
                 role="status"
                 className="mt-3 text-sm text-primary"
               >
@@ -667,13 +778,19 @@ export function DashboardCover({
               </p>
             )}
             {error && (
-              <p role="alert" className={styles.error}>
+              <p
+                ref={errorFocus}
+                tabIndex={-1}
+                role="alert"
+                className={styles.error}
+              >
                 {error}
               </p>
             )}
             {conflict && (
               <button
                 type="button"
+                ref={reloadFocus}
                 className={styles.secondary}
                 onClick={reload}
               >
@@ -712,6 +829,9 @@ export function DashboardCover({
                   setNotice('');
                   // A conflict belongs to this editing attempt; reopening starts fresh.
                   setConflict(false);
+                  window.requestAnimationFrame(() =>
+                    coverIcon.current?.focus(),
+                  );
                 }}
               >
                 Cancel

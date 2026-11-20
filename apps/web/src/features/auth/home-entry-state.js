@@ -84,7 +84,11 @@ export function createHomeEntryFlow({
         return;
       }
       // No URL from the API or query string can become a navigation target.
-      const destination = result.data.wedding ? '/dashboard' : '/wedding-setup';
+      const destination = result.data.recovery
+        ? '/wedding-recovery'
+        : result.data.wedding
+          ? '/dashboard'
+          : '/wedding-setup';
       publish({ phase: 'opening', destination });
       timer = setTimeout(() => {
         if (!current(id)) return;
