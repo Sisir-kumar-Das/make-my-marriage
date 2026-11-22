@@ -260,6 +260,45 @@ async function withApi(service, run, overrides = {}) {
   }
 }
 
+test('hosted auth limits separate trusted client IPs and group IPv6 subnets', async () => {
+  await withApi(
+    {},
+    async (request) => {
+      const login = (address) =>
+        request('/login', {}, { 'X-MMM-Client-IP': address });
+      assert.equal((await login('192.0.2.1')).status, 400);
+      const limited = await login('::ffff:192.0.2.1');
+      assert.equal(limited.status, 429);
+      assert.ok(Number(limited.headers.get('retry-after')) > 0);
+      assert.equal((await login('192.0.2.2')).status, 400);
+      assert.equal((await login('2001:db8:1::1')).status, 400);
+      assert.equal((await login('2001:db8:1::2')).status, 429);
+      assert.equal((await login('192.0.2.3, 192.0.2.4')).status, 400);
+      assert.equal((await login('invalid')).status, 429);
+    },
+    { trustCaddyClientIp: true, authRateLimitMax: 1 },
+  );
+});
+
+test('local auth limits ignore forwarded addresses', async () => {
+  await withApi(
+    {},
+    async (request) => {
+      assert.equal(
+        (await request('/login', {}, { 'X-MMM-Client-IP': '192.0.2.1' }))
+          .status,
+        400,
+      );
+      assert.equal(
+        (await request('/login', {}, { 'X-MMM-Client-IP': '192.0.2.2' }))
+          .status,
+        429,
+      );
+    },
+    { trustCaddyClientIp: false, authRateLimitMax: 1 },
+  );
+});
+
 test('registration normalizes email and rejects weak passwords or injected account state', () => {
   const result = registerSchema.parse({
     ...valid,

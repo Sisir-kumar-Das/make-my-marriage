@@ -51,6 +51,8 @@ export const config = {
     3600,
   ),
   authRateLimitMax: positiveInteger('AUTH_RATE_LIMIT_MAX', 10, 1000),
+  trustCaddyClientIp:
+    nodeEnv === 'production' && process.env.TRUST_CADDY_CLIENT_IP === 'true',
   jwtSecret: process.env.AUTH_JWT_SECRET?.trim() || '',
   accessTtlMinutes: positiveInteger('AUTH_ACCESS_TTL_MINUTES', 15, 30),
   sessionTtlDays: positiveInteger('AUTH_SESSION_TTL_DAYS', 30, 90),

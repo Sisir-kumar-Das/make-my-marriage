@@ -1,0 +1,24 @@
+[Unit]
+Description=Make My Marriage web
+Requires=mmm-api.service
+After=mmm-api.service
+
+[Service]
+User=mmm-app
+Group=mmm-app
+WorkingDirectory=/opt/make-my-marriage/current/apps/web
+Environment=NODE_ENV=production
+Environment=API_BASE_URL=http://127.0.0.1:4000/api/v1
+Environment=TRUST_CADDY_CLIENT_IP=true
+ExecStart=/opt/make-my-marriage/node/bin/node /opt/make-my-marriage/current/node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000
+Restart=always
+RestartSec=3s
+TimeoutStopSec=15s
+CacheDirectory=make-my-marriage-web
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

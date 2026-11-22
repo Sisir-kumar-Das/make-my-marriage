@@ -1,7 +1,12 @@
 // Transport only: Express owns authentication, validation, authorization and data.
+import { isIP } from 'node:net';
+
 const apiBase = (
   process.env.API_BASE_URL || 'http://127.0.0.1:4000/api/v1'
 ).replace(/\/$/, '');
+const trustCaddyClientIp =
+  process.env.NODE_ENV === 'production' &&
+  process.env.TRUST_CADDY_CLIENT_IP === 'true';
 const failure = (status, code, message) =>
   Response.json(
     { success: false, error: { code, message } },
@@ -36,6 +41,14 @@ async function relay(request, { params }) {
   ]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
+  }
+  if (
+    trustCaddyClientIp &&
+    path[0] === 'auth' &&
+    url.hostname === '127.0.0.1'
+  ) {
+    const address = request.headers.get('x-mmm-client-ip');
+    if (isIP(address)) headers.set('x-mmm-client-ip', address);
   }
   let body;
   if (!['GET', 'HEAD'].includes(request.method) && request.body) {

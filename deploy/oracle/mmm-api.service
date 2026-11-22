@@ -1,0 +1,26 @@
+[Unit]
+Description=Make My Marriage API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=mmm-app
+Group=mmm-app
+WorkingDirectory=/opt/make-my-marriage/current
+Environment=NODE_ENV=production
+Environment=PORT=4000
+Environment=WEB_ORIGIN=https://make-my-marriage-easy.duckdns.org
+Environment=TRUST_CADDY_CLIENT_IP=true
+EnvironmentFile=/etc/make-my-marriage/atlas.env
+EnvironmentFile=/etc/make-my-marriage/providers.env
+ExecStart=/opt/make-my-marriage/node/bin/node apps/api/src/server.js
+Restart=always
+RestartSec=3s
+TimeoutStopSec=15s
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

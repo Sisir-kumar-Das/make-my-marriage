@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { createHash } from 'node:crypto';
+import { isIP } from 'node:net';
 import { ApiError } from '../lib/api-error.js';
 import {
   registerSchema,
@@ -34,11 +35,24 @@ export function createAuthRouter({ service, settings }) {
     next();
   });
 
+  function clientIpKey(req) {
+    const address = req.get('x-mmm-client-ip');
+    if (
+      settings.trustCaddyClientIp &&
+      req.socket.remoteAddress === '127.0.0.1' &&
+      isIP(address)
+    ) {
+      return ipKeyGenerator(address);
+    }
+    return ipKeyGenerator(req.ip);
+  }
+
   const options = {
     windowMs: 15 * 60 * 1000,
     limit: settings.authRateLimitMax,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
+    keyGenerator: clientIpKey,
     handler(req, res, next) {
       const seconds = Math.max(
         1,
@@ -63,7 +77,7 @@ export function createAuthRouter({ service, settings }) {
   const emailLimit = rateLimit({
     ...options,
     keyGenerator(req) {
-      if (typeof req.body?.email !== 'string') return ipKeyGenerator(req.ip);
+      if (typeof req.body?.email !== 'string') return clientIpKey(req);
       return createHash('sha256')
         .update(req.body.email.trim().toLowerCase())
         .digest('hex');
@@ -74,7 +88,7 @@ export function createAuthRouter({ service, settings }) {
     keyGenerator(req) {
       return typeof req.body?.token === 'string'
         ? createHash('sha256').update(req.body.token).digest('hex')
-        : ipKeyGenerator(req.ip);
+        : clientIpKey(req);
     },
   });
 

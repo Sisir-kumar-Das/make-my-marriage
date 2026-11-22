@@ -33,6 +33,61 @@ test('successful responses retain the request ID', async (t) => {
   assert.equal((await apiRequest('/health')).requestId, 'header-id');
 });
 
+test('the hosted relay forwards only one valid Caddy IP to the loopback auth API', async (t) => {
+  const flags = {
+    NODE_ENV: 'production',
+    TRUST_CADDY_CLIENT_IP: 'true',
+    API_BASE_URL: 'http://127.0.0.1:4000/api/v1',
+  };
+  const saved = Object.fromEntries(
+    Object.keys(flags).map((name) => [name, process.env[name]]),
+  );
+  t.after(() => {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+  Object.assign(process.env, flags);
+  const upstream = t.mock.method(globalThis, 'fetch', async () =>
+    Response.json({ success: true }),
+  );
+  const callRelay = async (relay, path, address) => {
+    const request = new Request(
+      'https://site.example/api/v1/' + path.join('/'),
+      {
+        method: 'POST',
+        body: '{}',
+        headers: { 'X-MMM-Client-IP': address, 'X-Forwarded-For': '192.0.2.9' },
+      },
+    );
+    assert.equal((await relay(request, { params: { path } })).status, 200);
+    const headers = upstream.mock.calls.at(-1).arguments[1].headers;
+    assert.equal(headers.get('x-forwarded-for'), null);
+    return headers.get('x-mmm-client-ip');
+  };
+  const { POST: hosted } =
+    await import('../apps/web/src/app/api/v1/[...path]/route.js?caddy-hosted');
+  assert.equal(
+    await callRelay(hosted, ['auth', 'login'], '192.0.2.1'),
+    '192.0.2.1',
+  );
+  assert.equal(
+    await callRelay(hosted, ['auth', 'login'], '192.0.2.1, 192.0.2.2'),
+    null,
+  );
+  assert.equal(await callRelay(hosted, ['weddings'], '192.0.2.1'), null);
+  process.env.API_BASE_URL = 'https://api.example/api/v1';
+  const { POST: remote } =
+    await import('../apps/web/src/app/api/v1/[...path]/route.js?caddy-remote');
+  assert.equal(await callRelay(remote, ['auth', 'login'], '192.0.2.1'), null);
+  process.env.API_BASE_URL = flags.API_BASE_URL;
+  process.env.TRUST_CADDY_CLIENT_IP = 'false';
+  const { POST: disabled } =
+    await import('../apps/web/src/app/api/v1/[...path]/route.js?caddy-disabled');
+  assert.equal(await callRelay(disabled, ['auth', 'login'], '192.0.2.1'), null);
+});
+
 test('validation details and rate-limit retry timing reach the form', async (t) => {
   t.mock.method(globalThis, 'fetch', async () =>
     Response.json(

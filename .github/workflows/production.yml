@@ -1,0 +1,86 @@
+name: Verify and release
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.3
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run lint
+      - run: npm run format:check
+      - if: github.event_name == 'pull_request'
+        run: |
+          npm run build
+          bash deploy/oracle/check-build.sh
+
+  production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.3
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: bash deploy/oracle/check-build.sh
+      - name: Package Linux release
+        run: |
+          npm prune --omit=dev --ignore-scripts --no-audit --no-fund
+          node -e 'const a=require("argon2"); a.hash("release-check").then(h=>a.verify(h,"release-check")).then(ok=>{if(!ok)process.exit(1);}).catch(()=>process.exit(1));'
+          tar --exclude='apps/web/.next/cache' --exclude='apps/web/.next/diagnostics' \
+            -czf "$RUNNER_TEMP/release.tgz" package.json package-lock.json \
+            apps/api apps/web lib node_modules scripts/smoke.mjs
+      - name: Activate on Oracle
+        env:
+          ORACLE_DEPLOY_KEY: ${{ secrets.ORACLE_DEPLOY_KEY }}
+          ORACLE_DEPLOY_HOST: ${{ vars.ORACLE_DEPLOY_HOST }}
+          ORACLE_KNOWN_HOSTS: ${{ vars.ORACLE_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          test -n "$ORACLE_DEPLOY_KEY" && test -n "$ORACLE_DEPLOY_HOST" && test -n "$ORACLE_KNOWN_HOSTS"
+          ssh_dir=$(mktemp -d)
+          trap 'rm -f -- "$ssh_dir/key" "$ssh_dir/known_hosts"; rmdir -- "$ssh_dir"' EXIT
+          printf '%s\n' "$ORACLE_DEPLOY_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$ORACLE_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          unset ORACLE_DEPLOY_KEY
+          ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            -o "UserKnownHostsFile=$ssh_dir/known_hosts" -i "$ssh_dir/key" \
+            "mmm-deploy@$ORACLE_DEPLOY_HOST" "publish $GITHUB_SHA" < "$RUNNER_TEMP/release.tgz"
+      - name: Smoke public HTTPS
+        env:
+          SMOKE_WEB_URL: https://make-my-marriage-easy.duckdns.org
+          SMOKE_API_BASE_URL: https://make-my-marriage-easy.duckdns.org/api/v1
+        run: |
+          curl --fail --silent --show-error --max-time 15 "$SMOKE_API_BASE_URL/health"
+          curl --fail --silent --show-error --max-time 15 "$SMOKE_WEB_URL/" -o "$RUNNER_TEMP/public-home.html"
+          grep -Fq 'Plan every moment.' "$RUNNER_TEMP/public-home.html"
