@@ -179,7 +179,7 @@ Registration/verification, login, persistent cookie sessions, protected workspac
 
 Owner checkpoint, 26 October 2026: before the **first V1 dev-environment/region deployment using a production build**, complete production-scheduling readiness under ADR-032 and the checklist in PROJECT_STATUS.md. Local Express timers and a successful web build do not establish deployed scheduling. Verify actual target-runtime invocation, restart/catch-up, bounded/fair processing, retry/overlap duplicate safety and observable failures. Review the existing media-cleanup and recovery-email dispatch prerequisites at the same time (ADR-020/ADR-015). No cloud scheduler or AWS region is selected by this note, and no deployment is authorized.
 
-Production prerequisites: local rate limits are in memory, and Express observes the relay server’s IP. Define trusted client-IP forwarding and shared rate-limit storage before deployment; do not accept arbitrary forwarded IPs. Secure cookies require HTTPS. The browser restart behavior uses persistent cookie expiry and refresh; clearing browser cookies still signs the user out.
+Hosted auth limits use the client IP when both loopback-only services opt in and Caddy overwrites the private header, as specified in [ADR-053](decisions/ADR-053-oracle-always-free-production-hosting.md#client-ips-and-authentication-limits). Local apps use the connection IP. The approved single API process uses an in-memory store, which resets at restart. Use shared storage if running more than one API process. Secure cookies require HTTPS. The browser restart behavior uses persistent cookie expiry and refresh. Clearing browser cookies signs the user out.
 
 ## Password recovery
 
