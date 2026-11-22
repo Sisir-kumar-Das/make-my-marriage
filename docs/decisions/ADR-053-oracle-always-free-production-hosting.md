@@ -18,7 +18,9 @@ The owner registered `make-my-marriage-easy.duckdns.org` and enabled Oracle ingr
 
 ## Release flow
 
-`DEV` remains the development branch. GitHub Actions checks the pull request and builds the merged `main` revision off the VM. The planned workflow transfers a Linux-compatible release with the locked dependencies and root API helper, activates the supervised services, and checks the public homepage and API. Keep the previous working release available for rollback. The HTTPS test endpoint is live. Provider-backed verification, pipeline implementation and public app routing are pending.
+`DEV` remains the development branch. The Verify and release workflow checks pull requests into `main`. A push to `main` runs the checks and builds the Linux x64 release with locked runtime dependencies, the Next build and the root API helper. The release job uses the `production` GitHub environment, limited to `main`. It reads the `ORACLE_DEPLOY_KEY` secret and the `ORACLE_DEPLOY_HOST` and `ORACLE_KNOWN_HOSTS` variables. Use the pinned host public key, obtained through a known trusted SSH session.
+
+On a new VM, install Node.js 24.22.3 and Caddy and configure the two private API environment files. Run `deploy/oracle/bootstrap.sh` as root with the verified Node binary and the dedicated deployment public key. The installed SSH key can only submit release archives. A separate account runs the app services, which listen on loopback. The receiver extracts the build under the unprivileged deployment account. The root-owned activator switches the release pointer, starts both services and checks them locally before switching Caddy. Failed activation restores the previous release or the initial test page. The production job checks public HTTPS again from outside Oracle. Releases stay in `/opt/make-my-marriage/releases` for rollback. Check retained disk use periodically.
 
 ## Client IPs and authentication limits
 

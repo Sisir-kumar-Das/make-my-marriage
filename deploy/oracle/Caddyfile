@@ -1,0 +1,5 @@
+make-my-marriage-easy.duckdns.org {
+	reverse_proxy 127.0.0.1:3000 {
+		header_up X-MMM-Client-IP {http.request.remote.host}
+	}
+}
