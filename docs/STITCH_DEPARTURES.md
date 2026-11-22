@@ -51,3 +51,7 @@ RUN 37 recheck follow-up, 16 November: Sisir approved blocking retained Retry du
 19 November uncertain-result follow-up: Sisir approved automatic read-only confirmation after uncertain Delete/Restore responses. Reuse the existing dialog/page feedback placement and styling for “Checking deletion result…” / “Checking restoration result…” with status semantics, then the existing focused alert for “We could not confirm the deletion/restoration result yet. It may still complete. Retry the unchanged request.” Keep the existing pending locks, exact Retry, card/modal typography and responsive layout. No new buttons, cards or navigation destinations. Static Stitch does not depict these asynchronous states; receipt confirmation uses current server state under ADR-052.
 
 20 November rate-limit follow-up: Sisir approved using the existing focused alert to show that a fresh Delete/Restore was blocked and display the server's wait guidance. Keep the original operation and uncertainty wording when Retry itself is rate-limited. A first blocked Delete keeps its typed confirmation and enables the existing dismissal controls. See ADR-052.
+
+## Browser tab icon
+
+22 November 2026 — Sisir asked to use the Make My Marriage logo in the browser tab. The favicon uses the complete M emblem from the approved site logo on the existing blush background. The corrected Stitch landing page has no favicon.
