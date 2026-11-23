@@ -49,7 +49,10 @@ jobs:
           node-version: 24.22.3
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npm run build
+      - name: Build production web app
+        env:
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+        run: npm run build
       - run: bash deploy/oracle/check-build.sh
       - name: Package Linux release
         run: |
